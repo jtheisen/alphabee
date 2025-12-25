@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace AlphaBee;
 
-public static class Extensions
+public static class SpanExtensions
 {
 	public static Span<T> InterpretAs<T>(this Span<Byte> span)
 		where T : unmanaged
@@ -64,6 +64,15 @@ public static class Extensions
 		=> words.TryIndexOfBitOne(out var i) ? i : -1;
 }
 
+public static class Extensions
+{
+	public static ref T GetFieldObject<T>(this FieldPage<UInt64> root, Int32 level, Int32 i)
+		where T : unmanaged
+	{
+		root.Get(i);
+	}
+}
+
 interface IPageLayout
 {
 	Int32 Size { get; }
@@ -76,28 +85,26 @@ interface IFieldPageLayout : IPageLayout
 }
 
 struct FieldPageLayout4K<T> : IFieldPageLayout
+	where T : unmanaged
 {
 	public Int32 Size => 4096;
 
 	public Int32 HeaderSize => Size / Unsafe.SizeOf<UInt64>() / 8;
 
 	public Int32 FieldLength => (Size - HeaderSize) / Unsafe.SizeOf<T>();
+
+	public FieldPage<T> Create(Span<Byte> page) => new FieldPage<T>
+	{
+		content = page[HeaderSize..].InterpretAs<T>(),
+		housed = page[..HeaderSize].InterpretAs<UInt64>()
+	};
 }
 
-ref struct FieldPageHelper<T, L>
+ref struct FieldPage<T>
 	where T : unmanaged
-	where L : struct, IFieldPageLayout
 {
-	L layout;
-
-	Span<T> content;
-	Span<UInt64> housed;
-
-	public FieldPageHelper(Span<Byte> page)
-	{
-		content = page[layout.HeaderSize..].InterpretAs<T>();
-		housed = page[..layout.HeaderSize].InterpretAs<UInt64>();
-	}
+	public Span<T> content;
+	public Span<UInt64> housed;
 
 	public Boolean TryIndexOfVacant(out Int32 i)
 	{
