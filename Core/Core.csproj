@@ -7,4 +7,12 @@
     <RootNamespace>AlphaBee</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Reactive" Version="6.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Unsafe\Unsafe.csproj" />
+  </ItemGroup>
+
 </Project>
