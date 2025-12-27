@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace AlphaBee;
 
-namespace AlphaBee
+public unsafe struct IndexPageHeader
 {
-	internal class Misc
-	{
-	}
+	public fixed byte Utf8Chars[4];
 }

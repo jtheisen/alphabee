@@ -2,14 +2,20 @@
 
 namespace AlphaBee;
 
-public class Storage
+public class Constants
 {
 	public const Int32 PageSizeLog2 = 12;
-	public const Int32 PageSize = 1 << PageSizeLog2;
+	public const UInt64 PageSize = 1 << PageSizeLog2;
+}
 
+public class Storage : IDisposable
+{
 	StorageImplementation implementation;
 
 	SerialDisposable currentDisposable = new();
+
+	public Int32 PageSizeLog2 => Constants.PageSizeLog2;
+	public UInt64 PageSize => Constants.PageSize;
 
 	public Storage(CreateStorageImplementation createImplementation, Boolean create)
 	{
@@ -31,8 +37,18 @@ public class Storage
 		ref var header = ref GetHeader();
 
 		header.IndexDepth = 0;
-		header.IndexRootOffset = 1 << PageSizeLog2;
+		header.IndexRootOffset = PageSize;
 		header.AddressSpaceEnd = header.IndexRootOffset + PageSize;
+
+		var indexRootPageSpan = GetPageSpanAtOffset(PageSize);
+
+		indexRootPageSpan.Clear();
+
+		var indexRootPage = new UInt64Page(indexRootPageSpan);
+
+		indexRootPage.Init(PageType.PageIndex, 0);
+		indexRootPage.SetUsedBit(0, true);
+		indexRootPage.Get(0).SetBit(0, true);
 	}
 
 	void UpdateImplementation(StorageImplementation implementation)
@@ -83,14 +99,21 @@ struct AllocationHelper
 		{
 			var newIndexPageOffset = header.AddressSpaceEnd;
 
-			rootIndexPage = new UInt64Page(storage.GetPageSpanAtOffset(newIndexPageOffset));
+			var newIndePageDepth = header.IndexDepth + 1;
 
-			rootIndexPage.Clear();
+			rootPageSpan = storage.GetPageSpanAtOffset(newIndexPageOffset);
+
+			rootPageSpan.Clear();
+
+			rootIndexPage = new UInt64Page(rootPageSpan);
+
+			rootIndexPage.Init(PageType.PageIndex, newIndePageDepth);
+			rootIndexPage.SetFullBit(0, true);
 			rootIndexPage.SetUsedBit(0, true);
 			rootIndexPage.Get(0) = header.IndexRootOffset;
 
 			header.AddressSpaceEnd *= UInt64Page.ContentLength + 1;
-			header.IndexDepth = header.IndexDepth + 1;
+			header.IndexDepth = newIndePageDepth;
 			header.IndexRootOffset = newIndexPageOffset;
 		}
 
@@ -106,6 +129,8 @@ struct AllocationHelper
 
 	public UInt64 Allocate(UInt64Page page, Int32 depth)
 	{
+		Debug.Assert(!page.IsFull);
+
 		if (depth > 0)
 		{
 			return AllocateAtBranch(page, depth);
