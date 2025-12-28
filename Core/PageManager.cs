@@ -2,21 +2,25 @@
 
 namespace AlphaBee;
 
-public ref struct PageManager : IPageAllocator
+// TODO: Durability for the header.
+
+public ref struct PageManager
 {
 	FieldPageLayout<UInt64> layout;
+
+	ref HeaderPageLayout header;
 
 	Storage storage;
 
 	public PageManager(Storage storage)
 	{
 		this.storage = storage;
+
+		this.header = ref storage.Header;
 	}
 
 	public void Init()
 	{
-		ref var header = ref storage.Header;
-
 		header.IndexDepth = 0;
 		header.IndexRootOffset = layout.Size64;
 		header.AddressSpaceEnd = header.IndexRootOffset + layout.Size64;
@@ -34,15 +38,15 @@ public ref struct PageManager : IPageAllocator
 
 	public UInt64 AllocatePageOffset()
 	{
-		ref var header = ref storage.Header;
-
 		var rootPageSpan = storage.GetPageSpanAtOffset(header.IndexRootOffset);
 
 		var rootIndexPage = new BitFieldPage(rootPageSpan);
 
 		if (rootIndexPage.IsFull)
 		{
-			var newIndexPageOffset = header.AddressSpaceEnd;
+			var newIndexPageOffset = AllocatePageOffsetAtEnd(storage);
+
+			Debug.Assert(newIndexPageOffset == GetAddressSpaceSizeForDepth(header.IndexDepth));
 
 			var newIndePageDepth = header.IndexDepth + 1;
 
@@ -57,12 +61,11 @@ public ref struct PageManager : IPageAllocator
 			entry = header.IndexRootOffset;
 			rootIndexPage.Validate();
 
-			header.AddressSpaceEnd = GetAddressSpaceSizeForDepth(newIndePageDepth);
 			header.IndexDepth = newIndePageDepth;
 			header.IndexRootOffset = newIndexPageOffset;
 		}
 
-		var bitField = new BitField<PageManager>(this);
+		var bitField = new BitField<Allocator>(new Allocator(storage));
 
 		var pageOffset = bitField.Allocate(rootIndexPage, header.IndexDepth) * layout.Size64;
 
@@ -72,6 +75,17 @@ public ref struct PageManager : IPageAllocator
 		}
 
 		return pageOffset;
+	}
+
+	static UInt64 AllocatePageOffsetAtEnd(Storage storage)
+	{
+		ref var header = ref storage.Header;
+
+		var nextPageOffset = header.NextPageOffset;
+
+		header.NextPageOffset += Constants.PageSize;
+
+		return nextPageOffset;
 	}
 
 	public UInt64 GetAddressSpaceSizeForDepth(Int32 depth)
@@ -86,20 +100,22 @@ public ref struct PageManager : IPageAllocator
 		return result * layout.Size64;
 	}
 
-	Span<Byte> IPageAllocator.GetPageSpanAtOffset(UInt64 offset)
-		=> storage.GetPageSpanAtOffset(offset);
-
-	UInt64 IPageAllocator.AllocatePageOffset()
+	struct Allocator : IPageAllocator
 	{
-		ref var header = ref storage.Header;
+		Storage storage;
 
-		var nextPageOffset = header.NextPageOffset;
+		public Allocator(Storage storage)
+		{
+			this.storage = storage;
+		}
 
-		header.NextPageOffset += Constants.PageSize;
+		Span<Byte> IPageAllocator.GetPageSpanAtOffset(UInt64 offset)
+			=> storage.GetPageSpanAtOffset(offset);
 
-		return nextPageOffset;
+		UInt64 IPageAllocator.AllocatePageOffset()
+			=> AllocatePageOffsetAtEnd(storage);
+
+		Boolean IPageAllocator.IsPageManagerBitField => true;
 	}
 }
-
-
 

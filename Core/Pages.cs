@@ -82,7 +82,6 @@ public struct HeaderPageLayout
 {
 	public UInt64 IndexRootOffset;
 	public Int32 IndexDepth;
-	public UInt64 AddressSpaceEnd;
 	public UInt64 NextPageOffset;
 }
 
@@ -123,6 +122,8 @@ public ref struct PageHeader
 
 	public void Init(PageType pageType, Int32 pageDepth)
 	{
+		Debug.Assert(PageTypeByte == 0, "Wont initialize used page");
+
 		PageTypeByte = (Byte)pageType;
 		PageDepthByte = pageDepth < Byte.MaxValue ? (Byte)pageDepth : Byte.MaxValue;
 	}
@@ -175,8 +176,6 @@ public ref struct FieldPage<T, I>
 
 	public Int32 IndexSize => Unsafe.SizeOf<I>();
 	public Int32 PaddedItemSize => 1 << Unsafe.SizeOf<T>().ToUInt64().Log2Ceil();
-
-	
 
 	public UInt64 PageSize => Constants.PageSize;
 
@@ -287,6 +286,8 @@ public ref struct FieldPage<T, I>
 	//}
 
 	public Boolean IsFull => full.IndexOfBitZero() >= layout.FieldLength;
+
+	public Boolean IsEmpty => used.IsAllZero();
 
 	public ref T At(Int32 i)
 	{
