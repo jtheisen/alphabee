@@ -1,6 +1,8 @@
-﻿namespace AlphaBee;
+﻿using System.Reflection.PortableExecutable;
 
-public partial struct PageManager
+namespace AlphaBee;
+
+public ref struct PageManager : IPageAllocator
 {
 	FieldPageLayout<UInt64> layout;
 
@@ -27,7 +29,7 @@ public partial struct PageManager
 
 		indexRootPage.Init(PageType.PageIndex, 0);
 		indexRootPage.SetUsedBit(0, true);
-		indexRootPage.Get(0).SetBit(0, true);
+		indexRootPage.At(0).SetBit(0, true);
 	}
 
 	public UInt64 AllocatePageOffset()
@@ -51,18 +53,25 @@ public partial struct PageManager
 			rootIndexPage = new BitFieldPage(rootPageSpan);
 
 			rootIndexPage.Init(PageType.PageIndex, newIndePageDepth);
-			rootIndexPage.SetFullBit(0, true);
-			rootIndexPage.SetUsedBit(0, true);
-			rootIndexPage.Get(0) = header.IndexRootOffset;
+			ref var entry = ref rootIndexPage.AllocateFully(out var _);
+			entry = header.IndexRootOffset;
+			rootIndexPage.Validate();
 
 			header.AddressSpaceEnd = GetAddressSpaceSizeForDepth(newIndePageDepth);
 			header.IndexDepth = newIndePageDepth;
 			header.IndexRootOffset = newIndexPageOffset;
 		}
 
-		var bitField = new BitField(storage);
+		var bitField = new BitField<PageManager>(this);
 
-		return bitField.Allocate(rootIndexPage, header.IndexDepth) * layout.Size64;
+		var pageOffset = bitField.Allocate(rootIndexPage, header.IndexDepth) * layout.Size64;
+
+		if (pageOffset >= header.NextPageOffset)
+		{
+			header.NextPageOffset = pageOffset + Constants.PageSize;
+		}
+
+		return pageOffset;
 	}
 
 	public UInt64 GetAddressSpaceSizeForDepth(Int32 depth)
@@ -75,6 +84,20 @@ public partial struct PageManager
 		}
 
 		return result * layout.Size64;
+	}
+
+	Span<Byte> IPageAllocator.GetPageSpanAtOffset(UInt64 offset)
+		=> storage.GetPageSpanAtOffset(offset);
+
+	UInt64 IPageAllocator.AllocatePageOffset()
+	{
+		ref var header = ref storage.Header;
+
+		var nextPageOffset = header.NextPageOffset;
+
+		header.NextPageOffset += Constants.PageSize;
+
+		return nextPageOffset;
 	}
 }
 

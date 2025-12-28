@@ -1,4 +1,4 @@
-﻿global using BitFieldPage = AlphaBee.FieldPage<AlphaBee.FieldPageLayout<System.UInt64>>;
+﻿global using BitFieldPage = AlphaBee.FieldPage<System.UInt64, AlphaBee.UInt512>;
 
 namespace AlphaBee;
 
@@ -8,11 +8,11 @@ public class StorageTests
 	[TestMethod]
 	public void TestIndexPages()
 	{
-		using var storage = Storage.CreateTestFileStorage();
+		using var storage = Storage.CreateTestStorage();
 
 		var page = new BitFieldPage(storage.GetPageSpanAtOffset(storage.Header.IndexRootOffset));
 
-		var firstWord = new BitsWord(ref page.Get(0));
+		var firstWord = new BitsWord(ref page.At(0));
 
 		Assert.AreEqual(false, page.GetFullBit(0));
 		Assert.AreEqual(true, page.GetUsedBit(0));
@@ -52,12 +52,19 @@ public class StorageTests
 	[TestMethod]
 	public void TestStorage()
 	{
-		using var storage = new Storage(pageSize => new MemoryMappedFileStorageImplementation("test.ab", pageSize), true);
+		using var storage = Storage.CreateTestStorage();
 
-		var expectedFirstIndexPageNo = 1ul * (4096 - 4 * 8) * 8;
+		var expectedFirstIndexPageNo = 1ul * (4096 - 256) * 8;
+
+		//for (var i = 1ul; i < expectedFirstIndexPageNo; ++i)
+		//{
+		//	Assert.AreEqual(storage.PageSize * i, storage.AllocatePageOffset());
+		//}
 
 		for (var i = 1ul; i < expectedFirstIndexPageNo; ++i)
 		{
+			//if (i == 32) System.Diagnostics.Debugger.Break();
+
 			Assert.AreEqual(storage.PageSize * i, storage.AllocatePageOffset());
 		}
 

@@ -2,38 +2,20 @@
 
 public static class SpanExtensions
 {
-	public static Span<T> InterpretAs<T>(this Span<Byte> span)
-		where T : unmanaged
-	{
-		return MemoryMarshal.Cast<Byte, T>(span);
-	}
-
-	public static Span<Byte> Deinterpret<T>(this Span<T> span)
-		where T : unmanaged
-	{
-		return MemoryMarshal.AsBytes(span);
-	}
-
-	public static ReadOnlySpan<T> InterpretAs<T>(this ReadOnlySpan<Byte> span)
-		where T : unmanaged
-	{
-		return MemoryMarshal.Cast<Byte, T>(span);
-	}
-
-	public static ReadOnlySpan<Byte> Deinterpret<T>(this ReadOnlySpan<T> span)
-		where T : unmanaged
-	{
-		return MemoryMarshal.AsBytes(span);
-	}
-
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Boolean GetBit(this ref UInt64 word, Int32 i)
 	{
+		Debug.Assert(i < 64);
+
 		var mask = 1ul << (i & 0b111111);
 		return (word & mask) != 0;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void SetBit(this ref UInt64 word, Int32 i, Boolean value)
 	{
+		Debug.Assert(i < 64);
+
 		var mask = 1ul << (i & 0b111111);
 		if (value)
 		{
@@ -45,35 +27,154 @@ public static class SpanExtensions
 		}
 	}
 
-	public static void SetBit(this Span<UInt64> span, Int32 i, Boolean value)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Boolean GetBit<T>(this ref T bits, Int32 i)
+		where T : unmanaged
 	{
-		var h = i >> 6;
-		var l = i & 0b111111;
-		span[h].SetBit(l, value);
+		Debug.Assert(Unsafe.SizeOf<T>() >= 8);
+		Debug.Assert(i < Unsafe.SizeOf<T>() * 8);
+
+		var i0 = i / 64;
+		var i1 = i % 64;
+
+		return bits.AsUInt64s()[i0].GetBit(i1);
 	}
 
-	public static Boolean GetBit(this Span<UInt64> span, Int32 i)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void SetBit<T>(this ref T bits, Int32 i, Boolean value)
+		where T : unmanaged
 	{
-		var h = i >> 6;
-		var l = i & 0b111111;
-		return span[h].GetBit(l);
+		Debug.Assert(Unsafe.SizeOf<T>() >= 8);
+		Debug.Assert(i < Unsafe.SizeOf<T>() * 8);
+
+		var i0 = i / 64;
+		var i1 = i % 64;
+
+		bits.AsUInt64s()[i0].SetBit(i1, value);
 	}
 
-	public static Boolean TryIndexOfBitCore(this UInt64 word, UInt64 pattern, out Int32 i)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	static Boolean IsAllCore<T>(this ref T bits, UInt64 pattern)
+		where T : unmanaged
 	{
-		i = BitOperations.TrailingZeroCount(word ^ pattern);
+		Debug.Assert(Unsafe.SizeOf<T>() >= 8);
 
-		return i < 64;
+		var span = bits.AsUInt64s();
+
+		var i = span.IndexOfAnyExcept(pattern);
+
+		return i < 0;
 	}
 
-	public static Boolean TryIndexOfBitZero(this UInt64 word, out Int32 i)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Boolean IsAllOne<T>(this ref T bits) where T : unmanaged
+		=> bits.IsAllCore(UInt64.MaxValue);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Boolean IsAllZero<T>(this ref T bits) where T : unmanaged
+		=> bits.IsAllCore(0ul);
+
+	public static Boolean BitImplies<T>(this ref T condition, ref T conclusion)
+		where T : unmanaged
 	{
-		return word.TryIndexOfBitCore(UInt64.MaxValue, out i);
+		Debug.Assert(Unsafe.SizeOf<T>() >= 8);
+
+		var conditionSpan = condition.AsUInt64s();
+		var conclusionSpan = conclusion.AsUInt64s();
+
+		for (var i = 0; i < conditionSpan.Length; ++i)
+		{
+			var word = conditionSpan[i] & ~conclusionSpan[i];
+
+			if (word != 0ul) return false;
+		}
+
+		return true;
 	}
 
-	public static Boolean TryIndexOfBitOne(this UInt64 word, out Int32 i)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	static Int32 IndexOfBitCore<T>(this ref T bits, UInt64 pattern)
+		where T : unmanaged
 	{
-		return word.TryIndexOfBitCore(0, out i);
+		Debug.Assert(Unsafe.SizeOf<T>() >= 8);
+
+		var span = bits.AsUInt64s();
+
+		var i = span.IndexOfAnyExcept(pattern);
+
+		if (i < 0)
+		{
+			return Unsafe.SizeOf<T>() * 8;
+		}
+		else
+		{
+			return i * 64 + BitOperations.TrailingZeroCount(span[i] ^ pattern);
+		}
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Int32 IndexOfBitZero<T>(this ref T bits) where T : unmanaged 
+		=> bits.IndexOfBitCore(UInt64.MaxValue);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Int32 IndexOfBitOne<T>(this ref T bits) where T : unmanaged
+		=> bits.IndexOfBitCore(0ul);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Boolean TryIndexOfBitZero<T>(this ref T word, out Int32 i) where T : unmanaged
+	{
+		i = word.IndexOfBitZero();
+		return i < Unsafe.SizeOf<T>();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Boolean TryIndexOfBitOne<T>(this ref T word, out Int32 i) where T : unmanaged
+	{
+		i = word.IndexOfBitOne();
+		return i < Unsafe.SizeOf<T>();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Int32 Allocate<T>(this ref T bits) where T : unmanaged
+	{
+		var i = bits.IndexOfBitZero();
+
+		if (i == Unsafe.SizeOf<T>() * 8)
+		{
+			throw new BitArrayFullException();
+		}
+
+		bits.SetBit(i, true);
+
+		return i;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Span<T> InterpretAs<T>(this Span<Byte> span)
+		where T : unmanaged
+	{
+		return MemoryMarshal.Cast<Byte, T>(span);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Span<Byte> Deinterpret<T>(this Span<T> span)
+		where T : unmanaged
+	{
+		return MemoryMarshal.AsBytes(span);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ReadOnlySpan<T> InterpretAs<T>(this ReadOnlySpan<Byte> span)
+		where T : unmanaged
+	{
+		return MemoryMarshal.Cast<Byte, T>(span);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ReadOnlySpan<Byte> Deinterpret<T>(this ReadOnlySpan<T> span)
+		where T : unmanaged
+	{
+		return MemoryMarshal.AsBytes(span);
 	}
 
 	public static Boolean TryIndexOfBitCore(this Span<UInt64> words, UInt64 pattern, out Int32 i)
@@ -104,22 +205,77 @@ public static class SpanExtensions
 	public static Int32 TryIndexOfBitOne(this Span<UInt64> words)
 		=> words.TryIndexOfBitOne(out var i) ? i : -1;
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Span<Byte> AsBytes<T>(this ref T value)
 		where T : unmanaged
 	{
 		return MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref value, 1));
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Span<UInt64> AsUInt64s<T>(this ref T value)
+		where T : unmanaged
+	{
+		return MemoryMarshal.CreateSpan(ref value, 1).Deinterpret().InterpretAs<UInt64>();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static ref Byte AtByte<T>(this ref T value, Int32 i)
 		where T : unmanaged
 	{
 		return ref value.AsBytes()[i];
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static ref UInt16 AtUInt16(this ref UInt64 value, Int32 i)
 	{
 		return ref value.AsBytes().InterpretAs<UInt16>()[i];
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static UInt64 ToUInt64(this Int32 source)
+	{
+		Debug.Assert(source >= 0);
+
+		return (UInt32)source;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Int32 ToInt32(this UInt64 source)
+	{
+		Trace.Assert(source < Int32.MaxValue);
+
+		return (Int32)source;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Int32 Log2(this UInt64 value)
+	{
+		var zeroes = BitOperations.LeadingZeroCount(value);
+
+		var length = Unsafe.SizeOf<UInt64>() * 8;
+
+		return length - zeroes - 1;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Int32 Log2Ceil(this UInt64 value)
+	{
+		var log2 = value.Log2();
+
+		if ((value & ((1ul << log2) - 1ul)) != 0ul)
+		{
+			++log2;
+		}
+
+		return log2;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Int32 Log2(this UInt32 value) => ((UInt64)value).Log2();
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Int32 Log2(this Int32 value) => ((UInt64)value).Log2();
 
 	public static Char ToBrailleChar(Byte value)
 	{
@@ -141,21 +297,4 @@ public static class SpanExtensions
 	{
 		return page[0];
 	}
-}
-
-public struct AllBitsSet<T>
-	where T : unmanaged
-{
-	public static readonly UInt512 Value;
-
-	static AllBitsSet()
-	{
-		Value.AsBytes().Fill(Byte.MaxValue);
-	}
-}
-
-[InlineArray(8)]
-public struct UInt512
-{
-	private UInt64 _element0;
 }

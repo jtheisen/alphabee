@@ -6,6 +6,66 @@ namespace AlphaBee;
 public sealed class SpanExtensionsTests
 {
 	[DataTestMethod]
+	[DataRow(0)]
+	[DataRow(1)]
+	[DataRow(2)]
+	[DataRow(64)]
+	[DataRow(511)]
+	public void TestUInt512SpecificBits(Int32 i)
+	{
+		var bits = default(UInt512);
+
+		Assert.AreEqual(512, bits.IndexOfBitOne());
+
+		Assert.IsTrue(bits.IsAllZero());
+
+		bits.SetBit(i, true);
+
+		Assert.IsFalse(bits.IsAllZero());
+
+		Assert.AreEqual(true, bits.GetBit(i));
+
+		Assert.AreEqual(i, bits.IndexOfBitOne());
+
+		bits.SetBit(i, false);
+
+		Assert.IsTrue(bits.IsAllZero());
+	}
+
+	[TestMethod]
+	public void TestUInt512General()
+	{
+		var bits = default(UInt512);
+
+		for (var i = 0; i < 512; i++)
+		{
+			Assert.IsFalse(bits.GetBit(i));
+
+			bits.Allocate();
+
+			Assert.AreEqual(i + 1, bits.IndexOfBitZero());
+
+			Assert.IsTrue(bits.GetBit(i));
+		}
+
+		Assert.AreEqual("⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿", bits.ToBrailleString());
+	}
+
+	[DataTestMethod]
+	[DataRow(true, 0ul, 0ul)]
+	[DataRow(true, 1ul, 1ul)]
+	[DataRow(false, 1ul, 0ul)]
+	[DataRow(true, 0ul, 1ul)]
+	[DataRow(true, 0ul << 32, 0ul << 32)]
+	[DataRow(true, 1ul << 32, 1ul << 32)]
+	[DataRow(false, 1ul << 32, 0ul << 32)]
+	[DataRow(true, 0ul << 32, 1ul << 32)]
+	public void TestBitImplies(Boolean expected, UInt64 condition, UInt64 conclusion)
+	{
+		Assert.AreEqual(expected, condition.BitImplies(ref conclusion));
+	}
+
+	[DataTestMethod]
 	[DataRow(-1, new UInt64[] { 0 })]
 	[DataRow(0, new UInt64[] { UInt64.MaxValue })]
 	[DataRow(1, new UInt64[] { 2 })]
@@ -26,6 +86,21 @@ public sealed class SpanExtensionsTests
 	public void TestIndexOfBitZero(Int32 expected, UInt64[] words)
 	{
 		Assert.AreEqual(expected, words.AsSpan().IndexOfBitZero());
+	}
+
+	[DataTestMethod]
+	[DataRow(-1, -1, 0ul)]
+	[DataRow(0, 0, 1ul)]
+	[DataRow(1, 1, 2ul)]
+	[DataRow(1, 2, 3ul)]
+	[DataRow(2, 2, 4ul)]
+	[DataRow(2, 3, 6ul)]
+	[DataRow(3, 3, 8ul)]
+	[DataRow(63, 64, UInt64.MaxValue)]
+	public void TestLog2(Int32 expectedFloor, Int32 expectedCeil, UInt64 value)
+	{
+		Assert.AreEqual(expectedFloor, value.Log2());
+		Assert.AreEqual(expectedCeil, value.Log2Ceil());
 	}
 
 	[TestMethod]

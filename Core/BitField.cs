@@ -1,94 +1,91 @@
-﻿using System.Net.Http.Headers;
+﻿namespace AlphaBee;
 
-namespace AlphaBee;
+public class BitArrayFullException : Exception { }
 
-public class PageFullException : Exception { }
-
-public struct BitField
+public interface IPageAllocator
 {
-	Storage storage;
+	Span<Byte> GetPageSpanAtOffset(UInt64 offset);
+
+	Span<Byte> AllocatePageSpan();
+}
+
+public ref struct BitField<AllocatorT>
+	where AllocatorT : struct, IPageAllocator, allows ref struct
+{
+	AllocatorT allocator;
 	Boolean filled;
 
-	public BitField(Storage storage)
+	public BitField(AllocatorT allocator)
 	{
-		this.storage = storage;
+		this.allocator = allocator;
 	}
 
-	public UInt64 Allocate(BitFieldPage page, Int32 depth)
+	public UInt64 AllocateCore(BitFieldPage page, Int32 depth)
 	{
 		Debug.Assert(!page.IsFull);
 
-		if (depth > 0)
-		{
-			return AllocateAtBranch(page, depth);
-		}
-		else
-		{
-			return AllocateAtLeaf(page);
-		}
+		page.Validate();
+		page.ValidateFieldPage(asBitFieldLeaf: depth == 0);
+
+		var pageNo = depth > 0 ? AllocateAtBranch(page, depth) : AllocateAtLeaf(page);
+
+		page.Validate();
+		page.ValidateFieldPage(asBitFieldLeaf: depth == 0);
+
+		return pageNo;
 	}
 
 	public UInt64 AllocateAtBranch(BitFieldPage branch, Int32 depth)
 	{
-		if (branch.TryIndexOfUnfull(out var i))
+		ref var childPageOffset = ref branch.AllocatePartially(out var i, out var unused);
+
+		if (unused)
 		{
-			ref var word = ref branch.UseItem(i);
+			// Since we never "unuse" branch entries, it is guaranteed that
+			// this is the end of the used address space.
 
-			var childPageSpan = storage.GetPageSpanAtOffset(word);
-
-			var childIndex = Allocate(new BitFieldPage(childPageSpan), depth - 1);
-
-			if (filled)
-			{
-				branch.SetFullBit(i, true);
-
-				filled = branch.IsFull;
-			}
-
-			branch.Validate();
-			branch.ValidateFieldPage(asBitFieldLeaf: false);
-
-			var ownIndex = (UInt64)i;
-
-			return ownIndex + childIndex;
+			childPageOffset = 
 		}
-		else
+
+		var childPageSpan = allocator.GetPageSpanAtOffset(childPageOffset);
+
+		var childPage = new BitFieldPage(childPageSpan);
+
+		if (unused)
 		{
-			throw new PageFullException();
+			childPage.Init(PageType.PageIndex, depth);
 		}
+
+		var childIndex = AllocateCore(childPage, depth - 1);
+
+		if (filled)
+		{
+			branch.SetFullBit(i, true);
+
+			filled = branch.IsFull;
+		}
+
+		var ownIndex = (UInt64)i;
+
+		return ownIndex + childIndex;
 	}
 
 	public UInt64 AllocateAtLeaf(BitFieldPage leaf)
 	{
-		if (leaf.TryIndexOfUnfull(out var i))
+		ref var word = ref leaf.AllocatePartially(out var i, out _);
+
+		var j = word.Allocate();
+
+		word.SetBit(j, true);
+
+		if (word.IsAllOne())
 		{
-			ref var line = ref leaf.UseItem(i);
+			leaf.SetFullBit(i, true);
 
-			if (line.TryIndexOfBitZero(out var j))
-			{
-				line.SetBit(j, true);
-
-				if (line == UInt64.MaxValue)
-				{
-					leaf.SetFullBit(i, true);
-
-					filled = leaf.IsFull;
-				}
-
-				leaf.Validate();
-				leaf.ValidateFieldPage(asBitFieldLeaf: true);
-
-				return (((UInt64)i) << 6) + (UInt64)j;
-			}
-			else
-			{
-				throw new PageFullException();
-			}
+			filled = leaf.IsFull;
 		}
-		else
-		{
-			throw new PageFullException();
-		}
+
+		return (((UInt64)i) << 6) + (UInt64)j;
 	}
 }
 

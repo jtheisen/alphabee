@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.Tracing;
+using System.Drawing;
 
 namespace AlphaBee;
 
@@ -34,7 +35,7 @@ public static class PageExtensions
 		{
 			if (page.GetUsedBit(i))
 			{
-				var word = page.Get(i);
+				var word = page.At(i);
 
 				Debug.Assert(word != 0);
 
@@ -82,6 +83,7 @@ public struct HeaderPageLayout
 	public UInt64 IndexRootOffset;
 	public Int32 IndexDepth;
 	public UInt64 AddressSpaceEnd;
+	public UInt64 NextPageOffset;
 }
 
 public ref struct HeaderPage
@@ -141,17 +143,42 @@ public ref struct PageHeader
 	public Char PageDepthChar => PageDepthByte < 10 ? (Char)('0' + PageDepthByte) : '+';
 }
 
-[DebuggerDisplay("{ToString()}")]
-public ref struct FieldPage<T, L>
-	where T : unmanaged
-	where L : struct, IFieldPageLayout
+
+struct Layout<T, I>
 {
-	L layout;
+	public Int32 PageSize => Constants.PageSize32;
+
+	public Int32 IndexSize => Unsafe.SizeOf<I>();
+	public Int32 ItemSize => Unsafe.SizeOf<T>();
+	public Int32 PaddedItemSize => 1 << Unsafe.SizeOf<T>().ToUInt64().Log2Ceil();
+
+	public Int32 LeadSize => IndexSize * 4;
+
+	public Int32 ContentSize => PageSize - LeadSize;
+
+	public Int32 ContentBitSize => ContentSize * Constants.BitsPerByte;
+
+	public Int32 FieldLength => ContentSize / PaddedItemSize;
+}
+
+[DebuggerDisplay("{ToString()}")]
+public ref struct FieldPage<T, I>
+	where T : unmanaged
+	where I : unmanaged
+{
+	Layout<T, I> layout;
 
 	PageHeader header;
-	ref UInt64 used;
-	ref UInt64 full;
+	ref I used;
+	ref I full;
 	Span<T> content;
+
+	public Int32 IndexSize => Unsafe.SizeOf<I>();
+	public Int32 PaddedItemSize => 1 << Unsafe.SizeOf<T>().ToUInt64().Log2Ceil();
+
+	
+
+	public UInt64 PageSize => Constants.PageSize;
 
 	public override String ToString()
 	{
@@ -160,11 +187,14 @@ public ref struct FieldPage<T, L>
 
 	public FieldPage(Span<Byte> page)
 	{
-		var words = page.InterpretAs<UInt64>();
+		//Debug.Assert();
+
+		var bitArrays = page.InterpretAs<I>();
+
 		content = page[layout.LeadSize..].InterpretAs<T>();
-		header = new PageHeader(ref words[0]);
-		used = ref words[1];
-		full = ref words[2];
+		header = new PageHeader(ref page.InterpretAs<UInt64>()[0]);
+		used = ref bitArrays[1];
+		full = ref bitArrays[2];
 	}
 
 	public void Init(PageType pageType, Int32 pageDepth)
@@ -177,7 +207,7 @@ public ref struct FieldPage<T, L>
 	{
 		header.Validate();
 
-		Debug.Assert((used | ~full) == UInt64.MaxValue);
+		Debug.Assert(full.BitImplies(ref used));
 	}
 
 	public void SetFullBit(Int32 i, Boolean value)
@@ -208,34 +238,57 @@ public ref struct FieldPage<T, L>
 		return used.GetBit(i);
 	}
 
-	public ref T UseItem(Int32 i)
+	ref T Allocate(out Int32 i, out Boolean unused)
 	{
-		if (!GetUsedBit(i))
+		i = full.IndexOfBitZero();
+
+		if (i >= layout.FieldLength)
 		{
-			SetUsedBit(i, true);
-			ClearItem(i);
+			throw new BitArrayFullException();
 		}
 
-		return ref content[i];
+		ref var item = ref content[i];
+
+		unused = !GetUsedBit(i);
+
+		if (unused)
+		{
+			SetUsedBit(i, true);
+
+			item = default;
+		}
+
+		return ref item;
 	}
 
-	public void ClearItem(Int32 i)
+	public ref T AllocatePartially(out Int32 i, out Boolean unused)
 	{
-		Debug.Assert(i < layout.FieldLength);
-
-		content[i] = default;
+		return ref Allocate(out i, out unused);
 	}
 
-	public Boolean TryIndexOfUnfull(out Int32 i)
+	public ref T AllocateFully(out Int32 i)
 	{
-		var found = full.TryIndexOfBitZero(out i);
+		ref var item = ref Allocate(out i, out var unused);
 
-		return found && i < content.Length;
+		Debug.Assert(unused);
+
+		SetFullBit(i, true);
+
+		Validate();
+
+		return ref item;
 	}
 
-	public Boolean IsFull => full == layout.AllPattern;
+	//public Boolean TryIndexOfUnfull(out Int32 i)
+	//{
+	//	i = full.IndexOfBitZero();
 
-	public ref T Get(Int32 i)
+	//	return i < content.Length;
+	//}
+
+	public Boolean IsFull => full.IndexOfBitZero() >= layout.FieldLength;
+
+	public ref T At(Int32 i)
 	{
 		Debug.Assert(i < layout.FieldLength);
 
