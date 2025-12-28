@@ -1,4 +1,12 @@
-﻿namespace AlphaBee;
+﻿using System.Diagnostics.Tracing;
+
+namespace AlphaBee;
+
+public enum PageType
+{
+	Unkown = '.',
+	PageIndex = 'p'
+}
 
 public interface IPageLayout
 {
@@ -7,6 +15,8 @@ public interface IPageLayout
 
 public interface IFieldPageLayout : IPageLayout
 {
+	Int32 LeadSize { get; }
+
 	Int32 LeadWords { get; }
 
 	Int32 FieldLength { get; }
@@ -14,19 +24,36 @@ public interface IFieldPageLayout : IPageLayout
 	UInt64 AllPattern { get; }
 }
 
-public enum PageType
+public static class PageExtensions
 {
-	Unkown = '?',
-	PageIndex = 'p'
+	public static void ValidateFieldPage(this BitFieldPage page, Boolean asBitFieldLeaf)
+	{
+		page.Validate();
+
+		for (var i = 0; i < 64; ++i)
+		{
+			if (page.GetUsedBit(i))
+			{
+				var word = page.Get(i);
+
+				Debug.Assert(word != 0);
+
+				if (asBitFieldLeaf)
+				{
+					Debug.Assert(word != UInt64.MaxValue || page.GetFullBit(i));
+				}
+			}
+		}
+	}
 }
 
 public struct FieldPageLayout<T> : IFieldPageLayout
 	where T : unmanaged
 {
 	const Int32 BitsPerByteLog2 = 3;
-	const Int32 BitsPerByte = 1 << 3;
+	const Int32 BitsPerByte = 1 << BitsPerByteLog2;
 	const Int32 WordSizeLog2 = 3;
-	const Int32 WordSize = 1 << 3;
+	const Int32 WordSize = 1 << WordSizeLog2;
 
 	public Int32 SizeLog2 => 12;
 	public Int32 Size => 1 << SizeLog2;
@@ -35,10 +62,11 @@ public struct FieldPageLayout<T> : IFieldPageLayout
 
 	public Int32 LeadWordsLog2 => 2;
 	public Int32 LeadWords => 1 << LeadWordsLog2;
+	public Int32 LeadSize => LeadWords * WordSize;
+
+	public Int32 ItemSize => Unsafe.SizeOf<T>();
 
 	public Int32 BitsPerWordLog2 => WordSizeLog2 + BitsPerByteLog2;
-
-	public Int32 LeadSize => LeadWords * WordSize;
 
 	public Int32 ContentSize => Size - LeadSize;
 
@@ -46,7 +74,7 @@ public struct FieldPageLayout<T> : IFieldPageLayout
 
 	public UInt64 AllPattern => UInt64.MaxValue >> LeadWordsLog2;
 
-	public Int32 FieldLength => ContentSize / Unsafe.SizeOf<T>();
+	public Int32 FieldLength => ContentSize / ItemSize;
 }
 
 public struct HeaderPageLayout
@@ -67,71 +95,18 @@ public ref struct HeaderPage
 }
 
 [DebuggerDisplay("{ToString()}")]
-public ref struct UInt64Page
+public ref struct BitsWord
 {
-	const Int32 SizeLog2 = 12;
-	const Int32 Size = 1 << SizeLog2;
-	const Int32 WordSize = 8;
-	const Int32 LeadWordsLog2 = 2;
-	const Int32 LeadWords = 1 << LeadWordsLog2;
+	ref UInt64 word;
 
-	public const UInt64 ContentLength = Size / WordSize - LeadWords;
-	public const UInt64 TotalBits = ContentLength * WordSize * 8;
-
-	const UInt64 AllPattern = UInt64.MaxValue >> 2;
-
-	ref UInt64 header;
-	ref UInt64 used;
-	ref UInt64 full;
-	Span<UInt64> content;
-
-	public ref Byte PageTypeByte => ref header.GetByte(0);
-	public ref Byte PageDepthByte => ref header.GetByte(1);
+	public BitsWord(ref UInt64 word)
+	{
+		this.word = ref word;
+	}
 
 	public override String ToString()
 	{
-		return $"P{PageDepthChar} {full:x}";
-	}
-
-	public String PageCharPair => $"{PageTypeChar}{PageDepthChar}";
-
-	public PageType PageTypeChar => (PageType)PageTypeByte;
-	public Char PageDepthChar => PageDepthByte < 10 ? (Char)('0' + PageDepthByte) : '+';
-
-	public UInt64Page(Span<Byte> page)
-	{
-		var words = page.InterpretAs<UInt64>();
-		content = words[2..];
-		header = ref words[0];
-		used = ref words[1];
-		full = ref words[2];
-	}
-
-	public void Init(PageType pageType, Int32 pageDepth)
-	{
-		used = full = default;
-		PageTypeByte = (Byte)pageType;
-		PageDepthByte = pageDepth < Byte.MaxValue ? (Byte)pageDepth : Byte.MaxValue;
-	}
-
-	public void SetFullBit(Int32 i, Boolean value) => full.SetBit(i, value);
-	public Boolean GetFullBit(Int32 i) => full.GetBit(i);
-
-	public void SetUsedBit(Int32 i, Boolean value) => used.SetBit(i, value);
-	public Boolean GetUsedBit(Int32 i) => used.GetBit(i);
-
-	public Boolean TryIndexOfUnfull(out Int32 i)
-	{
-		var found = full.TryIndexOfBitZero(out i);
-
-		return found && i < content.Length;
-	}
-
-	public Boolean IsFull => full == AllPattern;
-
-	public ref UInt64 Get(Int32 i)
-	{
-		return ref content[i];
+		return word.ToBrailleString();
 	}
 }
 
@@ -150,17 +125,25 @@ public ref struct PageHeader
 		PageDepthByte = pageDepth < Byte.MaxValue ? (Byte)pageDepth : Byte.MaxValue;
 	}
 
-	public ref Byte PageTypeByte => ref data.GetByte(0);
-	public ref Byte PageDepthByte => ref data.GetByte(1);
+	public void Validate()
+	{
+		Debug.Assert(PageTypeByte != 0);
+	}
+
+	public ref Byte PageTypeByte => ref data.AtByte(0);
+	public ref Byte PageDepthByte => ref data.AtByte(1);
 
 	public String PageCharPair => $"{PageTypeChar}{PageDepthChar}";
 
-	public PageType PageTypeChar => (PageType)PageTypeByte;
+	public PageType PageType => (PageType)PageTypeByte;
+
+	public Char PageTypeChar => (Char)PageTypeByte;
 	public Char PageDepthChar => PageDepthByte < 10 ? (Char)('0' + PageDepthByte) : '+';
 }
 
 [DebuggerDisplay("{ToString()}")]
-public ref struct FieldPage<L>
+public ref struct FieldPage<T, L>
+	where T : unmanaged
 	where L : struct, IFieldPageLayout
 {
 	L layout;
@@ -168,17 +151,17 @@ public ref struct FieldPage<L>
 	PageHeader header;
 	ref UInt64 used;
 	ref UInt64 full;
-	Span<UInt64> content;
+	Span<T> content;
 
 	public override String ToString()
 	{
-		return $"{header.PageCharPair} {full:x}";
+		return $"[{header.PageCharPair}|{used.ToBrailleString()}|{full.ToBrailleString()}]";
 	}
 
 	public FieldPage(Span<Byte> page)
 	{
 		var words = page.InterpretAs<UInt64>();
-		content = words[layout.LeadWords..];
+		content = page[layout.LeadSize..].InterpretAs<T>();
 		header = new PageHeader(ref words[0]);
 		used = ref words[1];
 		full = ref words[2];
@@ -190,11 +173,58 @@ public ref struct FieldPage<L>
 		used = full = default;
 	}
 
-	public void SetFullBit(Int32 i, Boolean value) => full.SetBit(i, value);
-	public Boolean GetFullBit(Int32 i) => full.GetBit(i);
+	public void Validate()
+	{
+		header.Validate();
 
-	public void SetUsedBit(Int32 i, Boolean value) => used.SetBit(i, value);
-	public Boolean GetUsedBit(Int32 i) => used.GetBit(i);
+		Debug.Assert((used | ~full) == UInt64.MaxValue);
+	}
+
+	public void SetFullBit(Int32 i, Boolean value)
+	{
+		Debug.Assert(i < layout.FieldLength);
+
+		full.SetBit(i, value);
+	}
+
+	public Boolean GetFullBit(Int32 i)
+	{
+		Debug.Assert(i < layout.FieldLength);
+
+		return full.GetBit(i);
+	}
+
+	public void SetUsedBit(Int32 i, Boolean value)
+	{
+		Debug.Assert(i < layout.FieldLength);
+
+		used.SetBit(i, value);
+	}
+
+	public Boolean GetUsedBit(Int32 i)
+	{
+		Debug.Assert(i < layout.FieldLength);
+
+		return used.GetBit(i);
+	}
+
+	public ref T UseItem(Int32 i)
+	{
+		if (!GetUsedBit(i))
+		{
+			SetUsedBit(i, true);
+			ClearItem(i);
+		}
+
+		return ref content[i];
+	}
+
+	public void ClearItem(Int32 i)
+	{
+		Debug.Assert(i < layout.FieldLength);
+
+		content[i] = default;
+	}
 
 	public Boolean TryIndexOfUnfull(out Int32 i)
 	{
@@ -205,8 +235,10 @@ public ref struct FieldPage<L>
 
 	public Boolean IsFull => full == layout.AllPattern;
 
-	public ref UInt64 Get(Int32 i)
+	public ref T Get(Int32 i)
 	{
+		Debug.Assert(i < layout.FieldLength);
+
 		return ref content[i];
 	}
 }

@@ -1,6 +1,4 @@
-﻿using BitFieldPage = AlphaBee.FieldPage<AlphaBee.FieldPageLayout<System.UInt64>>;
-
-namespace AlphaBee;
+﻿namespace AlphaBee;
 
 public partial struct PageManager
 {
@@ -15,7 +13,7 @@ public partial struct PageManager
 
 	public void Init()
 	{
-		ref var header = ref storage.GetHeader();
+		ref var header = ref storage.Header;
 
 		header.IndexDepth = 0;
 		header.IndexRootOffset = layout.Size64;
@@ -25,7 +23,7 @@ public partial struct PageManager
 
 		indexRootPageSpan.Clear();
 
-		var indexRootPage = new UInt64Page(indexRootPageSpan);
+		var indexRootPage = new BitFieldPage(indexRootPageSpan);
 
 		indexRootPage.Init(PageType.PageIndex, 0);
 		indexRootPage.SetUsedBit(0, true);
@@ -34,7 +32,7 @@ public partial struct PageManager
 
 	public UInt64 AllocatePageOffset()
 	{
-		ref var header = ref storage.GetHeader();
+		ref var header = ref storage.Header;
 
 		var rootPageSpan = storage.GetPageSpanAtOffset(header.IndexRootOffset);
 

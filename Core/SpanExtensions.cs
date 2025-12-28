@@ -28,14 +28,12 @@ public static class SpanExtensions
 
 	public static Boolean GetBit(this ref UInt64 word, Int32 i)
 	{
-		var offset = i >> 6;
 		var mask = 1ul << (i & 0b111111);
 		return (word & mask) != 0;
 	}
 
 	public static void SetBit(this ref UInt64 word, Int32 i, Boolean value)
 	{
-		var offset = i >> 6;
 		var mask = 1ul << (i & 0b111111);
 		if (value)
 		{
@@ -80,23 +78,18 @@ public static class SpanExtensions
 
 	public static Boolean TryIndexOfBitCore(this Span<UInt64> words, UInt64 pattern, out Int32 i)
 	{
-		i = 0;
+		i = words.IndexOfAnyExcept(pattern);
 
-		foreach (var word in words)
+		if (i < 0)
 		{
-			var count = BitOperations.TrailingZeroCount(word ^ pattern);
-
-			if (count < 64)
-			{
-				i += count;
-
-				return true;
-			}
-
-			i += 64;
+			return false;
 		}
 
-		return false;
+		var o = BitOperations.TrailingZeroCount(words[i] ^ pattern);
+
+		i = i * 64 + o;
+
+		return true;
 	}
 
 	public static Boolean TryIndexOfBitZero(this Span<UInt64> words, out Int32 i)
@@ -111,18 +104,58 @@ public static class SpanExtensions
 	public static Int32 TryIndexOfBitOne(this Span<UInt64> words)
 		=> words.TryIndexOfBitOne(out var i) ? i : -1;
 
-	public static ref Byte GetByte(this UInt64 value, Int32 i)
+	public static Span<Byte> AsBytes<T>(this ref T value)
+		where T : unmanaged
 	{
-		return ref MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref value, 1))[i];
+		return MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref value, 1));
 	}
 
-	public static ref UInt16 GetUInt16(this UInt64 value, Int32 i)
+	public static ref Byte AtByte<T>(this ref T value, Int32 i)
+		where T : unmanaged
 	{
-		return ref MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref value, 1)).InterpretAs<UInt16>()[i];
+		return ref value.AsBytes()[i];
+	}
+
+	public static ref UInt16 AtUInt16(this ref UInt64 value, Int32 i)
+	{
+		return ref value.AsBytes().InterpretAs<UInt16>()[i];
+	}
+
+	public static Char ToBrailleChar(Byte value)
+	{
+		return (Char)(0x2800 + value);
+	}
+
+	public static String ToBrailleString(this Span<Byte> value)
+	{
+		return String.Join("", value.ToArray().Select(ToBrailleChar).ToArray());
+	}
+
+	public static String ToBrailleString<T>(this T value)
+		where T : unmanaged
+	{
+		return value.AsBytes().ToBrailleString();
 	}
 
 	public static Byte GetPageType(this Span<Byte> page)
 	{
 		return page[0];
 	}
+}
+
+public struct AllBitsSet<T>
+	where T : unmanaged
+{
+	public static readonly UInt512 Value;
+
+	static AllBitsSet()
+	{
+		Value.AsBytes().Fill(Byte.MaxValue);
+	}
+}
+
+[InlineArray(8)]
+public struct UInt512
+{
+	private UInt64 _element0;
 }

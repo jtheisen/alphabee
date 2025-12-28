@@ -1,6 +1,8 @@
-﻿using BitFieldPage = AlphaBee.FieldPage<AlphaBee.FieldPageLayout<System.UInt64>>;
+﻿using System.Net.Http.Headers;
 
 namespace AlphaBee;
+
+public class PageFullException : Exception { }
 
 public struct BitField
 {
@@ -30,13 +32,11 @@ public struct BitField
 	{
 		if (branch.TryIndexOfUnfull(out var i))
 		{
-			ref var word = ref branch.Get(i);
+			ref var word = ref branch.UseItem(i);
 
 			var childPageSpan = storage.GetPageSpanAtOffset(word);
 
 			var childIndex = Allocate(new BitFieldPage(childPageSpan), depth - 1);
-
-			branch.SetUsedBit(i, true);
 
 			if (filled)
 			{
@@ -45,13 +45,16 @@ public struct BitField
 				filled = branch.IsFull;
 			}
 
+			branch.Validate();
+			branch.ValidateFieldPage(asBitFieldLeaf: false);
+
 			var ownIndex = (UInt64)i;
 
 			return ownIndex + childIndex;
 		}
 		else
 		{
-			throw new Exception();
+			throw new PageFullException();
 		}
 	}
 
@@ -59,31 +62,32 @@ public struct BitField
 	{
 		if (leaf.TryIndexOfUnfull(out var i))
 		{
-			ref var word = ref leaf.Get(i);
+			ref var line = ref leaf.UseItem(i);
 
-			if (word.TryIndexOfBitZero(out var j))
+			if (line.TryIndexOfBitZero(out var j))
 			{
-				word.SetBit(j, true);
+				line.SetBit(j, true);
 
-				leaf.SetUsedBit(i, true);
-
-				if (word == UInt64.MaxValue)
+				if (line == UInt64.MaxValue)
 				{
 					leaf.SetFullBit(i, true);
 
 					filled = leaf.IsFull;
 				}
 
-				return (UInt64)((i << 6) + j);
+				leaf.Validate();
+				leaf.ValidateFieldPage(asBitFieldLeaf: true);
+
+				return (((UInt64)i) << 6) + (UInt64)j;
 			}
 			else
 			{
-				throw new Exception();
+				throw new PageFullException();
 			}
 		}
 		else
 		{
-			throw new Exception();
+			throw new PageFullException();
 		}
 	}
 }

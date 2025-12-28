@@ -10,12 +10,17 @@ public class Storage : IDisposable
 
 	PageManager pageManager;
 
-	public Int32 PageSizeLog2 => Constants.PageSizeLog2;
 	public UInt64 PageSize => Constants.PageSize;
+
+	public static Storage CreateTestStorage()
+		=> new Storage(pageSize => new InMemoryTestStorageImplementation(pageSize), true);
+
+	public static Storage CreateTestFileStorage()
+		=> new Storage(pageSize => new MemoryMappedFileStorageImplementation("test.ab", pageSize), true);
 
 	public Storage(CreateStorageImplementation createImplementation, Boolean create)
 	{
-		implementation = createImplementation(PageSize);
+		implementation = createImplementation(Constants.PageSize32);
 		currentDisposable.Disposable = implementation;
 
 		pageManager = new PageManager(this);
@@ -28,7 +33,7 @@ public class Storage : IDisposable
 
 	public HeaderPage HeaderPage => new HeaderPage(GetPageSpanAtOffset(0));
 
-	public ref HeaderPageLayout GetHeader() => ref HeaderPage.header;
+	public ref HeaderPageLayout Header => ref HeaderPage.header;
 
 	void Init()
 	{
