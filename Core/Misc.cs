@@ -32,3 +32,20 @@ public static class Extensions
 		return header.PageCharPair;
 	}
 }
+
+
+[DebuggerDisplay("{ToString()}")]
+public ref struct BitsWord
+{
+	ref UInt64 word;
+
+	public BitsWord(ref UInt64 word)
+	{
+		this.word = ref word;
+	}
+
+	public override String ToString()
+	{
+		return word.ToBrailleString();
+	}
+}

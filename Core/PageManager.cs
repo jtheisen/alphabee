@@ -125,7 +125,7 @@ public ref struct PageManager
 
 			var lastAllocatedPageNo = lastAllocatedPageOffset / storage.PageSize;
 
-			Debug.Assert(lastAllocatedPageNo == index + Constants.UnaccountedHeaderPages);
+			Debug.Assert(lastAllocatedPageNo == index + Constants.UnaccountedHeaderPages - 1);
 		}
 
 		Boolean IPageAllocator.IsPageManagerBitField => true;

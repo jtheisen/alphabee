@@ -58,14 +58,13 @@ public class StorageTests
 
 		var allocatedAfterFirstIndexPageNo = storage.AllocatePageNo();
 
-		Assert.AreEqual(uhp + 1 + leafPageBits, allocatedAfterFirstIndexPageNo);
-
-		Assert.AreEqual("p1", storage.GetCharPairAtNo(uhp + leafPageBits));
+		Assert.AreEqual("p1", storage.GetCharPairAtNo(uhp + leafPageBits - 1));
+		Assert.AreEqual("p0", storage.GetCharPairAtNo(uhp + leafPageBits));
 
 		Assert.AreEqual(uhp + leafPageBits + 1, allocatedAfterFirstIndexPageNo);
 
 		// We've already allocated two - one being the last index page.
-		for (var i = 1ul; i < leafPageBits - 1; ++i)
+		for (var i = 1ul; i < leafPageBits - 2; ++i)
 		{
 			var pageNo = storage.AllocatePageNo();
 
@@ -77,5 +76,18 @@ public class StorageTests
 		Assert.AreEqual(leafPageBits * 2 + 1, allocatedAfterSecondIndexPageNo);
 
 		Assert.AreEqual("p0", storage.GetCharPairAtNo(leafPageBits * 2));
+	}
+
+	[TestMethod]
+	public void TestSecondLevelIndexPage()
+	{
+		using var storage = Storage.CreateTestStorage();
+
+		var spaceSize = default(BitFieldPage).Layout.GetSpaceSizeForDepth(2);
+
+		for (var i = 0ul; i < spaceSize; ++i)
+		{
+			storage.AllocatePageOffset();
+		}
 	}
 }

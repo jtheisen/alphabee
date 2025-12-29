@@ -88,7 +88,7 @@ public ref struct BitField<AllocatorT>
 			childPageOffset = allocator.AllocatePageOffset();
 
 #if DEBUG
-			allocator.AssertAllocatedPageIndex(index);
+			allocator.AssertAllocatedPageIndex(index + reserve.ToUInt64());
 #endif
 
 			if (allocator.IsPageManagerBitField)
@@ -146,7 +146,9 @@ public ref struct BitField<AllocatorT>
 
 	UInt64 AllocateAtLeaf(BitFieldPage leaf)
 	{
+#if DEBUG
 		sizeForDepth /= layout.ContentBitSize.ToUInt64();
+#endif
 
 		if (allocator.IsPageManagerBitField && reserve > 0)
 		{
