@@ -48,35 +48,35 @@ public static class PageExtensions
 	}
 }
 
-public struct FieldPageLayout<T> : IFieldPageLayout
-	where T : unmanaged
-{
-	const Int32 BitsPerByteLog2 = 3;
-	const Int32 BitsPerByte = 1 << BitsPerByteLog2;
-	const Int32 WordSizeLog2 = 3;
-	const Int32 WordSize = 1 << WordSizeLog2;
+//public struct FieldPageLayout<T> : IFieldPageLayout
+//	where T : unmanaged
+//{
+//	const Int32 BitsPerByteLog2 = 3;
+//	const Int32 BitsPerByte = 1 << BitsPerByteLog2;
+//	const Int32 WordSizeLog2 = 3;
+//	const Int32 WordSize = 1 << WordSizeLog2;
 
-	public Int32 SizeLog2 => 12;
-	public Int32 Size => 1 << SizeLog2;
+//	public Int32 SizeLog2 => 12;
+//	public Int32 Size => 1 << SizeLog2;
 
-	public UInt64 Size64 => (UInt64)Size;
+//	public UInt64 Size64 => (UInt64)Size;
 
-	public Int32 LeadWordsLog2 => 2;
-	public Int32 LeadWords => 1 << LeadWordsLog2;
-	public Int32 LeadSize => LeadWords * WordSize;
+//	public Int32 LeadWordsLog2 => 2;
+//	public Int32 LeadWords => 1 << LeadWordsLog2;
+//	public Int32 LeadSize => LeadWords * WordSize;
 
-	public Int32 ItemSize => Unsafe.SizeOf<T>();
+//	public Int32 ItemSize => Unsafe.SizeOf<T>();
 
-	public Int32 BitsPerWordLog2 => WordSizeLog2 + BitsPerByteLog2;
+//	public Int32 BitsPerWordLog2 => WordSizeLog2 + BitsPerByteLog2;
 
-	public Int32 ContentSize => Size - LeadSize;
+//	public Int32 ContentSize => Size - LeadSize;
 
-	public Int32 ContentBitSize => ContentSize * WordSize * BitsPerByte;
+//	public Int32 ContentBitSize => ContentSize * WordSize * BitsPerByte;
 
-	public UInt64 AllPattern => UInt64.MaxValue >> LeadWordsLog2;
+//	public UInt64 AllPattern => UInt64.MaxValue >> LeadWordsLog2;
 
-	public Int32 FieldLength => ContentSize / ItemSize;
-}
+//	public Int32 FieldLength => ContentSize / ItemSize;
+//}
 
 public struct HeaderPageLayout
 {
@@ -144,8 +144,7 @@ public ref struct PageHeader
 	public Char PageDepthChar => PageDepthByte < 10 ? (Char)('0' + PageDepthByte) : '+';
 }
 
-
-struct Layout<T, I>
+struct FieldPageLayout<T, I>
 {
 	public Int32 PageSize => Constants.PageSize32;
 
@@ -167,7 +166,7 @@ public ref struct FieldPage<T, I>
 	where T : unmanaged
 	where I : unmanaged
 {
-	Layout<T, I> layout;
+	FieldPageLayout<T, I> layout;
 
 	PageHeader header;
 	ref I used;

@@ -8,8 +8,6 @@ public class Storage : IDisposable
 
 	SerialDisposable currentDisposable = new();
 
-	PageManager pageManager;
-
 	public UInt64 PageSize => Constants.PageSize;
 
 	public static Storage CreateTestStorage()
@@ -23,13 +21,13 @@ public class Storage : IDisposable
 		implementation = createImplementation(Constants.PageSize32);
 		currentDisposable.Disposable = implementation;
 
-		pageManager = new PageManager(this);
-
 		if (create)
 		{
 			Init();
 		}
 	}
+
+	PageManager PageManager => new PageManager(this);
 
 	public HeaderPage HeaderPage => new HeaderPage(GetPageSpanAtOffset(0));
 
@@ -37,7 +35,7 @@ public class Storage : IDisposable
 
 	void Init()
 	{
-		pageManager.Init();
+		PageManager.Init();
 	}
 
 	void UpdateImplementation(StorageImplementation implementation)
@@ -67,7 +65,7 @@ public class Storage : IDisposable
 
 	public UInt64 AllocatePageOffset()
 	{
-		return pageManager.AllocatePageOffset();
+		return PageManager.AllocatePageOffset();
 	}
 }
 

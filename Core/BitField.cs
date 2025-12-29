@@ -14,9 +14,11 @@ public interface IPageAllocator
 public ref struct BitField<AllocatorT>
 	where AllocatorT : struct, IPageAllocator, allows ref struct
 {
+	BitFieldPageLayout layout;
 	AllocatorT allocator;
 	Boolean filled;
 	Int32 reserve;
+	UInt64 factor;
 
 	public BitField(AllocatorT allocator)
 	{
@@ -27,6 +29,7 @@ public ref struct BitField<AllocatorT>
 	{
 		filled = false;
 		reserve = 0;
+		factor = 0;
 
 		var index = AllocateCore(page, depth);
 
@@ -88,25 +91,15 @@ public ref struct BitField<AllocatorT>
 
 		var ownIndex = (UInt64)i;
 
-		return ownIndex + childIndex;
+		var result = ownIndex * factor + childIndex;
+
+		factor *= layout.FieldLength.ToUInt64();
+
+		return result;
 	}
 
-	UInt64 AllocateAtLeaf(BitFieldPage leaf)
+	UInt64 AllocateAtLeafCore(BitFieldPage leaf)
 	{
-		if (allocator.IsPageManagerBitField && reserve > 0)
-		{
-			// We come from new index pages, therefore we also must have
-			// a new leaf. We need to mark the index page entries in the
-			// new leaf.
-
-			Debug.Assert(leaf.IsEmpty);
-
-			while (--reserve > 0)
-			{
-				leaf.AllocatePartially(out _, out _);
-			}
-		}
-
 		ref var word = ref leaf.AllocatePartially(out var i, out _);
 
 		var j = word.Allocate();
@@ -120,7 +113,30 @@ public ref struct BitField<AllocatorT>
 			filled = leaf.IsFull;
 		}
 
+		factor = layout.ContentBitSize.ToUInt64();
+
 		return (((UInt64)i) << 6) + (UInt64)j;
+	}
+
+	UInt64 AllocateAtLeaf(BitFieldPage leaf)
+	{
+		if (allocator.IsPageManagerBitField && reserve > 0)
+		{
+			// We come from new index pages, therefore we also must have
+			// a new leaf. We need to mark the index page entries in the
+			// new leaf.
+
+			Debug.Assert(leaf.IsEmpty);
+
+			for (; reserve > 0; --reserve)
+			{
+				AllocateAtLeafCore(leaf);
+			}
+		}
+
+		factor = layout.ContentBitSize.ToUInt64();
+
+		return AllocateAtLeafCore(leaf);
 	}
 }
 

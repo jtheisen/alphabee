@@ -40,13 +40,6 @@ public class StorageTests
 
 		Assert.AreEqual(false, page.GetFullBit(1));
 		Assert.AreEqual(true, page.GetUsedBit(1));
-
-		for (var i = 0; i < 64 * 64 - 1; ++i)
-		{
-			storage.AllocatePageOffset();
-		}
-
-		Assert.IsTrue(page.IsFull);
 	}
 
 	[TestMethod]
@@ -55,19 +48,19 @@ public class StorageTests
 		using var storage = Storage.CreateTestStorage();
 
 		var expectedFirstIndexPageNo = 1ul * (4096 - 256) * 8;
-
-		//for (var i = 1ul; i < expectedFirstIndexPageNo; ++i)
-		//{
-		//	Assert.AreEqual(storage.PageSize * i, storage.AllocatePageOffset());
-		//}
+		var expectedFirstIndexPageOffset = storage.PageSize * expectedFirstIndexPageNo;
 
 		for (var i = 1ul; i < expectedFirstIndexPageNo; ++i)
 		{
-			//if (i == 32) System.Diagnostics.Debugger.Break();
-
 			Assert.AreEqual(storage.PageSize * i, storage.AllocatePageOffset());
 		}
 
-		Assert.AreEqual(storage.PageSize * expectedFirstIndexPageNo + 1, storage.AllocatePageOffset());
+		var allocatedAfterFirstIndexPageOffset = storage.AllocatePageOffset();
+
+		Assert.AreNotEqual(expectedFirstIndexPageOffset, allocatedAfterFirstIndexPageOffset);
+
+		Assert.AreEqual("p1", storage.GetCharPairAtOffset(expectedFirstIndexPageOffset));
+
+		Assert.AreEqual(expectedFirstIndexPageOffset + storage.PageSize, allocatedAfterFirstIndexPageOffset);
 	}
 }

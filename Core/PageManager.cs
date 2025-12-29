@@ -1,12 +1,10 @@
-﻿using System.Reflection.PortableExecutable;
-
-namespace AlphaBee;
+﻿namespace AlphaBee;
 
 // TODO: Durability for the header.
 
 public ref struct PageManager
 {
-	FieldPageLayout<UInt64> layout;
+	BitFieldPageLayout layout;
 
 	ref HeaderPageLayout header;
 
@@ -22,8 +20,8 @@ public ref struct PageManager
 	public void Init()
 	{
 		header.IndexDepth = 0;
-		header.IndexRootOffset = layout.Size64;
-		header.AddressSpaceEnd = header.IndexRootOffset + layout.Size64;
+		header.IndexRootOffset = Constants.PageSize;
+		header.NextPageOffset = header.IndexRootOffset + Constants.PageSize;
 
 		var indexRootPageSpan = storage.GetPageSpanAtOffset(header.IndexRootOffset);
 
@@ -67,7 +65,7 @@ public ref struct PageManager
 
 		var bitField = new BitField<Allocator>(new Allocator(storage));
 
-		var pageOffset = bitField.Allocate(rootIndexPage, header.IndexDepth) * layout.Size64;
+		var pageOffset = bitField.Allocate(rootIndexPage, header.IndexDepth) * Constants.PageSize;
 
 		if (pageOffset >= header.NextPageOffset)
 		{
@@ -97,7 +95,7 @@ public ref struct PageManager
 			result *= (UInt64)layout.FieldLength;
 		}
 
-		return result * layout.Size64;
+		return result * layout.PageSize.ToUInt64();
 	}
 
 	struct Allocator : IPageAllocator
