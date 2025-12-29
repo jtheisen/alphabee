@@ -144,7 +144,7 @@ public ref struct PageHeader
 	public Char PageDepthChar => PageDepthByte < 10 ? (Char)('0' + PageDepthByte) : '+';
 }
 
-struct FieldPageLayout<T, I>
+public struct FieldPageLayout<T, I>
 {
 	public Int32 PageSize => Constants.PageSize32;
 
@@ -159,6 +159,23 @@ struct FieldPageLayout<T, I>
 	public Int32 ContentBitSize => ContentSize * Constants.BitsPerByte;
 
 	public Int32 FieldLength => ContentSize / PaddedItemSize;
+
+	public UInt64 GetSpaceSizeForDepth(Int32 depth)
+	{
+		var result = (UInt64)ContentBitSize;
+
+		for (var i = 0; i < depth; i++)
+		{
+			result *= (UInt64)FieldLength;
+		}
+
+		return result;
+	}
+
+	public UInt64 GetAddressSpaceSizeForDepth(Int32 depth)
+	{
+		return GetSpaceSizeForDepth(depth) * PageSize.ToUInt64();
+	}
 }
 
 [DebuggerDisplay("{ToString()}")]
@@ -166,7 +183,7 @@ public ref struct FieldPage<T, I>
 	where T : unmanaged
 	where I : unmanaged
 {
-	FieldPageLayout<T, I> layout;
+	public static readonly FieldPageLayout<T, I> layout;
 
 	PageHeader header;
 	ref I used;
@@ -177,6 +194,8 @@ public ref struct FieldPage<T, I>
 	public Int32 PaddedItemSize => 1 << Unsafe.SizeOf<T>().ToUInt64().Log2Ceil();
 
 	public UInt64 PageSize => Constants.PageSize;
+
+	public FieldPageLayout<T, I> Layout => layout;
 
 	public override String ToString()
 	{

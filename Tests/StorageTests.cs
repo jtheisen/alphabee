@@ -47,20 +47,35 @@ public class StorageTests
 	{
 		using var storage = Storage.CreateTestStorage();
 
-		var expectedFirstIndexPageNo = 1ul * (4096 - 256) * 8;
-		var expectedFirstIndexPageOffset = storage.PageSize * expectedFirstIndexPageNo;
+		var uhp = Constants.UnaccountedHeaderPages.ToUInt64();
 
-		for (var i = 1ul; i < expectedFirstIndexPageNo; ++i)
+		var leafPageBits = 1ul * (4096 - 256) * 8;
+
+		for (var i = 1ul; i < leafPageBits - uhp; ++i)
 		{
-			Assert.AreEqual(storage.PageSize * i, storage.AllocatePageOffset());
+			Assert.AreEqual(uhp + i, storage.AllocatePageNo());
 		}
 
-		var allocatedAfterFirstIndexPageOffset = storage.AllocatePageOffset();
+		var allocatedAfterFirstIndexPageNo = storage.AllocatePageNo();
 
-		Assert.AreNotEqual(expectedFirstIndexPageOffset, allocatedAfterFirstIndexPageOffset);
+		Assert.AreEqual(uhp + 1 + leafPageBits, allocatedAfterFirstIndexPageNo);
 
-		Assert.AreEqual("p1", storage.GetCharPairAtOffset(expectedFirstIndexPageOffset));
+		Assert.AreEqual("p1", storage.GetCharPairAtNo(uhp + leafPageBits));
 
-		Assert.AreEqual(expectedFirstIndexPageOffset + storage.PageSize, allocatedAfterFirstIndexPageOffset);
+		Assert.AreEqual(uhp + leafPageBits + 1, allocatedAfterFirstIndexPageNo);
+
+		// We've already allocated two - one being the last index page.
+		for (var i = 1ul; i < leafPageBits - 1; ++i)
+		{
+			var pageNo = storage.AllocatePageNo();
+
+			Assert.AreEqual(allocatedAfterFirstIndexPageNo + i, pageNo);
+		}
+
+		var allocatedAfterSecondIndexPageNo = storage.AllocatePageNo();
+
+		Assert.AreEqual(leafPageBits * 2 + 1, allocatedAfterSecondIndexPageNo);
+
+		Assert.AreEqual("p0", storage.GetCharPairAtNo(leafPageBits * 2));
 	}
 }

@@ -1,4 +1,6 @@
-﻿namespace AlphaBee;
+﻿using System;
+
+namespace AlphaBee;
 
 public class BitArrayFullException : Exception { }
 
@@ -9,33 +11,48 @@ public interface IPageAllocator
 	Span<Byte> GetPageSpanAtOffset(UInt64 offset);
 
 	UInt64 AllocatePageOffset();
+
+	void AssertAllocatedPageIndex(UInt64 index);
 }
 
 public ref struct BitField<AllocatorT>
 	where AllocatorT : struct, IPageAllocator, allows ref struct
 {
-	BitFieldPageLayout layout;
+	public static readonly BitFieldPageLayout layout;
+
 	AllocatorT allocator;
 	Boolean filled;
 	Int32 reserve;
 	UInt64 factor;
+
+#if DEBUG
+	UInt64 sizeForDepth;
+	UInt64 index;
+#endif
+
+	public BitFieldPageLayout Layout => layout;
 
 	public BitField(AllocatorT allocator)
 	{
 		this.allocator = allocator;
 	}
 
-	public UInt64 Allocate(BitFieldPage page, Int32 depth)
+	public UInt64 Allocate(BitFieldPage page, Int32 depth, Int32 initialReserve)
 	{
 		filled = false;
-		reserve = 0;
+		reserve = initialReserve;
 		factor = 0;
 
-		var index = AllocateCore(page, depth);
+#if DEBUG
+		sizeForDepth = layout.GetSpaceSizeForDepth(depth);
+		index = 0;
+#endif
+
+		var result = AllocateCore(page, depth);
 
 		Debug.Assert(reserve == 0);
 
-		return index;
+		return result;
 	}
 
 	UInt64 AllocateCore(BitFieldPage page, Int32 depth)
@@ -45,23 +62,34 @@ public ref struct BitField<AllocatorT>
 		page.Validate();
 		page.ValidateFieldPage(asBitFieldLeaf: depth == 0);
 
-		var pageNo = depth > 0 ? AllocateAtBranch(page, depth) : AllocateAtLeaf(page);
+		var result = depth > 0 ? AllocateAtBranch(page, depth) : AllocateAtLeaf(page);
 
 		page.Validate();
 		page.ValidateFieldPage(asBitFieldLeaf: depth == 0);
 
-		return pageNo;
+		return result;
 	}
 
 	UInt64 AllocateAtBranch(BitFieldPage branch, Int32 depth)
 	{
 		ref var childPageOffset = ref branch.AllocatePartially(out var i, out var unused);
 
+		var ownIndex = (UInt64)i;
+
+#if DEBUG
+		sizeForDepth /= layout.FieldLength.ToUInt64();
+		index += ownIndex * sizeForDepth;
+#endif
+
 		if (unused)
 		{
 			// If this is the page manager bit field, we never "unuse" branch
 			// entries, so it is guaranteed that this is the end of the used address space.
 			childPageOffset = allocator.AllocatePageOffset();
+
+#if DEBUG
+			allocator.AssertAllocatedPageIndex(index);
+#endif
 
 			if (allocator.IsPageManagerBitField)
 			{
@@ -77,7 +105,7 @@ public ref struct BitField<AllocatorT>
 
 		if (unused)
 		{
-			childPage.Init(PageType.PageIndex, depth);
+			childPage.Init(PageType.PageIndex, depth - 1);
 		}
 
 		var childIndex = AllocateCore(childPage, depth - 1);
@@ -88,8 +116,6 @@ public ref struct BitField<AllocatorT>
 
 			filled = branch.IsFull;
 		}
-
-		var ownIndex = (UInt64)i;
 
 		var result = ownIndex * factor + childIndex;
 
@@ -120,6 +146,8 @@ public ref struct BitField<AllocatorT>
 
 	UInt64 AllocateAtLeaf(BitFieldPage leaf)
 	{
+		sizeForDepth /= layout.ContentBitSize.ToUInt64();
+
 		if (allocator.IsPageManagerBitField && reserve > 0)
 		{
 			// We come from new index pages, therefore we also must have

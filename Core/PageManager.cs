@@ -4,8 +4,6 @@
 
 public ref struct PageManager
 {
-	BitFieldPageLayout layout;
-
 	ref HeaderPageLayout header;
 
 	Storage storage;
@@ -31,7 +29,14 @@ public ref struct PageManager
 
 		indexRootPage.Init(PageType.PageIndex, 0);
 		indexRootPage.SetUsedBit(0, true);
-		indexRootPage.At(0).SetBit(0, true);
+
+		Debug.Assert(Constants.UnaccountedHeaderPages < 63);
+
+		// All unaccounted header page and the index root are marked as used.
+		for (var i = 0; i < Constants.UnaccountedHeaderPages + 1; ++i)
+		{
+			indexRootPage.At(0).SetBit(i, true);
+		}
 	}
 
 	public UInt64 AllocatePageOffset()
@@ -40,13 +45,15 @@ public ref struct PageManager
 
 		var rootIndexPage = new BitFieldPage(rootPageSpan);
 
+		var reserve = default(Int32);
+
 		if (rootIndexPage.IsFull)
 		{
 			var newIndexPageOffset = AllocatePageOffsetAtEnd(storage);
 
-			Debug.Assert(newIndexPageOffset == GetAddressSpaceSizeForDepth(header.IndexDepth));
+			Debug.Assert(newIndexPageOffset == rootIndexPage.Layout.GetAddressSpaceSizeForDepth(header.IndexDepth));
 
-			var newIndePageDepth = header.IndexDepth + 1;
+			var newIndexPageDepth = header.IndexDepth + 1;
 
 			rootPageSpan = storage.GetPageSpanAtOffset(newIndexPageOffset);
 
@@ -54,18 +61,26 @@ public ref struct PageManager
 
 			rootIndexPage = new BitFieldPage(rootPageSpan);
 
-			rootIndexPage.Init(PageType.PageIndex, newIndePageDepth);
+			rootIndexPage.Init(PageType.PageIndex, newIndexPageDepth);
 			ref var entry = ref rootIndexPage.AllocateFully(out var _);
 			entry = header.IndexRootOffset;
 			rootIndexPage.Validate();
 
-			header.IndexDepth = newIndePageDepth;
+			++reserve;
+			//var bitField2 = new BitField<Allocator>(new Allocator(storage, check: false));
+			//var sameNewIndexPageNo = bitField2.Allocate(rootIndexPage, newIndexPageDepth)
+			//	+ Constants.UnaccountedHeaderPages;
+			//var newIndexPageNo = newIndexPageOffset / Constants.PageSize;
+			//Debug.Assert(sameNewIndexPageNo == newIndexPageNo);
+
+			header.IndexDepth = newIndexPageDepth;
 			header.IndexRootOffset = newIndexPageOffset;
+			header.NextPageOffset = newIndexPageOffset + Constants.PageSize;
 		}
 
-		var bitField = new BitField<Allocator>(new Allocator(storage));
+		var bitField = new BitField<Allocator>(new Allocator(storage, check: true));
 
-		var pageOffset = bitField.Allocate(rootIndexPage, header.IndexDepth) * Constants.PageSize;
+		var pageOffset = bitField.Allocate(rootIndexPage, header.IndexDepth, reserve) * Constants.PageSize;
 
 		if (pageOffset >= header.NextPageOffset)
 		{
@@ -86,32 +101,32 @@ public ref struct PageManager
 		return nextPageOffset;
 	}
 
-	public UInt64 GetAddressSpaceSizeForDepth(Int32 depth)
-	{
-		var result = (UInt64)layout.ContentBitSize;
-
-		for (var i = 0; i < depth; i++)
-		{
-			result *= (UInt64)layout.FieldLength;
-		}
-
-		return result * layout.PageSize.ToUInt64();
-	}
-
 	struct Allocator : IPageAllocator
 	{
 		Storage storage;
+		Boolean check;
+		UInt64 lastAllocatedPageOffset;
 
-		public Allocator(Storage storage)
+		public Allocator(Storage storage, Boolean check)
 		{
 			this.storage = storage;
+			this.check = check;
 		}
 
 		Span<Byte> IPageAllocator.GetPageSpanAtOffset(UInt64 offset)
 			=> storage.GetPageSpanAtOffset(offset);
 
 		UInt64 IPageAllocator.AllocatePageOffset()
-			=> AllocatePageOffsetAtEnd(storage);
+			=> lastAllocatedPageOffset = AllocatePageOffsetAtEnd(storage);
+
+		void IPageAllocator.AssertAllocatedPageIndex(UInt64 index)
+		{
+			if (!check) return;
+
+			var lastAllocatedPageNo = lastAllocatedPageOffset / storage.PageSize;
+
+			Debug.Assert(lastAllocatedPageNo == index + Constants.UnaccountedHeaderPages);
+		}
 
 		Boolean IPageAllocator.IsPageManagerBitField => true;
 	}

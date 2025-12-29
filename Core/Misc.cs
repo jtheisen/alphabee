@@ -8,9 +8,19 @@ public struct UInt512
 
 public static class Extensions
 {
-	public static Span<Byte> GetCharPairAtNo(this Storage storage, UInt64 pageNo)
+	public static UInt64 AllocatePageNo(this Storage storage)
 	{
-		return storage.GetPageSpanAtOffset(storage.PageSize * pageNo);
+		return storage.AllocatePageOffset() / storage.PageSize;
+	}
+
+	public static Span<Byte> GetPageSpanAtNo(this Storage storage, UInt64 pageNo)
+	{
+		return storage.GetPageSpanAtOffset(pageNo * storage.PageSize);
+	}
+
+	public static String GetCharPairAtNo(this Storage storage, UInt64 pageNo)
+	{
+		return storage.GetCharPairAtOffset(pageNo * storage.PageSize);
 	}
 
 	public static String GetCharPairAtOffset(this Storage storage, UInt64 offset)
