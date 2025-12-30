@@ -67,11 +67,6 @@ public ref struct PageManager
 			rootIndexPage.Validate();
 
 			++reserve;
-			//var bitField2 = new BitField<Allocator>(new Allocator(storage, check: false));
-			//var sameNewIndexPageNo = bitField2.Allocate(rootIndexPage, newIndexPageDepth)
-			//	+ Constants.UnaccountedHeaderPages;
-			//var newIndexPageNo = newIndexPageOffset / Constants.PageSize;
-			//Debug.Assert(sameNewIndexPageNo == newIndexPageNo);
 
 			header.IndexDepth = newIndexPageDepth;
 			header.IndexRootOffset = newIndexPageOffset;

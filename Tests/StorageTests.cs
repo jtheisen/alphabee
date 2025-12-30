@@ -79,15 +79,16 @@ public class StorageTests
 	}
 
 	[TestMethod]
+	public void TestMemoryClearing()
+	{
+		// Just for the timing. Apparently it's faster to allocate the pages
+		// than it is to clear them already.
+		new Byte[1ul << 30].AsSpan().Clear();
+	}
+
+	[TestMethod]
 	public void TestSecondLevelIndexPage()
 	{
-		if (!typeof(BitFieldPage).Assembly.IsOptimized())
-		{
-			Console.WriteLine("Assembly not optimized, skipping test");
-
-			return;
-		}
-
 		using var storage = Storage.CreateTestStorage();
 
 		var layout = default(BitFieldPage).Layout;
@@ -98,7 +99,16 @@ public class StorageTests
 
 		var spaceSize = fullSpaceSize;
 
-		Console.WriteLine($"Doing {1.0 * spaceSize / fullSpaceSize:p} of the entire space");
+		var coveredAddressSpaceInMB = (fullSpaceSize * storage.PageSize) >> 20;
+
+		Console.WriteLine($"Doing {1.0 * spaceSize / fullSpaceSize:p} of the entire space, which would cover {coveredAddressSpaceInMB} MB");
+
+		if (!typeof(BitFieldPage).Assembly.IsOptimized())
+		{
+			Console.WriteLine("Assembly not optimized, skipping test");
+
+			return;
+		}
 
 		for (var i = 0ul; i < spaceSize; ++i)
 		{
