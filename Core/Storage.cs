@@ -63,10 +63,11 @@ public class Storage : IDisposable
 		currentDisposable.Dispose();
 	}
 
+	public void DeallocatePageOffset(UInt64 offset)
+		=> PageManager.DeallocatePageOffset(offset);
+
 	public UInt64 AllocatePageOffset()
-	{
-		return PageManager.AllocatePageOffset();
-	}
+		=> PageManager.AllocatePageOffset();
 }
 
 

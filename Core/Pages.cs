@@ -32,7 +32,7 @@ public static class PageExtensions
 		{
 			if (page.GetUsedBit(i))
 			{
-				var word = page.At(i);
+				var word = page.Use(i, out _);
 
 				Debug.Assert(word != 0);
 

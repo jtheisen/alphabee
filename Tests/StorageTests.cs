@@ -12,7 +12,7 @@ public class StorageTests
 
 		var page = new BitFieldPage(storage.GetPageSpanAtOffset(storage.Header.IndexRootOffset));
 
-		var firstWord = new BitsWord(ref page.At(0));
+		var firstWord = new BitsWord(ref page.Use(0, out _));
 
 		Assert.AreEqual(false, page.GetFullBit(0));
 		Assert.AreEqual(true, page.GetUsedBit(0));

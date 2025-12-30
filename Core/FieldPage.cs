@@ -83,6 +83,16 @@ public ref struct FieldPage<T, I>
 		Debug.Assert(full.BitImplies(ref used));
 	}
 
+	public readonly ref T At(UInt64 i)
+	{
+		return ref content[i.ToInt32()];
+	}
+
+	public ref T ModifyAt(UInt64 i)
+	{
+		return ref content[i.ToInt32()];
+	}
+
 	public void SetFullBit(Int32 i, Boolean value)
 	{
 		Debug.Assert(i < layout.FieldLength);
@@ -111,14 +121,9 @@ public ref struct FieldPage<T, I>
 		return used.GetBit(i);
 	}
 
-	ref T Allocate(out Int32 i, out Boolean unused)
+	public ref T Use(Int32 i, out Boolean unused)
 	{
-		i = full.IndexOfBitZero();
-
-		if (i >= layout.FieldLength)
-		{
-			throw new BitArrayFullException();
-		}
+		Debug.Assert(i < layout.FieldLength);
 
 		ref var item = ref content[i];
 
@@ -132,6 +137,13 @@ public ref struct FieldPage<T, I>
 		}
 
 		return ref item;
+	}
+
+	ref T Allocate(out Int32 i, out Boolean unused)
+	{
+		i = full.IndexOfBitZero();
+
+		return ref Use(i, out unused);
 	}
 
 	public ref T AllocatePartially(out Int32 i, out Boolean unused)
@@ -155,11 +167,4 @@ public ref struct FieldPage<T, I>
 	public Boolean IsFull => full.IndexOfBitZero() >= layout.FieldLength;
 
 	public Boolean IsEmpty => used.IsAllZero();
-
-	public ref T At(Int32 i)
-	{
-		Debug.Assert(i < layout.FieldLength);
-
-		return ref content[i];
-	}
 }

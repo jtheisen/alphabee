@@ -91,8 +91,6 @@ public struct Vector512LeadingZeroCountManual0 : IAction
 
 	public void Run()
 	{
-		UInt64ByteArray word = default;
-
 		var w0 = BitOperations.LeadingZeroCount(value[0]);
 		var w1 = BitOperations.LeadingZeroCount(value[1]);
 		var w2 = BitOperations.LeadingZeroCount(value[2]);

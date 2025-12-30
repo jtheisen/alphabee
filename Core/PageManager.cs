@@ -35,7 +35,32 @@ public ref struct PageManager
 		// All unaccounted header page and the index root are marked as used.
 		for (var i = 0; i < Constants.UnaccountedHeaderPages + 1; ++i)
 		{
-			indexRootPage.At(0).SetBit(i, true);
+			indexRootPage.Use(0, out _).SetBit(i, true);
+		}
+	}
+
+	public void DeallocatePageOffset(UInt64 offset)
+	{
+		var rootPageSpan = storage.GetPageSpanAtOffset(header.IndexRootOffset);
+
+		var rootIndexPage = new BitFieldPage(rootPageSpan);
+
+		var bitField = new BitField<NoAllocationsAllocator>(new NoAllocationsAllocator(storage));
+
+		Debug.Assert(offset % storage.PageSize == 0);
+
+		try
+		{
+			var wasSet = bitField.GetAndSet(rootIndexPage, header.IndexDepth, offset / storage.PageSize, false);
+
+			if (!wasSet)
+			{
+				throw new InternalErrorException("An attempt was made to deallocate an that was not allocated");
+			}
+		}
+		catch(UnexpectedAllocationException)
+		{
+			throw new InternalErrorException("An attempt was made to deallocate an that can't have been allocated");
 		}
 	}
 
@@ -73,7 +98,7 @@ public ref struct PageManager
 			header.NextPageOffset = newIndexPageOffset + Constants.PageSize;
 		}
 
-		var bitField = new BitField<Allocator>(new Allocator(storage, check: true));
+		var bitField = new BitField<ExtendingAllocator>(new ExtendingAllocator(storage, check: true));
 
 		var pageOffset = bitField.Allocate(rootIndexPage, header.IndexDepth, reserve) * Constants.PageSize;
 
@@ -96,13 +121,41 @@ public ref struct PageManager
 		return nextPageOffset;
 	}
 
-	struct Allocator : IPageAllocator
+	class UnexpectedAllocationException : Exception { }
+
+	struct NoAllocationsAllocator : IPageAllocator
+	{
+		Storage storage;
+
+		public NoAllocationsAllocator(Storage storage)
+		{
+			this.storage = storage;
+		}
+
+		Boolean IPageAllocator.IsPageManagerBitField
+			=> throw new InternalErrorException();
+
+		UInt64 IPageAllocator.AllocatePageOffset()
+			=> throw new UnexpectedAllocationException();
+
+		void IPageAllocator.AssertAllocatedPageIndex(UInt64 index)
+			=> throw new InternalErrorException();
+
+		Span<Byte> IPageAllocator.GetPageSpanAtOffset(UInt64 offset)
+		{
+			Debug.Assert(offset < storage.Header.NextPageOffset);
+
+			return storage.GetPageSpanAtOffset(offset);
+		}
+	}
+
+	struct ExtendingAllocator : IPageAllocator
 	{
 		Storage storage;
 		Boolean check;
 		UInt64 lastAllocatedPageOffset;
 
-		public Allocator(Storage storage, Boolean check)
+		public ExtendingAllocator(Storage storage, Boolean check)
 		{
 			this.storage = storage;
 			this.check = check;

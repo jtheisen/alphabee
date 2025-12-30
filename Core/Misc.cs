@@ -2,6 +2,18 @@
 
 namespace AlphaBee;
 
+public class InternalErrorException : Exception
+{
+	public InternalErrorException()
+	{
+	}
+
+	public InternalErrorException(String message)
+		: base(message)
+	{
+	}
+}
+
 [InlineArray(8)]
 public struct UInt512
 {
