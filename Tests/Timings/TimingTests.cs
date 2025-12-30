@@ -7,6 +7,8 @@ using System.Runtime.Intrinsics.X86;
 
 namespace AlphaBee.Timings;
 
+#pragma warning disable CS0649
+
 public interface IAction
 {
 	void Run();

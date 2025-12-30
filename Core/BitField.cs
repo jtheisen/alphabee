@@ -20,7 +20,7 @@ public interface IPageAllocator
 public ref struct BitField<AllocatorT>
 	where AllocatorT : struct, IPageAllocator, allows ref struct
 {
-	public static readonly WordPageLayout layout;
+	public static readonly IndexPageLayout layout;
 
 	AllocatorT allocator;
 	Boolean filled;
@@ -32,7 +32,7 @@ public ref struct BitField<AllocatorT>
 	UInt64 index;
 #endif
 
-	public WordPageLayout Layout => layout;
+	public IndexPageLayout Layout => layout;
 
 	public BitField(AllocatorT allocator)
 	{
@@ -144,12 +144,12 @@ public ref struct BitField<AllocatorT>
 		Debug.Assert(!page.IsFull);
 
 		page.Validate();
-		page.ValidateWordPage(asBitFieldLeaf: depth == 0);
+		page.ValidateBitFieldPage(asBitFieldLeaf: depth == 0);
 
 		var result = depth > 0 ? AllocateAtBranch(page, depth) : AllocateAtLeaf(page);
 
 		page.Validate();
-		page.ValidateWordPage(asBitFieldLeaf: depth == 0);
+		page.ValidateBitFieldPage(asBitFieldLeaf: depth == 0);
 
 		return result;
 	}

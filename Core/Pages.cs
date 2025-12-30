@@ -25,7 +25,7 @@ public interface IFieldPageLayout : IPageLayout
 
 public static class PageExtensions
 {
-	public static void ValidateWordPage(this IndexPage page, Boolean asBitFieldLeaf)
+	public static void ValidateBitFieldPage(this IndexPage page, Boolean asBitFieldLeaf)
 	{
 		page.Validate();
 

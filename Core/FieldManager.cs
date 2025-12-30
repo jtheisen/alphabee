@@ -51,16 +51,18 @@ public ref struct FieldManager<T, I>
 			header.NextPageOffset = newIndexPageOffset + Constants.PageSize;
 		}
 
-		var bitField = new BitField<ExtendingAllocator>(new ExtendingAllocator(storage, check: true));
+		//var bitField = new BitField<ExtendingAllocator>(new ExtendingAllocator(storage, check: true));
 
-		var pageOffset = bitField.Allocate(rootIndexPage, header.IndexDepth, reserve) * Constants.PageSize;
+		//var pageOffset = bitField.Allocate(rootIndexPage, header.IndexDepth, reserve) * Constants.PageSize;
 
-		if (pageOffset >= header.NextPageOffset)
-		{
-			header.NextPageOffset = pageOffset + Constants.PageSize;
-		}
+		//if (pageOffset >= header.NextPageOffset)
+		//{
+		//	header.NextPageOffset = pageOffset + Constants.PageSize;
+		//}
 
-		return pageOffset;
+		//return pageOffset;
+
+		throw new NotImplementedException(); // FIXME
 	}
 }
 

@@ -93,23 +93,14 @@ public static class SpanExtensions
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static Int32 IndexOfBitCore<T>(this ref T bits, UInt64 pattern)
+	public static Int32 IndexOfBitCore<T>(this ref T bits, UInt64 pattern)
 		where T : unmanaged
 	{
 		Debug.Assert(Unsafe.SizeOf<T>() >= 8);
 
 		var span = bits.AsUInt64s();
 
-		var i = span.IndexOfAnyExcept(pattern);
-
-		if (i < 0)
-		{
-			return Unsafe.SizeOf<T>() * 8;
-		}
-		else
-		{
-			return i * 64 + BitOperations.TrailingZeroCount(span[i] ^ pattern);
-		}
+		return span.IndexOfBitCore(pattern);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -177,33 +168,51 @@ public static class SpanExtensions
 		return MemoryMarshal.AsBytes(span);
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Boolean TryIndexOfBitCore(this Span<UInt64> words, UInt64 pattern, out Int32 i)
 	{
-		i = words.IndexOfAnyExcept(pattern);
+		i = IndexOfBitCore(words, pattern);
 
-		if (i < 0)
-		{
-			return false;
-		}
-
-		var o = BitOperations.TrailingZeroCount(words[i] ^ pattern);
-
-		i = i * 64 + o;
-
-		return true;
+		return i < words.Length * 8 * 64;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Int32 IndexOfBitCore(this Span<UInt64> words, UInt64 pattern)
+	{
+		var n = words.Length;
+
+		var result = 0;
+
+		for (var i = 0; i < n; ++i)
+		{
+			var j = BitOperations.TrailingZeroCount(words[i] ^ pattern);
+
+			result += j;
+
+			if (j < 64)
+			{
+				break;
+			}
+		}
+
+		return result;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Boolean TryIndexOfBitZero(this Span<UInt64> words, out Int32 i)
 		=> words.TryIndexOfBitCore(UInt64.MaxValue, out i);
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Boolean TryIndexOfBitOne(this Span<UInt64> words, out Int32 i)
 		=> words.TryIndexOfBitCore(0, out i);
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Int32 IndexOfBitZero(this Span<UInt64> words)
-		=> words.TryIndexOfBitZero(out var i) ? i : -1;
+		=> words.IndexOfBitCore(UInt64.MaxValue);
 
-	public static Int32 TryIndexOfBitOne(this Span<UInt64> words)
-		=> words.TryIndexOfBitOne(out var i) ? i : -1;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Int32 IndexOfBitOne(this Span<UInt64> words)
+		=> words.IndexOfBitCore(0ul);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Span<Byte> AsBytes<T>(this ref T value)
