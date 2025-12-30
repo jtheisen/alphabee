@@ -1,6 +1,8 @@
 ﻿namespace AlphaBee;
 
 public struct FieldPageLayout<T, I>
+	where T : unmanaged
+	where I : unmanaged
 {
 	public Int32 PageSize => Constants.PageSize32;
 
@@ -16,7 +18,12 @@ public struct FieldPageLayout<T, I>
 
 	public Int32 FieldLength => ContentSize / PaddedItemSize;
 
-	public UInt64 GetSpaceSizeForDepth(Int32 depth)
+	public FieldPage<T, I> Create(Span<Byte> pageSpan)
+	{
+		return new FieldPage<T, I>(pageSpan);
+	}
+
+	public UInt64 GetBitSpaceSizeForDepth(Int32 depth)
 	{
 		var result = (UInt64)ContentBitSize;
 
@@ -30,12 +37,17 @@ public struct FieldPageLayout<T, I>
 
 	public UInt64 GetAddressSpaceSizeForDepth(Int32 depth)
 	{
-		return GetSpaceSizeForDepth(depth) * PageSize.ToUInt64();
+		return GetBitSpaceSizeForDepth(depth) * PageSize.ToUInt64();
 	}
 }
 
+public interface IPage
+{
+	void Init(PageType pageType, Int32 pageDepth);
+}
+
 [DebuggerDisplay("{ToString()}")]
-public ref struct FieldPage<T, I>
+public ref struct FieldPage<T, I> : IPage
 	where T : unmanaged
 	where I : unmanaged
 {
@@ -60,8 +72,6 @@ public ref struct FieldPage<T, I>
 
 	public FieldPage(Span<Byte> page)
 	{
-		//Debug.Assert();
-
 		var bitArrays = page.InterpretAs<I>();
 
 		content = page[layout.LeadSize..].InterpretAs<T>();

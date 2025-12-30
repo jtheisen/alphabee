@@ -94,8 +94,8 @@ public class StorageTests
 		var layout = default(BitFieldPage).Layout;
 
 		var fullSpaceSize = 130
-			+ layout.GetSpaceSizeForDepth(0)
-			+ layout.GetSpaceSizeForDepth(1);
+			+ layout.GetBitSpaceSizeForDepth(0)
+			+ layout.GetBitSpaceSizeForDepth(1);
 
 		var spaceSize = fullSpaceSize;
 

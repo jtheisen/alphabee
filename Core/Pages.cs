@@ -3,7 +3,8 @@
 public enum PageType
 {
 	Unkown = '.',
-	PageIndex = 'p'
+	Page = 'p',
+	Field = 'f'
 }
 
 public interface IPageLayout
@@ -24,7 +25,7 @@ public interface IFieldPageLayout : IPageLayout
 
 public static class PageExtensions
 {
-	public static void ValidateFieldPage(this BitFieldPage page, Boolean asBitFieldLeaf)
+	public static void ValidateWordPage(this IndexPage page, Boolean asBitFieldLeaf)
 	{
 		page.Validate();
 

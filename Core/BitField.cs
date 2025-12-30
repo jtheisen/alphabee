@@ -12,13 +12,15 @@ public interface IPageAllocator
 
 	UInt64 AllocatePageOffset();
 
+	Span<Byte> AllocatePageSpan() => GetPageSpanAtOffset(AllocatePageOffset());
+
 	void AssertAllocatedPageIndex(UInt64 index);
 }
 
 public ref struct BitField<AllocatorT>
 	where AllocatorT : struct, IPageAllocator, allows ref struct
 {
-	public static readonly BitFieldPageLayout layout;
+	public static readonly WordPageLayout layout;
 
 	AllocatorT allocator;
 	Boolean filled;
@@ -30,28 +32,28 @@ public ref struct BitField<AllocatorT>
 	UInt64 index;
 #endif
 
-	public BitFieldPageLayout Layout => layout;
+	public WordPageLayout Layout => layout;
 
 	public BitField(AllocatorT allocator)
 	{
 		this.allocator = allocator;
 	}
 
-	public Boolean Get(BitFieldPage page, Int32 depth, UInt64 i)
+	public Boolean Get(IndexPage page, Int32 depth, UInt64 i)
 	{
 		ref var word = ref GetCore(page, depth, i, out var i0);
 
 		return word.GetBit(i0);
 	}
 
-	public void Set(BitFieldPage page, Int32 depth, UInt64 i, Boolean value)
+	public void Set(IndexPage page, Int32 depth, UInt64 i, Boolean value)
 	{
 		ref var word = ref GetCore(page, depth, i, out var i0);
 
 		word.SetBit(i0, value);
 	}
 
-	public Boolean GetAndSet(BitFieldPage page, Int32 depth, UInt64 i, Boolean value)
+	public Boolean GetAndSet(IndexPage page, Int32 depth, UInt64 i, Boolean value)
 	{
 		ref var word = ref GetCore(page, depth, i, out var i0);
 
@@ -62,7 +64,7 @@ public ref struct BitField<AllocatorT>
 		return result;
 	}
 
-	public void AssertOneAndSetZero(BitFieldPage page, Int32 depth, UInt64 i)
+	public void AssertOneAndSetZero(IndexPage page, Int32 depth, UInt64 i)
 	{
 		ref var word = ref GetCore(page, depth, i, out var i0);
 
@@ -71,7 +73,7 @@ public ref struct BitField<AllocatorT>
 		word.SetBit(i0, false);
 	}
 
-	ref UInt64 GetCore(BitFieldPage page, Int32 depth, UInt64 i, out Int32 i0)
+	ref UInt64 GetCore(IndexPage page, Int32 depth, UInt64 i, out Int32 i0)
 	{
 		if (depth > 0)
 		{
@@ -83,9 +85,9 @@ public ref struct BitField<AllocatorT>
 		}
 	}
 
-	ref UInt64 GetFromBranch(BitFieldPage branch, Int32 depth, UInt64 i, out Int32 i0)
+	ref UInt64 GetFromBranch(IndexPage branch, Int32 depth, UInt64 i, out Int32 i0)
 	{
-		var size = layout.GetAddressSpaceSizeForDepth(depth);
+		var size = layout.GetBitSpaceSizeForDepth(depth);
 
 		var i2 = i / size;
 		var i1 = i % size;
@@ -99,13 +101,13 @@ public ref struct BitField<AllocatorT>
 
 		var childPageSpan = allocator.GetPageSpanAtOffset(childPageOffset);
 
-		var childPage = new BitFieldPage(childPageSpan);
+		var childPage = new IndexPage(childPageSpan);
 
 
 		return ref GetCore(childPage, depth - 1, i1, out i0);
 	}
 
-	ref UInt64 GetFromLeaf(BitFieldPage leaf, UInt64 i64, out Int32 i0)
+	ref UInt64 GetFromLeaf(IndexPage leaf, UInt64 i64, out Int32 i0)
 	{
 		Debug.Assert(i64 < Int32.MaxValue);
 
@@ -119,14 +121,14 @@ public ref struct BitField<AllocatorT>
 		return ref word;
 	}
 
-	public UInt64 Allocate(BitFieldPage page, Int32 depth, Int32 initialReserve)
+	public UInt64 Allocate(IndexPage page, Int32 depth, Int32 initialReserve)
 	{
 		filled = false;
 		reserve = initialReserve;
 		factor = 0;
 
 #if DEBUG
-		sizeForDepth = layout.GetSpaceSizeForDepth(depth);
+		sizeForDepth = layout.GetBitSpaceSizeForDepth(depth);
 		index = 0;
 #endif
 
@@ -137,22 +139,22 @@ public ref struct BitField<AllocatorT>
 		return result;
 	}
 
-	UInt64 AllocateCore(BitFieldPage page, Int32 depth)
+	UInt64 AllocateCore(IndexPage page, Int32 depth)
 	{
 		Debug.Assert(!page.IsFull);
 
 		page.Validate();
-		page.ValidateFieldPage(asBitFieldLeaf: depth == 0);
+		page.ValidateWordPage(asBitFieldLeaf: depth == 0);
 
 		var result = depth > 0 ? AllocateAtBranch(page, depth) : AllocateAtLeaf(page);
 
 		page.Validate();
-		page.ValidateFieldPage(asBitFieldLeaf: depth == 0);
+		page.ValidateWordPage(asBitFieldLeaf: depth == 0);
 
 		return result;
 	}
 
-	UInt64 AllocateAtBranch(BitFieldPage branch, Int32 depth)
+	UInt64 AllocateAtBranch(IndexPage branch, Int32 depth)
 	{
 		ref var childPageOffset = ref branch.AllocatePartially(out var i, out var unused);
 
@@ -183,11 +185,11 @@ public ref struct BitField<AllocatorT>
 
 		var childPageSpan = allocator.GetPageSpanAtOffset(childPageOffset);
 
-		var childPage = new BitFieldPage(childPageSpan);
+		var childPage = new IndexPage(childPageSpan);
 
 		if (unused)
 		{
-			childPage.Init(PageType.PageIndex, depth - 1);
+			childPage.Init(PageType.Page, depth - 1);
 		}
 
 		var childIndex = AllocateCore(childPage, depth - 1);
@@ -206,7 +208,7 @@ public ref struct BitField<AllocatorT>
 		return result;
 	}
 
-	UInt64 AllocateAtLeafCore(BitFieldPage leaf)
+	UInt64 AllocateAtLeafCore(IndexPage leaf)
 	{
 		ref var word = ref leaf.AllocatePartially(out var i, out _);
 
@@ -226,7 +228,7 @@ public ref struct BitField<AllocatorT>
 		return (((UInt64)i) << 6) + (UInt64)j;
 	}
 
-	UInt64 AllocateAtLeaf(BitFieldPage leaf)
+	UInt64 AllocateAtLeaf(IndexPage leaf)
 	{
 #if DEBUG
 		sizeForDepth /= layout.ContentBitSize.ToUInt64();
