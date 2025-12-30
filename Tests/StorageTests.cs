@@ -22,7 +22,7 @@ public class StorageTests
 
 		// One less because one page is already allocated and
 		// one more less because we want to stop one early.
-		for (var i = 0; i < 64 - 2; ++i)
+		for (var i = 0; i < 64 - 2 - Constants.UnaccountedHeaderPages; ++i)
 		{
 			storage.AllocatePageOffset();
 		}
@@ -81,13 +81,33 @@ public class StorageTests
 	[TestMethod]
 	public void TestSecondLevelIndexPage()
 	{
+		if (!typeof(BitFieldPage).Assembly.IsOptimized())
+		{
+			Console.WriteLine("Assembly not optimized, skipping test");
+
+			return;
+		}
+
 		using var storage = Storage.CreateTestStorage();
 
-		var spaceSize = default(BitFieldPage).Layout.GetSpaceSizeForDepth(2);
+		var layout = default(BitFieldPage).Layout;
+
+		var fullSpaceSize = 130
+			+ layout.GetSpaceSizeForDepth(0)
+			+ layout.GetSpaceSizeForDepth(1);
+
+		var spaceSize = fullSpaceSize;
+
+		Console.WriteLine($"Doing {1.0 * spaceSize / fullSpaceSize:p} of the entire space");
 
 		for (var i = 0ul; i < spaceSize; ++i)
 		{
 			storage.AllocatePageOffset();
+		}
+
+		if (spaceSize == fullSpaceSize)
+		{
+			Assert.AreEqual(2, storage.Header.IndexDepth);
 		}
 	}
 }

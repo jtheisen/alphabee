@@ -1,4 +1,6 @@
-﻿namespace AlphaBee;
+﻿using System.Reflection;
+
+namespace AlphaBee;
 
 [InlineArray(8)]
 public struct UInt512
@@ -30,6 +32,19 @@ public static class Extensions
 		var header = new PageHeader(ref span.InterpretAs<UInt64>()[0]);
 
 		return header.PageCharPair;
+	}
+
+	public static String FormatAsDecimalLog(this Double value)
+		=> $"1E{Math.Log10(value):#.00}";
+
+	public static String FormatAsBinaryLog(this Double value)
+		=> $"1B{Math.Log2(value):#.00}";
+
+	public static Boolean IsOptimized(this Assembly assembly)
+	{
+		var attr = assembly.GetCustomAttribute<DebuggableAttribute>();
+
+		return attr == null || !attr.IsJITOptimizerDisabled;
 	}
 }
 
