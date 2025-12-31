@@ -17,6 +17,8 @@ public interface IPageAllocator
 	void AssertAllocatedPageIndex(UInt64 index);
 }
 
+// TODO: It would be cool if this could be consolidated with the regular
+// field (which was written after this).
 public ref struct BitField<AllocatorT>
 	where AllocatorT : struct, IPageAllocator, allows ref struct
 {
