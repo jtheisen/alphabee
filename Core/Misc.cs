@@ -61,6 +61,34 @@ public struct UInt512
 	private ulong _element0;
 }
 
+public struct TreeRoot
+{
+	public UInt64 offset;
+
+	public Int32 depth;
+
+	public TreeRoot(UInt64 offset, Int32 depth = 0)
+	{
+		this.offset = offset;
+		this.depth = depth;
+	}
+}
+
+public interface IPageAllocator
+{
+	ref TreeRoot Root { get; }
+
+	Boolean IsPageManagerBitField { get; }
+
+	Span<Byte> GetPageSpanAtOffset(UInt64 offset);
+
+	UInt64 AllocatePageOffset();
+
+	Span<Byte> AllocatePageSpan() => GetPageSpanAtOffset(AllocatePageOffset());
+
+	void AssertAllocatedPageIndex(UInt64 index);
+}
+
 public static class Extensions
 {
 	public static UInt64 AllocatePageNo(this Storage storage)

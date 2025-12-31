@@ -4,7 +4,7 @@ public ref struct FieldManager<T, I>
 	where T : unmanaged
 	where I : unmanaged
 {
-	ref HeaderPageLayout header;
+	ref HeaderCore header;
 
 	Storage storage;
 
@@ -48,7 +48,7 @@ public ref struct FieldManager<T, I>
 
 			header.IndexDepth = newIndexPageDepth;
 			header.IndexRootOffset = newIndexPageOffset;
-			header.NextPageOffset = newIndexPageOffset + Constants.PageSize;
+			header.nextPageOffset = newIndexPageOffset + Constants.PageSize;
 		}
 
 		//var bitField = new BitField<ExtendingAllocator>(new ExtendingAllocator(storage, check: true));

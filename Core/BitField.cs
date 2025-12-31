@@ -4,19 +4,6 @@ namespace AlphaBee;
 
 public class BitArrayFullException : Exception { }
 
-public interface IPageAllocator
-{
-	Boolean IsPageManagerBitField { get; }
-
-	Span<Byte> GetPageSpanAtOffset(UInt64 offset);
-
-	UInt64 AllocatePageOffset();
-
-	Span<Byte> AllocatePageSpan() => GetPageSpanAtOffset(AllocatePageOffset());
-
-	void AssertAllocatedPageIndex(UInt64 index);
-}
-
 // TODO: It would be cool if this could be consolidated with the regular
 // field (which was written after this).
 public ref struct BitField<AllocatorT>

@@ -4,24 +4,22 @@
 
 public ref struct PageManager
 {
-	ref HeaderPageLayout header;
-
 	Storage storage;
 
 	public PageManager(Storage storage)
 	{
 		this.storage = storage;
-
-		this.header = ref storage.Header;
 	}
+
+	public HeaderPage HeaderPage => storage.HeaderPage;
 
 	public void Init()
 	{
-		header.IndexDepth = 0;
-		header.IndexRootOffset = Constants.PageSize;
-		header.NextPageOffset = header.IndexRootOffset + Constants.PageSize;
+		HeaderPage.IndexDepth = 0;
+		HeaderPage.IndexRootOffset = Constants.PageSize;
+		HeaderPage.NextPageOffset = HeaderPage.IndexRootOffset + Constants.PageSize;
 
-		var indexRootPageSpan = storage.GetPageSpanAtOffset(header.IndexRootOffset);
+		var indexRootPageSpan = storage.GetPageSpanAtOffset(HeaderPage.IndexRootOffset);
 
 		indexRootPageSpan.Clear();
 
@@ -41,7 +39,7 @@ public ref struct PageManager
 
 	public void DeallocatePageOffset(UInt64 offset)
 	{
-		var rootPageSpan = storage.GetPageSpanAtOffset(header.IndexRootOffset);
+		var rootPageSpan = storage.GetPageSpanAtOffset(HeaderPage.IndexRootOffset);
 
 		var rootIndexPage = new IndexPage(rootPageSpan);
 
@@ -51,7 +49,7 @@ public ref struct PageManager
 
 		try
 		{
-			var wasSet = bitField.GetAndSet(rootIndexPage, header.IndexDepth, offset / storage.PageSize, false);
+			var wasSet = bitField.GetAndSet(rootIndexPage, HeaderPage.IndexDepth, offset / storage.PageSize, false);
 
 			if (!wasSet)
 			{
@@ -66,7 +64,7 @@ public ref struct PageManager
 
 	public UInt64 AllocatePageOffset()
 	{
-		var rootPageSpan = storage.GetPageSpanAtOffset(header.IndexRootOffset);
+		var rootPageSpan = storage.GetPageSpanAtOffset(HeaderPage.IndexRootOffset);
 
 		var rootIndexPage = new IndexPage(rootPageSpan);
 
@@ -76,9 +74,9 @@ public ref struct PageManager
 		{
 			var newIndexPageOffset = AllocatePageOffsetAtEnd(storage);
 
-			Debug.Assert(newIndexPageOffset == rootIndexPage.Layout.GetAddressSpaceSizeForDepth(header.IndexDepth));
+			Debug.Assert(newIndexPageOffset == rootIndexPage.Layout.GetAddressSpaceSizeForDepth(HeaderPage.IndexDepth));
 
-			var newIndexPageDepth = header.IndexDepth + 1;
+			var newIndexPageDepth = HeaderPage.IndexDepth + 1;
 
 			rootPageSpan = storage.GetPageSpanAtOffset(newIndexPageOffset);
 
@@ -88,23 +86,23 @@ public ref struct PageManager
 
 			rootIndexPage.Init(PageType.Page, newIndexPageDepth);
 			ref var entry = ref rootIndexPage.AllocateFully(out var _);
-			entry = header.IndexRootOffset;
+			entry = HeaderPage.IndexRootOffset;
 			rootIndexPage.Validate();
 
 			++reserve;
 
-			header.IndexDepth = newIndexPageDepth;
-			header.IndexRootOffset = newIndexPageOffset;
-			header.NextPageOffset = newIndexPageOffset + Constants.PageSize;
+			HeaderPage.IndexDepth = newIndexPageDepth;
+			HeaderPage.IndexRootOffset = newIndexPageOffset;
+			HeaderPage.NextPageOffset = newIndexPageOffset + Constants.PageSize;
 		}
 
 		var bitField = new BitField<ExtendingAllocator>(new ExtendingAllocator(storage, check: true));
 
-		var pageOffset = bitField.Allocate(rootIndexPage, header.IndexDepth, reserve) * Constants.PageSize;
+		var pageOffset = bitField.Allocate(rootIndexPage, HeaderPage.IndexDepth, reserve) * Constants.PageSize;
 
-		if (pageOffset >= header.NextPageOffset)
+		if (pageOffset >= HeaderPage.NextPageOffset)
 		{
-			header.NextPageOffset = pageOffset + Constants.PageSize;
+			HeaderPage.NextPageOffset = pageOffset + Constants.PageSize;
 		}
 
 		return pageOffset;
@@ -112,11 +110,11 @@ public ref struct PageManager
 
 	static UInt64 AllocatePageOffsetAtEnd(Storage storage)
 	{
-		ref var header = ref storage.Header;
+		var headerPage = storage.HeaderPage;
 
-		var nextPageOffset = header.NextPageOffset;
+		var nextPageOffset = headerPage.NextPageOffset;
 
-		header.NextPageOffset += Constants.PageSize;
+		headerPage.NextPageOffset += Constants.PageSize;
 
 		return nextPageOffset;
 	}
@@ -135,6 +133,9 @@ public ref struct PageManager
 		Boolean IPageAllocator.IsPageManagerBitField
 			=> throw new InternalErrorException();
 
+		ref TreeRoot IPageAllocator.Root
+			=> throw new NotImplementedException();
+
 		UInt64 IPageAllocator.AllocatePageOffset()
 			=> throw new UnexpectedAllocationException();
 
@@ -143,7 +144,7 @@ public ref struct PageManager
 
 		Span<Byte> IPageAllocator.GetPageSpanAtOffset(UInt64 offset)
 		{
-			Debug.Assert(offset < storage.Header.NextPageOffset);
+			Debug.Assert(offset < storage.HeaderPage.NextPageOffset);
 
 			return storage.GetPageSpanAtOffset(offset);
 		}
@@ -160,6 +161,9 @@ public ref struct PageManager
 			this.storage = storage;
 			this.check = check;
 		}
+
+		ref TreeRoot IPageAllocator.Root
+			=> throw new NotImplementedException();
 
 		Span<Byte> IPageAllocator.GetPageSpanAtOffset(UInt64 offset)
 			=> storage.GetPageSpanAtOffset(offset);

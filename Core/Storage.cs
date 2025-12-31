@@ -31,10 +31,9 @@ public class Storage : IDisposable
 
 	public HeaderPage HeaderPage => new HeaderPage(GetPageSpanAtOffset(0));
 
-	public ref HeaderPageLayout Header => ref HeaderPage.header;
-
 	void Init()
 	{
+		HeaderPage.HeaderCore = default;
 		PageManager.Init();
 	}
 

@@ -1,6 +1,6 @@
 ﻿namespace AlphaBee;
 
-public ref struct Field<ItemT, ItemIndexT, IndexIndexT, AllocatorT>
+public ref struct Field<ItemT, ItemIndexT, IndexIndexT, AllocatorT>(AllocatorT allocator)
 	where ItemT : unmanaged
 	where ItemIndexT : unmanaged, IBitArray
 	where IndexIndexT : unmanaged, IBitArray
@@ -8,21 +8,18 @@ public ref struct Field<ItemT, ItemIndexT, IndexIndexT, AllocatorT>
 {
 	public static readonly IndexPageLayout layout;
 
-	AllocatorT allocator;
+	AllocatorT allocator = allocator;
 	Boolean filled;
 	UInt64 factor;
 	UInt64 index;
 
 	public IndexPageLayout Layout => layout;
 
-	public Field(AllocatorT allocator)
+	public ref ItemT Get(UInt64 i)
 	{
-		this.allocator = allocator;
-	}
+		ref var root = ref allocator.Root;
 
-	public ref ItemT Get(UInt64 offset, Int32 depth, UInt64 i)
-	{
-		return ref GetCore(offset, depth, i);
+		return ref GetCore(root.offset, root.depth, i);
 	}
 
 	ref ItemT GetCore(UInt64 offset, Int32 depth, UInt64 i)
@@ -71,13 +68,15 @@ public ref struct Field<ItemT, ItemIndexT, IndexIndexT, AllocatorT>
 		return ref leaf.Use(i, out _);
 	}
 
-	public ref ItemT Allocate(UInt64 offset, Int32 depth, out UInt64 i)
+	public ref ItemT Allocate(out UInt64 i)
 	{
 		filled = false;
 		index = 0;
 		factor = 0;
 
-		ref var result = ref AllocateCore(offset, depth, init: false);
+		ref var root = ref allocator.Root;
+
+		ref var result = ref AllocateCore(root.offset, root.depth, init: false);
 
 		i = index;
 
@@ -86,35 +85,24 @@ public ref struct Field<ItemT, ItemIndexT, IndexIndexT, AllocatorT>
 
 	ref ItemT AllocateWithHigherIndex(UInt64 previewRootPageOffset, Int32 depth)
 	{
-		var newIndexPageSpan = allocator.AllocatePageSpan();
+		ref var newRoot = ref allocator.Root;
+
+		Debug.Assert(newRoot.offset == previewRootPageOffset);
+
+		newRoot.offset = allocator.AllocatePageOffset();
+		newRoot.depth = depth + 1;
+
+		var newIndexPageSpan = allocator.GetPageSpanAtOffset(newRoot.offset);
 
 		var newIndexPage = new IndexPage(newIndexPageSpan);
 
-		newIndexPage.Init(PageType.Field, depth + 1);
+		newIndexPage.Init(PageType.Field, newRoot.depth);
 
 		newIndexPage.AllocateFully(out _) = previewRootPageOffset;
 
 		var newPageOffset = allocator.AllocatePageOffset();
 
-		return ref AllocateCore(newPageOffset, depth + 1, init: true);
-	}
-
-	FieldPage<T, I> GetChildPage<T, I>(UInt64 offset, Int32 depth, Boolean init)
-		where T : unmanaged
-		where I : unmanaged
-	{
-		var pageSpan = allocator.GetPageSpanAtOffset(offset);
-
-		var page = default(FieldPageLayout<T, I>).Create(pageSpan);
-
-		if (init)
-		{
-			page.Init(PageType.Field, depth);
-		}
-
-		page.Validate();
-
-		return page;
+		return ref AllocateCore(newPageOffset, newRoot.depth, init: true);
 	}
 
 	ref ItemT AllocateCore(UInt64 offset, Int32 depth, Boolean init)
@@ -179,6 +167,24 @@ public ref struct Field<ItemT, ItemIndexT, IndexIndexT, AllocatorT>
 		factor = layout.ContentBitSize.ToUInt64();
 
 		return ref word;
+	}
+
+	FieldPage<T, I> GetChildPage<T, I>(UInt64 offset, Int32 depth, Boolean init)
+		where T : unmanaged
+		where I : unmanaged
+	{
+		var pageSpan = allocator.GetPageSpanAtOffset(offset);
+
+		var page = default(FieldPageLayout<T, I>).Create(pageSpan);
+
+		if (init)
+		{
+			page.Init(PageType.Field, depth);
+		}
+
+		page.Validate();
+
+		return page;
 	}
 
 	static UInt64 GetSpaceSizeForDepth(Int32 depth)

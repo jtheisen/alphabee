@@ -10,7 +10,7 @@ public class StorageTests
 	{
 		using var storage = Storage.CreateTestStorage();
 
-		var page = new BitFieldPage(storage.GetPageSpanAtOffset(storage.Header.IndexRootOffset));
+		var page = new BitFieldPage(storage.GetPageSpanAtOffset(storage.HeaderPage.IndexRootOffset));
 
 		var firstWord = new BitsWord(ref page.Use(0, out _));
 
@@ -117,7 +117,7 @@ public class StorageTests
 
 		if (spaceSize == fullSpaceSize)
 		{
-			Assert.AreEqual(2, storage.Header.IndexDepth);
+			Assert.AreEqual(2, storage.HeaderPage.IndexDepth);
 		}
 	}
 }
