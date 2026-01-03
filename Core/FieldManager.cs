@@ -1,68 +1,61 @@
 ﻿namespace AlphaBee;
 
-public ref struct FieldManager<T, I>
-	where T : unmanaged
-	where I : unmanaged
-{
-	ref HeaderCore header;
+//public ref struct FieldManager<T, I> : IPageAllocator
+//	where T : unmanaged
+//	where I : unmanaged, IBitArray
+//{
+//	ref HeaderCore header;
 
-	Storage storage;
+//	Storage storage;
 
-	public FieldManager(Storage storage)
-	{
-		this.storage = storage;
+//	public FieldManager(Storage storage)
+//	{
+//		this.storage = storage;
 
-		this.header = ref storage.Header;
-	}
+//		this.header = ref storage.HeaderPage.HeaderCore;
+//	}
 
-	public void Init()
-	{
-	}
+//	public void Init()
+//	{
+//	}
 
-	public void Deallocate(UInt64 offset)
-	{
-	}
+//	public void Deallocate(UInt64 offset)
+//	{
+//		var field = CreateField();
 
-	public ref T Allocate(out UInt64 offset)
-	{
-		var rootPageSpan = storage.GetPageSpanAtOffset(header.IndexRootOffset); // FIXME
+//		field.Deallocate(offset);
+//	}
 
-		var rootIndexPage = new IndexPage(rootPageSpan);
+//	Field<T, I, Vector512BitArray, FieldManager<T, I>> CreateField()
+//	{
+//		return new Field<T, I, Vector512BitArray, FieldManager<T, I>>(this);
+//	}
 
-		if (rootIndexPage.IsFull)
-		{
-			var newIndexPageOffset = storage.AllocatePageOffset();
+//	public ref T Allocate(out UInt64 offset)
+//	{
+//		var field = CreateField();
 
-			var newIndexPageDepth = header.IndexDepth + 1; // FIXME
+//		return ref field.Allocate(out offset);
+//	}
 
-			rootPageSpan = storage.GetPageSpanAtOffset(newIndexPageOffset);
+//	public Span<Byte> GetPageSpanAtOffset(UInt64 offset)
+//	{
+//		return storage.GetPageSpanAtOffset(offset);
+//	}
 
-			rootPageSpan.Clear();
+//	public UInt64 AllocatePageOffset()
+//	{
+//		return storage.AllocatePageOffset();
+//	}
 
-			rootIndexPage = new IndexPage(rootPageSpan);
+//	public void AssertAllocatedPageIndex(UInt64 index)
+//	{
+//		throw new NotImplementedException();
+//	}
 
-			rootIndexPage.Init(PageType.Page, newIndexPageDepth);
-			ref var entry = ref rootIndexPage.AllocateFully(out var _);
-			entry = header.IndexRootOffset;
-			rootIndexPage.Validate();
+//	public ref TreeRoot Root => throw new NotImplementedException();
 
-			header.IndexDepth = newIndexPageDepth;
-			header.IndexRootOffset = newIndexPageOffset;
-			header.nextPageOffset = newIndexPageOffset + Constants.PageSize;
-		}
+//	public Boolean IsPageManagerBitField => false;
 
-		//var bitField = new BitField<ExtendingAllocator>(new ExtendingAllocator(storage, check: true));
-
-		//var pageOffset = bitField.Allocate(rootIndexPage, header.IndexDepth, reserve) * Constants.PageSize;
-
-		//if (pageOffset >= header.NextPageOffset)
-		//{
-		//	header.NextPageOffset = pageOffset + Constants.PageSize;
-		//}
-
-		//return pageOffset;
-
-		throw new NotImplementedException(); // FIXME
-	}
-}
-
+//	public Span<Byte> AllocatePageSpan() => GetPageSpanAtOffset(AllocatePageOffset());
+//}
