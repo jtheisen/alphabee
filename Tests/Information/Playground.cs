@@ -1,49 +1,23 @@
-﻿using AlphaBee.StructLayouts;
-using System.Runtime.InteropServices;
+﻿namespace AlphaBee.Baking;
 
-namespace AlphaBee.Information;
-
-public struct Foo<T>
-	where T : unmanaged
+public interface IFoo
 {
-	public Boolean bool1;
-	public Boolean bool2;
-	public T value;
-	public Bar<T> bar1;
-	public Bar<int> bar2;
-	public int int32;
-	public long int64;
-	private long intPrivate;
-}
-
-public struct Bar<T>
-{
-	public Boolean bool1;
-	public T value;
-	public int int32;
+	Int32 Value1 { get; set; }
+	Int32 Value2 { get; set; }
 }
 
 [TestClass]
 public class Playground
 {
 	[TestMethod]
-	public void TestOffsets()
+	public void TestBaking()
 	{
-		Console.WriteLine(Marshal.OffsetOf<Foo<int>>(nameof(Foo<int>.bool2)));
+		var bakery = BakeryConfiguration.PocGenerationConfiguration.CreateBakery("test");
 
-		Foo<int> foo = default;
+		var target = bakery.Create<IFoo>();
 
-		Console.WriteLine(BitsAndBytes.Offset(ref foo, ref foo.bool1));
-		Console.WriteLine(BitsAndBytes.Offset(ref foo, ref foo.bool2));
+		target.Value1 = 42;
 
-		Console.WriteLine(BitsAndBytes.GetFieldOffset(typeof(Foo<int>).GetField("bool1")!));
-		Console.WriteLine(BitsAndBytes.GetFieldOffset(typeof(Foo<int>).GetField("bool2")!));
+		Console.WriteLine($"Got: {target.Value1}");
 	}
-
-	[TestMethod]
-	public void TestLayouts()
-	{
-		Console.WriteLine(typeof(Foo<Int32>).GetLayoutFields().Stringify());
-	}
-
 }
