@@ -94,7 +94,7 @@ public record BakeryConfiguration(IBakeryComponentGenerators Generators, IDefaul
     public static BakeryConfiguration PocGenerationConfiguration
         = new BakeryConfiguration(ComponentGenerators.Create(), Defaults.GetDefaultDefaultProvider());
 
-    public AbstractlyBakery CreateBakery(String name) => new Bakery(name, this);
+	public AbstractlyBakery CreateBakery(String name) => new Bakery(name, this);
 }
 
 public class MixinGenerator { }
