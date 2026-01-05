@@ -7,7 +7,9 @@ public struct Foo<T>
 	where T : unmanaged
 {
 	public Boolean bool1;
+	public Empty empty1;
 	public Boolean bool2;
+	public Empty empty2;
 	public T value;
 	public Bar<T> bar1;
 	public Bar<int> bar2;
@@ -21,6 +23,10 @@ public struct Bar<T>
 	public Boolean bool1;
 	public T value;
 	public int int32;
+}
+
+public struct Empty
+{
 }
 
 [TestClass]

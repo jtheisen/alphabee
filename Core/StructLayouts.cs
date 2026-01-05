@@ -109,7 +109,6 @@ struct Layout<T> : ILayout
 			field.Layout = new LayoutEntry { Offset = i, Size = Helper.SizeOf(field.FieldInfo.FieldType) };
 		}
 	}
-
 }
 
 public static class LayoutExtensions
@@ -121,11 +120,6 @@ public static class LayoutExtensions
 		var layout = layoutType.CreateInstance<ILayout>();
 
 		return layout.Fields;
-	}
-
-	public static T CreateInstance<T>(this Type type)
-	{
-		return (T)(Activator.CreateInstance(type) ?? throw new ArgumentException("Could not create instances from type"));
 	}
 
 	public static String Stringify(this IEnumerable<FieldEntry> entries)

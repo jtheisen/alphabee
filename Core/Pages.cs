@@ -7,6 +7,11 @@ public enum PageType
 	Field = 'f'
 }
 
+public interface IPage
+{
+	void Init(PageType pageType, Int32 pageDepth);
+}
+
 public interface IPageLayout
 {
 	Int32 Size { get; }

@@ -41,11 +41,6 @@ public struct FieldPageLayout<T, I>
 	}
 }
 
-public interface IPage
-{
-	void Init(PageType pageType, Int32 pageDepth);
-}
-
 [DebuggerDisplay("{ToString()}")]
 public ref struct FieldPage<T, I> : IPage
 	where T : unmanaged

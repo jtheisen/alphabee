@@ -20,13 +20,24 @@ public struct FooUser<Foo> : IFooUser
 	public Int32 Size => Unsafe.SizeOf<Foo>();
 }
 
+public struct NotImplementedPropertyImplementation<T> : ISimplePropertyImplementation<T>
+{
+	public void Init(T def)
+	{
+	}
+
+	public T Get() => throw new NotImplementedException();
+
+	public void Set(T value) => throw new NotImplementedException();
+}
+
 [TestClass]
 public class Playground
 {
 	[TestMethod]
 	public void TestBaking()
 	{
-		var configuration = BakeryConfiguration.PocGenerationConfiguration with { MakeValue = true };
+		var configuration = BakeryConfiguration.Create(typeof(NotImplementedPropertyImplementation<>)) with { MakeValue = true };
 
 		var bakery = configuration.CreateBakery("test");
 
@@ -36,9 +47,7 @@ public class Playground
 
 		Assert.IsTrue(type.IsValueType);
 
-		target.Value1 = 42;
-
-		Assert.AreEqual(42, target.Value1);
+		Assert.ThrowsException<NotImplementedException>(() => target.Value1);
 
 		Console.WriteLine(type.GetLayoutFields().Stringify());
 

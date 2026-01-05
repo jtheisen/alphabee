@@ -113,4 +113,29 @@ public class PageSizes
 	{
 		HandleLayouts(8, 2);
 	}
+
+	[TestMethod]
+	public void TreeDepths()
+	{
+		/**
+		 * Tree depth can be about 23 for max(UInt64) with 64 byte index pages,
+		 * and it's half that for max(UInt32). Such pages have only 7 children
+		 * and an index size of 7 bits.
+		 * 
+		 * When used as heaps, we don't really need random-access, so
+		 * page sizes can be small and tree depth high (assuming we
+		 * optimize the allocation so that we don't walk the tree each time).
+		 * 
+		 * When used as fields, we benefit a lot from larger page sizes if
+		 * and only if we access truly randomly. This may be something users
+		 * want to do, but it's not something we need for the infrastructure.
+		 * 
+		 * Bottom line: cache-line-sized index page sizes are a
+		 * very good baseline.
+		 */
+
+		Console.WriteLine($"32;63: {Math.Log(UInt32.MaxValue, 7)}");
+		Console.WriteLine($"64;63: {Math.Log(UInt64.MaxValue, 7)}");
+	}
+
 }

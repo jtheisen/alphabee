@@ -220,7 +220,7 @@ public class GenericPropertyGenerator : AbstractPropertyGenerator
             GetMethodImplementation(fieldBuilder, "Get", outerGetImplementation),
             GetMethodImplementation(fieldBuilder, "Set", outerSetImplementation)
         );
-
+         
         return (fieldBuilder, propertyImplementation);
     }
 }
