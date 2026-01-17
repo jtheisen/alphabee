@@ -1,5 +1,4 @@
 ﻿using AlphaBee.StructLayouts;
-using System.Runtime.CompilerServices;
 
 namespace AlphaBee.Baking;
 
@@ -32,7 +31,7 @@ public struct NotImplementedPropertyImplementation<T> : ISimplePropertyImplement
 }
 
 [TestClass]
-public class Playground
+public class BakeryTests
 {
 	[TestMethod]
 	public void TestBaking()

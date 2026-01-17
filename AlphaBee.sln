@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Baking", "Baking\Baking.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common", "Common\Common.csproj", "{7D262935-83C6-4BC2-B7F0-BD45C06AF3B4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests.EntityFramework", "Tests.EntityFramework\Tests.EntityFramework.csproj", "{44CA6DCF-85D7-4906-BF35-4C3DB543F395}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Moldinium", "Moldinium\Moldinium.csproj", "{6BF9C9BA-3470-4224-E897-827D99C487EC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +43,14 @@ Global
 		{7D262935-83C6-4BC2-B7F0-BD45C06AF3B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7D262935-83C6-4BC2-B7F0-BD45C06AF3B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7D262935-83C6-4BC2-B7F0-BD45C06AF3B4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{44CA6DCF-85D7-4906-BF35-4C3DB543F395}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44CA6DCF-85D7-4906-BF35-4C3DB543F395}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44CA6DCF-85D7-4906-BF35-4C3DB543F395}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44CA6DCF-85D7-4906-BF35-4C3DB543F395}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6BF9C9BA-3470-4224-E897-827D99C487EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6BF9C9BA-3470-4224-E897-827D99C487EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6BF9C9BA-3470-4224-E897-827D99C487EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6BF9C9BA-3470-4224-E897-827D99C487EC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
