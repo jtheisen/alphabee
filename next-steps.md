@@ -9,8 +9,8 @@ probably should be line-sized.
 So we have the first of the following building blocks, the first two of which
 are required:
 
-EDIT: Maybe we can do it all with a b-tree at first, as the b-tree could manage
-what the the prime and page fields are for also.
+(For the idea to use b-trees instead of fields for page management, see the
+section on b-trees.)
 
 ## The prime field
 
@@ -131,11 +131,11 @@ In any case, the hash table also relies on the page grid.
 
 B-trees serve multiple purposes:
 
-1. Page allocation (possibly)
-2. Address translation (for snapshots, etc.)
-3. Dictionaries to find object addresses from database keys
+1. Address translation (for snapshots, etc.)
+2. Dictionaries to find object addresses from database keys
+3. Page allocation (probably not)
 4. Search indexes (user-defined or otherwise)
-
+ 
 Only the first two are really necessary for the cache use case.
 
 Each b-tree node consists of two pages,
@@ -144,5 +144,19 @@ Each b-tree node consists of two pages,
 - the value page, an array of either branch addresses or leaf values.
 
 If the b-tree manages addresses, all index page entries and leaf values have
-their lowermost 6 bits used to indicate the page size (log 2).
+their lowermost 6 bits used to indicate the address space size they cover.
 
+For leaf values, this is a real page size that is allocated. For index entries,
+this is the space the respective subtree covers, rounded up. This is just to
+help recognizing early that futher traversal isn't required and direct access is
+possible.
+
+### Using B-trees as a replacement for fields
+
+Possible in principle, but we still need different roots for different page
+sizes, as we can't efficiently locate space of a specific size in a b-tree.
+
+That also means that we still need to get super-sized pages from some kind of
+"prime" and that leaves much of the complexity as it is.
+
+I doubt that this makes much sense
