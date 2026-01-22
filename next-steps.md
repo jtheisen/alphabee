@@ -9,6 +9,9 @@ probably should be line-sized.
 So we have the first of the following building blocks, the first two of which
 are required:
 
+EDIT: Maybe we can do it all with a b-tree at first, as the b-tree could manage
+what the the prime and page fields are for also.
+
 ## The prime field
 
 This is a bit field required for the fundamental page allocation of a fixed
@@ -58,45 +61,44 @@ allows
 For snapshots, we need a translation mechanism to allow portions of memory to
 redirect to modified data.
 
-This modified data lives in the same address space, but space that is reserved
-for the branch.
+This modified data lives in the same address space, but space that is allocated
+for the branch and therefore exclusive to it.
 
-The simplest way to implement this is to have another accessor that uses one
-more page field for a branch, this time of line size again (like the prime
-field, but it's a page field with addresses in their leaves).
+This will be implemented with a b-tree that records the addresses of all
+modified pages and their respective sizes (in one 64 bit integer).
 
-Access for data, including access for the data of prime and page field nodes,
-checks this field for access. Modifications result in a leaf being changes in
-one of the upstream page grid fields.
+Access for data, not including access for the data of prime and page field
+nodes, checks this tree before falling back to direct access. If transactions
+are nested, there's still only one b-tree, but upstream tree nodes may be
+re-used.
 
-The consequence is that the first change necessarily replicates a bunch of index
-pages for one or more of the upstream grid fields, but the upside is that reads
-aren't slowed down: When traversing the tree, we either eventually reach the
-modified leaf or we find a zero reference, indicating that we need to continue
-our search in the upstream field. It's the same amount of pointer chasing either
-way.
+In any case, the upstream page grid layout is is never actually changed and the
+non-exclusive addresses never written, only the space reserved for the branch.
+For merges, we will limit ourselves to fast-forwards at first.
 
-With this simple method, we do need to copy any modified page though, no matter
-the size, since a modified page field leaf address must point to address space
-of the the correct size. When we assume only reasonable object sizes, this
-should be acceptable. Otherwise, we would need to have another, more complicated
-mechanism for modifying sub-pages only.
+Fast forwards can be implemented in three steps of improved efficiency:
 
-In any case, the upstream page grid is never actually touched, only the space
-reserved for the branch. For merges:
+Approach #0
 
-- At first, there will only be fast-foward. Only changes from an upstream
-  databases are ever merged, and those perform only fast-forwards from a single
-  writer, which work naively. This is sufficient for the cache case. For other
-  use cases,
-- multiple writers will frequently collide over upstream page grid
-  modifications, which are not semantic conflicts. In order to rebase or merge,
-  the modifications must be brought in at potentially different locations. There
-  are several approaches to this and these need to be explored at a different
-  time.
+On fast-forward, only the index pages require updating, during which all other
+threads need to be locked out. This is likely a decent choice at first provided
+there's another option later:
 
-This still leaves the question of what happens when not only existing pages
-are modified, but new ones are required. TODO
+Approach #1
+
+All index pages that require changing a first copied and then modified. The
+final change is then reduced to a simple address change as previously planned.
+
+Approach #2
+
+Like #1, but we allocate some of the changes close to the original ones in the
+same super-page where enough space is reserved for at least one such
+fast-forward (I hope this is enough to trigger my memory, but it's not important
+enough to write up in detail at this point).
+
+Allocations are related as they also need the page indexes, so in the spirit of
+approach #0 we go with a simple locking strategy, although it's easy to do
+better.
 
 ## The object field
 
@@ -108,6 +110,9 @@ but it's likely an overcomplication. This text just serves to remind me of this.
 If they are implemented, they would use the page grid.
 
 ## The hash table
+
+Hash tables fill only a special niche when b-trees are already in. It's likely
+we don't need this, but here's the plan for if we do:
 
 The hash table needs a growable address space. There are two approaches:
 
@@ -121,4 +126,23 @@ it requires less moving of data. Implementation-wise, the approaches are
 similar.
 
 In any case, the hash table also relies on the page grid.
+
+## The b-tree
+
+B-trees serve multiple purposes:
+
+1. Page allocation (possibly)
+2. Address translation (for snapshots, etc.)
+3. Dictionaries to find object addresses from database keys
+4. Search indexes (user-defined or otherwise)
+
+Only the first two are really necessary for the cache use case.
+
+Each b-tree node consists of two pages,
+
+- the index page, an array of index entries and
+- the value page, an array of either branch addresses or leaf values.
+
+If the b-tree manages addresses, all index page entries and leaf values have
+their lowermost 6 bits used to indicate the page size (log 2).
 
