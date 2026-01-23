@@ -6,14 +6,14 @@ public ref struct Field<ItemT, ItemIndexT, IndexIndexT, AllocatorT>(AllocatorT a
 	where IndexIndexT : unmanaged, IBitArray
 	where AllocatorT : struct, IPageAllocator, allows ref struct
 {
-	public static readonly IndexPageLayout layout;
+	public static readonly FieldBranchPageLayout layout;
 
 	AllocatorT allocator = allocator;
 	Boolean filled;
 	UInt64 factor;
 	UInt64 index;
 
-	public IndexPageLayout Layout => layout;
+	public FieldBranchPageLayout Layout => layout;
 
 	public ref ItemT Get(UInt64 i)
 	{
@@ -28,7 +28,7 @@ public ref struct Field<ItemT, ItemIndexT, IndexIndexT, AllocatorT>(AllocatorT a
 		{
 			var pageSpan = allocator.GetPageSpanAtOffset(offset);
 
-			var page = new IndexPage(pageSpan);
+			var page = new FieldBranchPage(pageSpan);
 
 			return ref GetFromBranch(page, depth, i);
 		}
@@ -42,7 +42,7 @@ public ref struct Field<ItemT, ItemIndexT, IndexIndexT, AllocatorT>(AllocatorT a
 		}
 	}
 
-	ref ItemT GetFromBranch(IndexPage branch, Int32 depth, UInt64 i)
+	ref ItemT GetFromBranch(FieldBranchPage branch, Int32 depth, UInt64 i)
 	{
 		var size = GetSpaceSizeForDepth(depth);
 
@@ -94,7 +94,7 @@ public ref struct Field<ItemT, ItemIndexT, IndexIndexT, AllocatorT>(AllocatorT a
 
 		var newIndexPageSpan = allocator.GetPageSpanAtOffset(newRoot.offset);
 
-		var newIndexPage = new IndexPage(newIndexPageSpan);
+		var newIndexPage = new FieldBranchPage(newIndexPageSpan);
 
 		newIndexPage.Init(PageType.Field, newRoot.depth);
 
@@ -193,7 +193,7 @@ public ref struct Field<ItemT, ItemIndexT, IndexIndexT, AllocatorT>(AllocatorT a
 
 		for (var i = 0; i < depth; i++)
 		{
-			result *= default(IndexPage).Layout.FieldLength.ToUInt64();
+			result *= default(FieldBranchPage).Layout.FieldLength.ToUInt64();
 		}
 
 		return result;

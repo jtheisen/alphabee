@@ -9,7 +9,7 @@ public class BitArrayFullException : Exception { }
 public ref struct BitField<AllocatorT>
 	where AllocatorT : struct, IPageAllocator, allows ref struct
 {
-	public static readonly IndexPageLayout layout;
+	public static readonly FieldBranchPageLayout layout;
 
 	AllocatorT allocator;
 	Boolean filled;
@@ -21,28 +21,28 @@ public ref struct BitField<AllocatorT>
 	UInt64 index;
 #endif
 
-	public IndexPageLayout Layout => layout;
+	public FieldBranchPageLayout Layout => layout;
 
 	public BitField(AllocatorT allocator)
 	{
 		this.allocator = allocator;
 	}
 
-	public Boolean Get(IndexPage page, Int32 depth, UInt64 i)
+	public Boolean Get(FieldBranchPage page, Int32 depth, UInt64 i)
 	{
 		ref var word = ref GetCore(page, depth, i, out var i0);
 
 		return word.GetBit(i0);
 	}
 
-	public void Set(IndexPage page, Int32 depth, UInt64 i, Boolean value)
+	public void Set(FieldBranchPage page, Int32 depth, UInt64 i, Boolean value)
 	{
 		ref var word = ref GetCore(page, depth, i, out var i0);
 
 		word.SetBit(i0, value);
 	}
 
-	public Boolean GetAndSet(IndexPage page, Int32 depth, UInt64 i, Boolean value)
+	public Boolean GetAndSet(FieldBranchPage page, Int32 depth, UInt64 i, Boolean value)
 	{
 		ref var word = ref GetCore(page, depth, i, out var i0);
 
@@ -53,7 +53,7 @@ public ref struct BitField<AllocatorT>
 		return result;
 	}
 
-	public void AssertOneAndSetZero(IndexPage page, Int32 depth, UInt64 i)
+	public void AssertOneAndSetZero(FieldBranchPage page, Int32 depth, UInt64 i)
 	{
 		ref var word = ref GetCore(page, depth, i, out var i0);
 
@@ -62,7 +62,7 @@ public ref struct BitField<AllocatorT>
 		word.SetBit(i0, false);
 	}
 
-	ref UInt64 GetCore(IndexPage page, Int32 depth, UInt64 i, out Int32 i0)
+	ref UInt64 GetCore(FieldBranchPage page, Int32 depth, UInt64 i, out Int32 i0)
 	{
 		if (depth > 0)
 		{
@@ -74,7 +74,7 @@ public ref struct BitField<AllocatorT>
 		}
 	}
 
-	ref UInt64 GetFromBranch(IndexPage branch, Int32 depth, UInt64 i, out Int32 i0)
+	ref UInt64 GetFromBranch(FieldBranchPage branch, Int32 depth, UInt64 i, out Int32 i0)
 	{
 		var size = layout.GetBitSpaceSizeForDepth(depth);
 
@@ -90,13 +90,13 @@ public ref struct BitField<AllocatorT>
 
 		var childPageSpan = allocator.GetPageSpanAtOffset(childPageOffset);
 
-		var childPage = new IndexPage(childPageSpan);
+		var childPage = new FieldBranchPage(childPageSpan);
 
 
 		return ref GetCore(childPage, depth - 1, i1, out i0);
 	}
 
-	ref UInt64 GetFromLeaf(IndexPage leaf, UInt64 i64, out Int32 i0)
+	ref UInt64 GetFromLeaf(FieldBranchPage leaf, UInt64 i64, out Int32 i0)
 	{
 		Debug.Assert(i64 < Int32.MaxValue);
 
@@ -110,7 +110,7 @@ public ref struct BitField<AllocatorT>
 		return ref word;
 	}
 
-	public UInt64 Allocate(IndexPage page, Int32 depth, Int32 initialReserve)
+	public UInt64 Allocate(FieldBranchPage page, Int32 depth, Int32 initialReserve)
 	{
 		filled = false;
 		reserve = initialReserve;
@@ -128,7 +128,7 @@ public ref struct BitField<AllocatorT>
 		return result;
 	}
 
-	UInt64 AllocateCore(IndexPage page, Int32 depth)
+	UInt64 AllocateCore(FieldBranchPage page, Int32 depth)
 	{
 		Debug.Assert(!page.IsFull);
 
@@ -143,7 +143,7 @@ public ref struct BitField<AllocatorT>
 		return result;
 	}
 
-	UInt64 AllocateAtBranch(IndexPage branch, Int32 depth)
+	UInt64 AllocateAtBranch(FieldBranchPage branch, Int32 depth)
 	{
 		ref var childPageOffset = ref branch.AllocatePartially(out var i, out var unused);
 
@@ -174,7 +174,7 @@ public ref struct BitField<AllocatorT>
 
 		var childPageSpan = allocator.GetPageSpanAtOffset(childPageOffset);
 
-		var childPage = new IndexPage(childPageSpan);
+		var childPage = new FieldBranchPage(childPageSpan);
 
 		if (unused)
 		{
@@ -197,7 +197,7 @@ public ref struct BitField<AllocatorT>
 		return result;
 	}
 
-	UInt64 AllocateAtLeafCore(IndexPage leaf)
+	UInt64 AllocateAtLeafCore(FieldBranchPage leaf)
 	{
 		ref var word = ref leaf.AllocatePartially(out var i, out _);
 
@@ -217,7 +217,7 @@ public ref struct BitField<AllocatorT>
 		return (((UInt64)i) << 6) + (UInt64)j;
 	}
 
-	UInt64 AllocateAtLeaf(IndexPage leaf)
+	UInt64 AllocateAtLeaf(FieldBranchPage leaf)
 	{
 #if DEBUG
 		sizeForDepth /= layout.ContentBitSize.ToUInt64();

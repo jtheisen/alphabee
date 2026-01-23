@@ -23,7 +23,7 @@ public ref struct PageManager
 
 		indexRootPageSpan.Clear();
 
-		var indexRootPage = new IndexPage(indexRootPageSpan);
+		var indexRootPage = new FieldBranchPage(indexRootPageSpan);
 
 		indexRootPage.Init(PageType.Page, 0);
 		indexRootPage.SetUsedBit(0, true);
@@ -41,7 +41,7 @@ public ref struct PageManager
 	{
 		var rootPageSpan = storage.GetPageSpanAtOffset(HeaderPage.IndexRootOffset);
 
-		var rootIndexPage = new IndexPage(rootPageSpan);
+		var rootIndexPage = new FieldBranchPage(rootPageSpan);
 
 		var bitField = new BitField<NoAllocationsAllocator>(new NoAllocationsAllocator(storage));
 
@@ -66,7 +66,7 @@ public ref struct PageManager
 	{
 		var rootPageSpan = storage.GetPageSpanAtOffset(HeaderPage.IndexRootOffset);
 
-		var rootIndexPage = new IndexPage(rootPageSpan);
+		var rootIndexPage = new FieldBranchPage(rootPageSpan);
 
 		var reserve = default(Int32);
 
@@ -82,7 +82,7 @@ public ref struct PageManager
 
 			rootPageSpan.Clear();
 
-			rootIndexPage = new IndexPage(rootPageSpan);
+			rootIndexPage = new FieldBranchPage(rootPageSpan);
 
 			rootIndexPage.Init(PageType.Page, newIndexPageDepth);
 			ref var entry = ref rootIndexPage.AllocateFully(out var _);
