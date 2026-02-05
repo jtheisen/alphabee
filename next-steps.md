@@ -29,10 +29,10 @@ Each page size other than the fundamental one needs a field that records where
 the respective pages are.
 
 The branches are just like that of bit fields, but the leaves need to store
-addresses.
+addresses rather than bit arrays.
 
 The page field requests pages from the prime field in an adequate, constant size
-larger than the one that it itself allocates.
+larger than the one that it itself allocates - this is called the *variegate*.
 
 On deallocation, it tells the prime field that it is this larger size that is
 deallocated.
@@ -47,6 +47,14 @@ for
 
 Other uses hold addresses of the pages themselves, not their position in a page
 field.
+
+Questions:
+
+- Do the leaves also contain bit arrays or only the addresses?
+  - It's easier to have them contains bits as well if we can re-use the branch
+    page implementation for this.
+- Where is the information as to where the variagates are?
+  - 
 
 ## The page grid
 
