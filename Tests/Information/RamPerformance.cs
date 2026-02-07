@@ -1,4 +1,8 @@
-﻿using System.Diagnostics;
+﻿using AlphaBee;
+using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using static Tests.Information.RamPerformance;
 
 namespace Tests.Information;
@@ -10,13 +14,12 @@ public class RamPerformance
 	public void Test()
 	{
 		IFixture[] cases = [
-			new Fixture<Space4K, NullAccessor>(),
-			new Fixture<Space4K, RandomAccessor>(),
-			new Fixture<Space2M, RandomAccessor>(),
-			new Fixture<Space1G, RandomAccessor>(),
-			new Fixture<Space4K, LinearAccessor>(),
-			new Fixture<Space2M, LinearAccessor>(),
-			new Fixture<Space1G, LinearAccessor>()
+			new Fixture<RandomPreparer>(12),
+			new Fixture<RandomPreparer>(21),
+			new Fixture<RandomPreparer>(30),
+			//new Fixture<LinearPreparer>(),
+			//new Fixture<LinearPreparer>(),
+			//new Fixture<LinearPreparer>()
 			];
 
 		foreach (var test in cases)
@@ -28,68 +31,82 @@ public class RamPerformance
 	public interface IFixture
 	{
 		void Test();
+
+		int Size { get; }
+
+		int LineSize => 64;
+
+		int LineCount => Size / LineSize;
+
+		int WordSize => Unsafe.SizeOf<int>();
+
+		int WordsPerLine => LineSize / WordSize;
+
+		int WordCount => Size / WordSize;
 	}
 
-	public class Fixture<SpaceT, AccessorT> : IFixture
-		where SpaceT : struct, ISpace
-		where AccessorT : struct, IAccessor
+	public class Fixture<PreparerT> : IFixture
+		where PreparerT : struct, IPreparer
 	{
-		const int randomsSize = 4;
-		const int N = 1 << 24;
-
-		static SpaceT space = default;
-		static AccessorT accessor = default;
+		static PreparerT preparer = default;
 
 		Byte[] mem;
 
-		public Fixture()
+		public int Size => mem.Length;
+
+		public Fixture(Int32 sizeLog2)
 		{
-			mem = new Byte[space.Size];
+			mem = new Byte[1 << sizeLog2];
 		}
 
 		public void Test()
 		{
-			var span = mem.AsSpan();
-
-			GC.Collect();
+			var span = mem.AsSpan().InterpretAs<Int32>();
 
 			span.Clear();
 
-			Span<int> randoms = stackalloc int[randomsSize];
+			preparer.Prepare(span, this);
+			//DebugPrintSpace(span);
 
-			var mask = randomsSize - 1;
-
-			randoms[0] = 1;
-
-			for (var i = 1; i < randomsSize; ++i)
-			{
-				FillRandom(ref randoms[i & mask], randoms[(i - 1 + randomsSize) & mask]);
-			}
+			GC.Collect();
 
 			var sw = new Stopwatch();
 			sw.Start();
 
-			for (var i = 0; i < N; ++i)
-			{
-				ref var currentRandomValue = ref randoms[i & mask];
-
-				accessor.Access(span, i % space.Size, currentRandomValue);
-
-				//Console.WriteLine(String.Join(" ", randoms.ToArray().Select(v => v)));
-
-				FillRandom(ref currentRandomValue, randoms[(i - 1 + randomsSize) & mask]);
-			}
+			Run(span, 1 << 23);
 
 			sw.Stop();
 
-			Console.WriteLine($"{typeof(AccessorT).Name} {typeof(SpaceT).Name} {sw.ElapsedMilliseconds}ms");
+			Console.WriteLine($"{typeof(PreparerT).Name} {Size} {sw.ElapsedMilliseconds}ms");
 		}
 
-		static void FillRandom(ref int target, int source)
+		void DebugPrintSpace(Span<Int32> span)
 		{
-			var i = ((uint)source) * space.A + space.C;
+			for (var i = 0; i < span.Length; ++i)
+			{
+				Console.Write($" {span[i]}");
+				if (i % 16 == 15)
+				{
+					Console.WriteLine();
 
-			target = (int)(i % space.M);
+					if (i > 60)
+					{
+						Console.WriteLine("...");
+
+						return;
+					}
+				}
+			}
+		}
+
+		void Run(Span<Int32> span, Int32 count)
+		{
+			Int32 i = 0;
+			do
+			{
+				i = span[i];
+			}
+			while (--count > 0);
 		}
 	}
 
@@ -97,59 +114,101 @@ public class RamPerformance
 	{
 		int Size { get; }
 
-		uint M => (uint)Size - 1;
+		int LineSize => 64;
 
-		uint A => 1103515245;
+		int Lines => Size / LineSize;
+
+		int WordsPerLine => LineSize / Unsafe.SizeOf<int>();
+
+		int Words => Size / Unsafe.SizeOf<int>();
+
+		uint M => (uint)Lines - 1;
+
+		uint A { get; }
 
 		uint C { get; }
+
+		uint GetNextLine(uint previous)
+		{
+			return (A * previous + C) % M;
+		}
 	}
 
 	public struct Space4K : ISpace
 	{
-		public int Size => 1 << 12;
+		public int Size => 1 << 12; // 6 in lines
 
-		public uint C => 123;
+		public uint M => 61;
+
+		public uint A => 17;
+
+		public uint C => 0;
 	}
 
 	public struct Space2M : ISpace
 	{
-		public int Size => 1 << 21;
+		public int Size => 1 << 21; // 15 in lines
 
-		public uint C => 1013;
+		public uint M => (1 << 13) - 1;
+
+		public uint A => (1 << 11) - 3;
+
+		public uint C => 0;
 	}
 
 	public struct Space1G : ISpace
 	{
-		public int Size => 1 << 30;
+		public int Size => 1 << 30; // 24 in lines
 
-		public uint C => 12345;
+		public uint M => (1 << 24) - 1;
+
+		public uint A => 1103515245;
+
+		public uint C => 1013;
 	}
 
-	public interface IAccessor
+	public interface IPreparer
 	{
-		void Access(Span<Byte> mem, int step, int position);
+		void Prepare(Span<int> span, IFixture fixture);
 	}
 
-	public struct NullAccessor : IAccessor
+	public struct RandomPreparer : IPreparer
 	{
-		public void Access(Span<Byte> mem, int step, int position)
+		public void Prepare(Span<Int32> span, IFixture fixture)
 		{
+			var lineCount = fixture.LineCount;
+
+			var random = new Random();
+
+			var remainingLines = Enumerable.Range(1, lineCount - 1).ToArray();
+
+			var remainingLinesCount = lineCount - 1;
+
+			var currentI = 0;
+
+			do
+			{
+				var p = random.Next(remainingLinesCount);
+				var i = remainingLines[p];
+				remainingLines[p] = remainingLines[remainingLinesCount - 1];
+				--remainingLinesCount;
+
+				currentI = span[currentI] = i * fixture.WordsPerLine;
+			}
+			while (remainingLinesCount > 0);
+
+			span[currentI] = 0;
 		}
 	}
 
-	public struct RandomAccessor : IAccessor
+	public struct LinearPreparer : IPreparer
 	{
-		public void Access(Span<Byte> mem, int step, int position)
+		public void Prepare(Span<Int32> span, IFixture fixture)
 		{
-			Trace.Assert(mem[position] == 0);
-		}
-	}
-
-	public struct LinearAccessor : IAccessor
-	{
-		public void Access(Span<Byte> mem, int step, int position)
-		{
-			Trace.Assert(mem[step] == 0);
+			for (var i = 0; i < span.Length; i += fixture.WordsPerLine)
+			{
+				span[i] = (i + fixture.WordsPerLine) % fixture.WordCount;
+			}
 		}
 	}
 }
