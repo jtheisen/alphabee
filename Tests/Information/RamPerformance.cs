@@ -17,9 +17,9 @@ public class RamPerformance
 			new Fixture<RandomPreparer>(12),
 			new Fixture<RandomPreparer>(21),
 			new Fixture<RandomPreparer>(30),
-			//new Fixture<LinearPreparer>(),
-			//new Fixture<LinearPreparer>(),
-			//new Fixture<LinearPreparer>()
+			new Fixture<LinearPreparer>(12),
+			new Fixture<LinearPreparer>(21),
+			new Fixture<LinearPreparer>(30)
 			];
 
 		foreach (var test in cases)
@@ -43,6 +43,12 @@ public class RamPerformance
 		int WordsPerLine => LineSize / WordSize;
 
 		int WordCount => Size / WordSize;
+
+		int MemSize => 1 << 30;
+
+		int MemWordCount => MemSize / WordSize;
+
+		int MemLineCount => MemSize / LineSize;
 	}
 
 	public class Fixture<PreparerT> : IFixture
@@ -52,11 +58,15 @@ public class RamPerformance
 
 		Byte[] mem;
 
-		public int Size => mem.Length;
+		IFixture Self => this;
+
+		public int Size { get; }
 
 		public Fixture(Int32 sizeLog2)
 		{
-			mem = new Byte[1 << sizeLog2];
+			Size = 1 << sizeLog2;
+
+			mem = new Byte[Self.MemSize];
 		}
 
 		public void Test()
@@ -65,7 +75,7 @@ public class RamPerformance
 
 			span.Clear();
 
-			preparer.Prepare(span, this);
+			Prepare(span);
 			//DebugPrintSpace(span);
 
 			GC.Collect();
@@ -80,23 +90,67 @@ public class RamPerformance
 			Console.WriteLine($"{typeof(PreparerT).Name} {Size} {sw.ElapsedMilliseconds}ms");
 		}
 
+		void Prepare(Span<int> span)
+		{
+			var i = 0;
+
+			do
+			{
+				var nextI = i + Self.WordCount;
+
+				if (nextI > Self.MemWordCount - Self.WordCount)
+				{
+					nextI = 0;
+				}
+
+				preparer.Prepare(span[i..(i + Self.WordCount)], i, nextI, this);
+
+				//DebugPrintSpace(span);
+
+				i = nextI;
+			}
+			while (i != 0);
+
+			//DebugPrintSpace(span);
+
+			var checkCount = Count(span);
+			//Console.WriteLine(Self.MemLineCount);
+
+			Trace.Assert(checkCount == Self.MemLineCount);
+		}
+
 		void DebugPrintSpace(Span<Int32> span)
 		{
+			Console.WriteLine("-- span");
 			for (var i = 0; i < span.Length; ++i)
 			{
-				Console.Write($" {span[i]}");
-				if (i % 16 == 15)
+				if (i % 16 == 0)
 				{
 					Console.WriteLine();
+					Console.Write($"{i / 16}:");
 
-					if (i > 60)
+					if (i > 66 * 16)
 					{
 						Console.WriteLine("...");
 
 						return;
 					}
 				}
+				Console.Write($" {span[i] / 16}");
 			}
+			Console.WriteLine();
+		}
+
+		Int32 Count(Span<Int32> span)
+		{
+			Int32 i = 0, count = 0;
+			do
+			{
+				i = span[i];
+				count++;
+			}
+			while (i > 0);
+			return count;
 		}
 
 		void Run(Span<Int32> span, Int32 count)
@@ -110,71 +164,14 @@ public class RamPerformance
 		}
 	}
 
-	public interface ISpace
-	{
-		int Size { get; }
-
-		int LineSize => 64;
-
-		int Lines => Size / LineSize;
-
-		int WordsPerLine => LineSize / Unsafe.SizeOf<int>();
-
-		int Words => Size / Unsafe.SizeOf<int>();
-
-		uint M => (uint)Lines - 1;
-
-		uint A { get; }
-
-		uint C { get; }
-
-		uint GetNextLine(uint previous)
-		{
-			return (A * previous + C) % M;
-		}
-	}
-
-	public struct Space4K : ISpace
-	{
-		public int Size => 1 << 12; // 6 in lines
-
-		public uint M => 61;
-
-		public uint A => 17;
-
-		public uint C => 0;
-	}
-
-	public struct Space2M : ISpace
-	{
-		public int Size => 1 << 21; // 15 in lines
-
-		public uint M => (1 << 13) - 1;
-
-		public uint A => (1 << 11) - 3;
-
-		public uint C => 0;
-	}
-
-	public struct Space1G : ISpace
-	{
-		public int Size => 1 << 30; // 24 in lines
-
-		public uint M => (1 << 24) - 1;
-
-		public uint A => 1103515245;
-
-		public uint C => 1013;
-	}
-
 	public interface IPreparer
 	{
-		void Prepare(Span<int> span, IFixture fixture);
+		void Prepare(Span<int> span, Int32 offsetI, Int32 nextI, IFixture fixture);
 	}
 
 	public struct RandomPreparer : IPreparer
 	{
-		public void Prepare(Span<Int32> span, IFixture fixture)
+		public void Prepare(Span<Int32> span, Int32 offset, Int32 next, IFixture fixture)
 		{
 			var lineCount = fixture.LineCount;
 
@@ -193,22 +190,28 @@ public class RamPerformance
 				remainingLines[p] = remainingLines[remainingLinesCount - 1];
 				--remainingLinesCount;
 
-				currentI = span[currentI] = i * fixture.WordsPerLine;
+				var nextI = i * fixture.WordsPerLine;
+
+				span[currentI] = offset + nextI;
+
+				currentI = nextI;
 			}
 			while (remainingLinesCount > 0);
 
-			span[currentI] = 0;
+			span[currentI] = next;
 		}
 	}
 
 	public struct LinearPreparer : IPreparer
 	{
-		public void Prepare(Span<Int32> span, IFixture fixture)
+		public void Prepare(Span<Int32> span, Int32 offset, Int32 next, IFixture fixture)
 		{
 			for (var i = 0; i < span.Length; i += fixture.WordsPerLine)
 			{
-				span[i] = (i + fixture.WordsPerLine) % fixture.WordCount;
+				span[i] = offset + (i + fixture.WordsPerLine) % fixture.WordCount;
 			}
+
+			span[^fixture.WordsPerLine] = next;
 		}
 	}
 }
