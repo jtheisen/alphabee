@@ -10,6 +10,32 @@ public unsafe struct IndexPageHeader
 	public fixed byte Utf8Chars[4];
 }
 
+public unsafe struct MemoryRange
+{
+	IntPtr ptr;
+	UInt64 size;
+
+	public MemoryRange(IntPtr ptr, UInt64 size)
+	{
+		this.ptr = ptr;
+		this.size = size;
+	}
+
+	public Span<T> AsSpan<T>()
+		where T : unmanaged
+	{
+		var itemSize = Unsafe.SizeOf<T>();
+
+		var length = size / (UInt64)itemSize;
+		var mod = size % (UInt64)itemSize;
+
+		Trace.Assert(length < Int32.MaxValue, "Span is too long");
+		Trace.Assert(mod == 0, "Size mismatch");
+
+		return new Span<T>(ptr.ToPointer(), (Int32)length);
+	}
+}
+
 public static class BitsAndBytes
 {
 	public unsafe static Int64 Offset<S, M>(ref S root, ref M member)
