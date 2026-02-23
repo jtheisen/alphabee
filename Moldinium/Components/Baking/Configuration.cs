@@ -89,7 +89,7 @@ public class ComponentGenerators : IBakeryComponentGenerators
     }
 }
 
-public record BakeryConfiguration(IBakeryComponentGenerators Generators, IDefaultProvider DefaultProvider, Boolean MakeAbstract = false)
+public record BakeryConfiguration(IBakeryComponentGenerators Generators, IDefaultProvider DefaultProvider, Boolean MakeAbstract = false, Boolean MakeValue = false)
 {
     public static BakeryConfiguration Create(params Type[] implementations)
         => new BakeryConfiguration(ComponentGenerators.Create(implementations), Defaults.GetDefaultDefaultProvider());

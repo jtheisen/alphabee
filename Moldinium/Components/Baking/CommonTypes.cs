@@ -170,3 +170,8 @@ public struct MethodImplementationInfo
         }
     }
 }
+
+public interface ITypeConfiguration
+{
+	Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName);
+}

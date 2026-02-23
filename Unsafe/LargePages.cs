@@ -52,7 +52,7 @@ public static class LargePagePrivilege
 			return false;
 
 		LUID luid;
-		if (!LookupPrivilegeValue(null, SE_LOCK_MEMORY_PRIVILEGE, out luid))
+		if (!LookupPrivilegeValue(null!, SE_LOCK_MEMORY_PRIVILEGE, out luid))
 		{
 			CloseHandle(token);
 			return false;
@@ -94,8 +94,6 @@ public static class LargePagePrivilege
 	[DllImport("kernel32.dll", SetLastError = true)]
 	[return: MarshalAs(UnmanagedType.Bool)]
 	public static extern bool CloseHandle(IntPtr hObject);
-
-
 }
 
 public static class LargePages

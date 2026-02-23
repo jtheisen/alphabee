@@ -27,26 +27,3 @@ public interface IFieldPageLayout : IPageLayout
 
 	UInt64 AllPattern { get; }
 }
-
-public static class PageExtensions
-{
-	public static void ValidateBitFieldPage(this FieldBranchPage page, Boolean asBitFieldLeaf)
-	{
-		page.Validate();
-
-		for (var i = 0; i < 64; ++i)
-		{
-			if (page.GetUsedBit(i))
-			{
-				var word = page.Use(i, out _);
-
-				Debug.Assert(word != 0);
-
-				if (asBitFieldLeaf)
-				{
-					Debug.Assert(word != UInt64.MaxValue || page.GetFullBit(i));
-				}
-			}
-		}
-	}
-}

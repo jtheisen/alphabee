@@ -1,7 +1,9 @@
-﻿using AlphaBee.StructLayouts;
+﻿using AlphaBee.Layouts.Structs;
 using System.Runtime.InteropServices;
 
 namespace AlphaBee.Information;
+
+#pragma warning disable CS0169
 
 public struct Foo<T>
 	where T : unmanaged

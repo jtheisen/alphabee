@@ -1,5 +1,4 @@
 ﻿using AlphaBee;
-using System;
 using System.Diagnostics;
 using System.Runtime.Intrinsics.X86;
 
@@ -58,12 +57,14 @@ public class RamPerformance
 	[TestMethod]
 	public void Test()
 	{
+#if !DEBUG
 		LargePages.Enable();
 
 		foreach (var test in GetFixtures())
 		{
 			test.Test(out _);
 		}
+#endif
 	}
 
 	public IFixture CreateFixture(Type allocator, Type preparer, Type action, Int32 length)

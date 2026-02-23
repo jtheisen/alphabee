@@ -3,23 +3,28 @@ using System.Reflection;
 
 namespace Moldinium.Baking;
 
+public delegate Int64? IntegerOrNullRetrieverForArgumentName(String name);
+
 public class CodeCreation
 {
     private readonly TypeBuilder typeBuilder;
     private readonly IDictionary<Type, ImplementationTypeArgumentKind> argumentKinds;
-    private readonly FieldBuilder? implementationFieldBuilder;
+	private readonly FieldBuilder? implementationFieldBuilder;
     private readonly FieldBuilder? mixInFieldBuilder;
+	private readonly IntegerOrNullRetrieverForArgumentName? getIntegerOrNullForArgumentName;
 
-    public CodeCreation(
+	public CodeCreation(
         TypeBuilder typeBuilder,
         IDictionary<Type, ImplementationTypeArgumentKind> argumentKinds,
-        FieldBuilder? implementationFieldBuilder,
-        FieldBuilder? mixInFieldBuilder
-    )
-    {
+		FieldBuilder? implementationFieldBuilder,
+        FieldBuilder? mixInFieldBuilder,
+		IntegerOrNullRetrieverForArgumentName? getIntegerOrNullForArgumentName = null
+	)
+	{
         this.typeBuilder = typeBuilder;
         this.argumentKinds = argumentKinds;
-        this.implementationFieldBuilder = implementationFieldBuilder;
+		this.getIntegerOrNullForArgumentName = getIntegerOrNullForArgumentName;
+		this.implementationFieldBuilder = implementationFieldBuilder;
         this.mixInFieldBuilder = mixInFieldBuilder;
     }
 
@@ -260,7 +265,46 @@ public class CodeCreation
         GetFromDefaultImplementationPassedByValue
     }
 
-    public void GenerateImplementationCode(
+    Boolean TryGenerateIntegerArgument(ILGenerator generator, ParameterInfo p)
+    {
+        var type = p.ParameterType;
+        var name = p.Name ?? throw new Exception("Argument has no name");
+
+        var code = Type.GetTypeCode(type);
+
+        switch (code)
+        {
+            case TypeCode.Empty:
+            case TypeCode.Object:
+            case TypeCode.DBNull:
+            case TypeCode.Boolean:
+			case TypeCode.String:
+            case TypeCode.Char:
+			case TypeCode.DateTime:
+			case TypeCode.Decimal:
+			case TypeCode.Single:
+			case TypeCode.Double:
+				return false;
+        }
+
+        if (getIntegerOrNullForArgumentName?.Invoke(name) is not Int64 number)
+        {
+            throw new Exception($"Could not get number argument for argument '{name}'");
+        }
+
+        switch (code)
+        {
+            case TypeCode.Int32:
+				generator.Emit(OpCodes.Ldc_I4, (Int32)number);
+				break;
+            default:
+                throw new NotImplementedException($"Number type {code} not yet supported");
+        }
+
+        return true;
+	}
+
+	public void GenerateImplementationCode(
         ILGenerator generator,
         FieldBuilder? fieldBuilder,
         MethodInfo backingMethod,
@@ -353,6 +397,10 @@ public class CodeCreation
                         throw new Exception($"Unkown argument kind {kind}");
                 }
             }
+			else if (TryGenerateIntegerArgument(generator, concreteParameter))
+			{
+				continue;
+			}
             else
             {
                 throw new Exception($"Dont know how to handle argument {genericParameter.Name} of type {genericParameter.ParameterType} of property implementation method {backingMethod.Name} on property implementation type {backingMethod.DeclaringType}");
@@ -373,6 +421,6 @@ public class CodeCreation
 
         if (type is null) throw new Exception($"Parameter {p} unexpectedly has no type");
 
-        return type.IsByRef ? ((type.GetElementType() ?? throw new Exception("Can't get element type of ref type")), true) : (type, false);
+        return type.IsByRef ? (type.GetElementType() ?? throw new Exception("Can't get element type of ref type"), true) : (type, false);
     }
 }

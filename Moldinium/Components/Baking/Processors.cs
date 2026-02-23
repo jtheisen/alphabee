@@ -1,5 +1,4 @@
 ﻿using System.Reflection.Emit;
-using System.Reflection;
 using Moldinium.Common.Defaulting;
 using Moldinium.Common.Misc;
 
@@ -11,7 +10,9 @@ public interface IBuildingContext
     ILGenerator ConstructorGenerator { get; }
     IDefaultProvider DefaultProvider { get; }
 
-    NullableFlag GetNullableFlagForInterface(Type interfaceType);
+    IntegerOrNullRetrieverForArgumentName? GetIntegerOrNullRetrieverForArgumentName(PropertyInfo property);
+
+	NullableFlag GetNullableFlagForInterface(Type interfaceType);
 
     MethodImplementationInfo GetOuterImplementationInfo(MethodInfo? method);
 
@@ -60,9 +61,10 @@ public class BuildingBakingProcessor : BakingProcessorWithComponentGenerators, I
 {
     private readonly ImplementationMapping implementationMapping;
     private readonly IDefaultProvider defaultProvider;
-    private readonly IBakeryComponentGenerators generators;
     private readonly AccessEnsurer ensureAccess;
-    private readonly TypeBuilder typeBuilder;
+	private readonly ITypeConfiguration? typeConfiguration;
+
+	private readonly TypeBuilder typeBuilder;
     private readonly ILGenerator constructorGenerator;
 
     private readonly Dictionary<Type, NullableFlag> nullableFlags = new Dictionary<Type, NullableFlag>();
@@ -82,15 +84,17 @@ public class BuildingBakingProcessor : BakingProcessorWithComponentGenerators, I
 
     public BuildingBakingProcessor(
         String name, Type? baseType, TypeAttributes typeAttributes, ImplementationMapping implementationMapping,
-        IDefaultProvider defaultProvider, IBakeryComponentGenerators generators, AccessEnsurer ensureAccess, ModuleBuilder moduleBuilder
+        IDefaultProvider defaultProvider, IBakeryComponentGenerators generators, AccessEnsurer ensureAccess,
+        ModuleBuilder moduleBuilder, ITypeConfiguration? typeConfiguration = null
     )
         : base(generators)
     {
         this.implementationMapping = implementationMapping;
         this.defaultProvider = defaultProvider;
-        this.generators = generators;
         this.ensureAccess = ensureAccess;
-        typeBuilder = moduleBuilder.DefineType(name, typeAttributes, baseType);
+		this.typeConfiguration = typeConfiguration;
+
+		typeBuilder = moduleBuilder.DefineType(name, typeAttributes, baseType);
 
         typeBuilder.SetCustomAttribute(typeClassCharacterAttributeBuilder);
 
@@ -101,7 +105,12 @@ public class BuildingBakingProcessor : BakingProcessorWithComponentGenerators, I
         constructorGenerator = constructorBuilder.GetILGenerator();
     }
 
-    public Type Create(Type[] interfaces, Type[] publicMixins)
+	public IntegerOrNullRetrieverForArgumentName? GetIntegerOrNullRetrieverForArgumentName(PropertyInfo property)
+    {
+        return name => typeConfiguration?.GetPropertyIntegerForArgumentName(property, name);
+	}
+
+	public Type Create(Type[] interfaces, Type[] publicMixins)
     {
         if (createdType is not null) throw new Exception("Internal error: Type already created");
 

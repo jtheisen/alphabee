@@ -1,18 +1,12 @@
 ﻿using System.Reflection;
 using System.Text;
 
-namespace AlphaBee.StructLayouts;
+namespace AlphaBee.Layouts.Structs;
 
 public struct FieldEntry
 {
 	public FieldInfo FieldInfo;
 	public LayoutEntry Layout;
-}
-
-public struct LayoutEntry
-{
-	public Int32 Offset;
-	public Int32 Size;
 }
 
 static class Helper
@@ -58,10 +52,6 @@ struct Helper<T> : IHelper
 	public Object GetAllOneAsObject() => GetAllOne();
 
 	public Int32 SizeOf() => Unsafe.SizeOf<T>();
-}
-
-static class Layout
-{
 }
 
 interface ILayout

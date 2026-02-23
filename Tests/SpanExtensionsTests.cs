@@ -32,25 +32,6 @@ public sealed class SpanExtensionsTests
 		Assert.IsTrue(bits.IsAllZero());
 	}
 
-	[TestMethod]
-	public void TestUInt512General()
-	{
-		var bits = default(UInt512);
-
-		for (var i = 0; i < 512; i++)
-		{
-			Assert.IsFalse(bits.GetBit(i));
-
-			bits.Allocate();
-
-			Assert.AreEqual(i + 1, bits.IndexOfBitZero());
-
-			Assert.IsTrue(bits.GetBit(i));
-		}
-
-		Assert.AreEqual("⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿", bits.ToBrailleString());
-	}
-
 	[DataTestMethod]
 	[DataRow(true, 0ul, 0ul)]
 	[DataRow(true, 1ul, 1ul)]

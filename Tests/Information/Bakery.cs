@@ -1,6 +1,7 @@
-﻿using AlphaBee.StructLayouts;
+﻿using AlphaBee.Layouts.Structs;
+using Moldinium.Baking;
 
-namespace AlphaBee.Baking;
+namespace AlphaBee.Information.Baking;
 
 public interface IFoo
 {

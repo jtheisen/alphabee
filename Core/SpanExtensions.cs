@@ -126,21 +126,6 @@ public static class SpanExtensions
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static Int32 Allocate<T>(this ref T bits) where T : unmanaged
-	{
-		var i = bits.IndexOfBitZero();
-
-		if (i == Unsafe.SizeOf<T>() * 8)
-		{
-			throw new BitArrayFullException();
-		}
-
-		bits.SetBit(i, true);
-
-		return i;
-	}
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Span<T> InterpretAs<T>(this Span<Byte> span)
 		where T : unmanaged
 	{

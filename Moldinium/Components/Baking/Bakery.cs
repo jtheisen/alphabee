@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using System.Reflection.Emit;
+﻿using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using Moldinium.Common.Defaulting;
 
@@ -7,11 +6,11 @@ namespace Moldinium.Baking;
 
 public abstract class AbstractBakery
 {
-    Dictionary<Type, Type> bakedTypes = new Dictionary<Type, Type>();
+    Dictionary<(Type, ITypeConfiguration?), Type> bakedTypes = new();
 
-    public T Create<T>()
+    public T Create<T>(ITypeConfiguration? typeConfiguration = null)
     {
-        var type = Resolve(typeof(T));
+        var type = Resolve(typeof(T), typeConfiguration);
 
         var instance = Activator.CreateInstance(type);
 
@@ -25,17 +24,19 @@ public abstract class AbstractBakery
         }
     }
 
-    public Type Resolve(Type interfaceOrBaseType)
+    public Type Resolve(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration = null)
     {
-        if (!bakedTypes.TryGetValue(interfaceOrBaseType, out var bakedType))
+        var key = (interfaceOrBaseType, typeConfiguration);
+
+		if (!bakedTypes.TryGetValue(key, out var bakedType))
         {
-            bakedTypes[interfaceOrBaseType] = bakedType = GetCreatedType(interfaceOrBaseType);
+            bakedTypes[key] = bakedType = GetCreatedType(interfaceOrBaseType, typeConfiguration);
         }
 
         return bakedType;
     }
 
-    public abstract Type GetCreatedType(Type interfaceOrBaseType);
+    public abstract Type GetCreatedType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration);
 }
 
 public abstract class AbstractlyBakery : AbstractBakery
@@ -61,14 +62,16 @@ public abstract class AbstractlyBakery : AbstractBakery
      * going to actually be a nested type. The next best thing is to just replace the '+' with a '.'. */
     protected virtual String GetTypeName(Type interfaceOrBaseType) => interfaceOrBaseType.FullName?.Replace('+', '.') ?? "";
 
-    public override Type GetCreatedType(Type interfaceOrBaseType)
+    public override Type GetCreatedType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration)
     {
+        // FIXME: allow types with different property integers
+
         var name = GetTypeName(interfaceOrBaseType);
 
-        return moduleBuilder.GetType(name) ?? CreateImpl(name, interfaceOrBaseType);
+        return moduleBuilder.GetType(name) ?? CreateImpl(name, interfaceOrBaseType, typeConfiguration);
     }
 
-    protected abstract Type CreateImpl(String name, Type interfaceOrBaseType);
+    protected abstract Type CreateImpl(String name, Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration);
 
     protected void EnsureAccessToAssembly(Assembly assembly)
     {
@@ -116,20 +119,22 @@ public class Bakery : AbstractlyBakery
 
         var mapping = new ImplementationMapping(interfaceTypes.Concat(mixinTypes).ToHashSet());
 
-
-
         return (mapping, mixinTypes.ToArray());
     }
 
-    protected override Type CreateImpl(String name, Type interfaceOrBaseType)
+    protected override Type CreateImpl(
+        String name, Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration)
     {
-        var baseType = interfaceOrBaseType.IsClass ? interfaceOrBaseType : null;
+		var baseType =
+			configuration.MakeValue ? typeof(ValueType) :
+			interfaceOrBaseType.IsClass ? interfaceOrBaseType : null;
 
-        var (interfaceMapping, publicMixins) = Analyze(interfaceOrBaseType);
+		var (interfaceMapping, publicMixins) = Analyze(interfaceOrBaseType);
 
-        var processor = new BuildingBakingProcessor(
-            name, baseType, typeAttributes, interfaceMapping, defaultProvider, generators, EnsureAccessToAssembly, moduleBuilder);
+		var processor = new BuildingBakingProcessor(
+			name, baseType, typeAttributes, interfaceMapping, defaultProvider, generators,
+            EnsureAccessToAssembly, moduleBuilder, typeConfiguration);
 
-        return processor.Create(interfaceMapping.Interfaces, publicMixins);
-    }
+		return processor.Create(interfaceMapping.Interfaces, publicMixins);
+	}
 }

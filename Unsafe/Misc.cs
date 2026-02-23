@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using AlphaBee.Utilities;
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -36,8 +37,24 @@ public unsafe struct MemoryRange
 	}
 }
 
+public interface ISizeOfHelper
+{
+	Int32 GetSizeOf();
+}
+
+public struct SizeOfHelper<T>
+	where T : unmanaged
+{
+	public Int32 GetSizeOf() => Unsafe.SizeOf<T>();
+}
+
 public static class BitsAndBytes
 {
+	public static Int32 SizeOf(this Type type)
+	{
+		return typeof(SizeOfHelper<>).MakeGenericType(type).CreateInstance<ISizeOfHelper>().GetSizeOf();
+	}
+
 	public unsafe static Int64 Offset<S, M>(ref S root, ref M member)
 		where S : unmanaged
 		where M : unmanaged

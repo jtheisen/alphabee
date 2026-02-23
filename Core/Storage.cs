@@ -27,14 +27,11 @@ public class Storage : IDisposable
 		}
 	}
 
-	PageManager PageManager => new PageManager(this);
-
 	public HeaderPage HeaderPage => new HeaderPage(GetPageSpanAtOffset(0));
 
 	void Init()
 	{
 		HeaderPage.HeaderCore = default;
-		PageManager.Init();
 	}
 
 	void UpdateImplementation(StorageImplementation implementation)
@@ -61,12 +58,6 @@ public class Storage : IDisposable
 	{
 		currentDisposable.Dispose();
 	}
-
-	public void DeallocatePageOffset(UInt64 offset)
-		=> PageManager.DeallocatePageOffset(offset);
-
-	public UInt64 AllocatePageOffset()
-		=> PageManager.AllocatePageOffset();
 }
 
 
