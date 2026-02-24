@@ -44,7 +44,7 @@ public class BakingTests
 
 		var targets = data.AsSpan().InterpretAs<SFoo>();
 
-		var context = new PeachyTestContext(data);
+		var context = new PeachyContext(data);
 
 		var configuration = BakeryConfiguration.Create(typeof(PeachyPropertyImplementation<>)) with { MakeValue = true };
 
