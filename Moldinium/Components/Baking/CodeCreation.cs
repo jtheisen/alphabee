@@ -344,9 +344,16 @@ public class CodeCreation
             var genericParameter = genericParameters[i];
             var concreteParameter = concreteParameters[i];
 
-            var (parameterType, byRef) = GetParameterType(genericParameter);
+			var (parameterType, byRef) = GetParameterType(genericParameter);
 
-            if (argumentKinds.TryGetValue(parameterType, out var kind))
+			// Values can also be integers, but hence we're testing on the generic-ness.
+			var isGenericParameter = genericParameter.ParameterType.IsGenericParameter;
+
+			if (!isGenericParameter && TryGenerateIntegerArgument(generator, concreteParameter))
+			{
+				continue;
+			}
+            else if (argumentKinds.TryGetValue(parameterType, out var kind))
             {
                 switch (kind)
                 {
@@ -397,10 +404,6 @@ public class CodeCreation
                         throw new Exception($"Unkown argument kind {kind}");
                 }
             }
-			else if (TryGenerateIntegerArgument(generator, concreteParameter))
-			{
-				continue;
-			}
             else
             {
                 throw new Exception($"Dont know how to handle argument {genericParameter.Name} of type {genericParameter.ParameterType} of property implementation method {backingMethod.Name} on property implementation type {backingMethod.DeclaringType}");

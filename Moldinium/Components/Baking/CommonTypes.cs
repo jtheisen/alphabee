@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using System.Reflection.Emit;
+﻿using System.Reflection.Emit;
 
 namespace Moldinium.Baking;
 
@@ -23,6 +22,9 @@ public class TypeKindAttribute : Attribute
 
     public ImplementationTypeArgumentKind Kind { get; }
 }
+
+[AttributeUsage(AttributeTargets.Interface)]
+public class IgnoreForBakingAttribute : Attribute { }
 
 public interface IImplementation { }
 

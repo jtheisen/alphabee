@@ -247,9 +247,15 @@ public class AnalyzingBakingProcessor : BakingProcessorWithComponentGenerators
     protected override void VisitProperty(PropertyInfo property, AbstractPropertyGenerator? generator)
         => AddMixin(generator?.GetMixinType());
 
-    void VisitInterface(Type type) => Interfaces.Add(type);
+	void VisitInterface(Type type)
+	{
+        if (type.GetCustomAttribute<IgnoreForBakingAttribute>() is null)
+        {
+            Interfaces.Add(type);
+        }
+	}
 
-    void AddMixin(Type? mixin)
+	void AddMixin(Type? mixin)
     {
         if (mixin is not null)
         {

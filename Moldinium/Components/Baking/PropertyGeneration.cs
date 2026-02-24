@@ -87,7 +87,9 @@ public abstract class AbstractPropertyGenerator : AbstractGenerator
             );
         }
 
-        var codeCreator = new CodeCreation(typeBuilder, argumentKinds, fieldBuilder, mixinFieldBuilder);
+        var getIntegerOrNullForArgumentName = state.GetIntegerOrNullRetrieverForArgumentName(property);
+
+        var codeCreator = new CodeCreation(typeBuilder, argumentKinds, fieldBuilder, mixinFieldBuilder, getIntegerOrNullForArgumentName);
 
         if (fieldBuilder is not null)
         {
