@@ -1,5 +1,6 @@
 ﻿using Alphabee;
 using AlphaBee.Layouts.Structs;
+using Microsoft.Testing.Platform.Requests;
 using Moldinium.Baking;
 using System.Diagnostics;
 using System.Reflection;
@@ -15,6 +16,8 @@ public class BakingTests
 		Int16 Integer16 { get; set; }
 		Int32 Integer32 { get; set; }
 		Int64 Integer64 { get; set; }
+
+		String String { get; set; }
 	}
 
 	public struct SFoo
@@ -23,6 +26,8 @@ public class BakingTests
 		public Int16 Integer16;
 		public Int32 Integer32;
 		public Int64 Integer64;
+
+		public Int64 String;
 	}
 
 	public class TypeConfiguration<T> : ITypeConfiguration
@@ -35,18 +40,31 @@ public class BakingTests
 		}
 	}
 
-	[TestMethod]
-	[DataRow(0)]
-	[DataRow(1)]
-	public void TestBaking(Int32 index)
+	public static IEnumerable<Object?[]> GetTestCases()
 	{
-		var data = new Byte[Unsafe.SizeOf<SFoo>() * 2];
+		for (var i = 0; i < 2; ++i)
+		{
+			foreach (var property in typeof(IFoo).GetProperties())
+			{
+				yield return [ property.Name, i ];
+			}
+		}
+	}
 
-		var targets = data.AsSpan().InterpretAs<SFoo>();
+	[DataTestMethod]
+	[DynamicData(nameof(GetTestCases), DynamicDataSourceType.Method)]
+	public void TestStructPropertyBaking(String propertyName, Int32 index)
+	{
+		var storage = new TestStorage(Unsafe.SizeOf<SFoo>() * 2);
 
-		var context = new PeachyContext(data);
+		var targets = storage.Data.AsSpan().InterpretAs<SFoo>();
 
-		var configuration = BakeryConfiguration.Create(typeof(PeachyPropertyImplementation<>)) with { MakeValue = true };
+		var context = new PeachyContext(storage);
+
+		var configuration = BakeryConfiguration.Create(
+			typeof(PeachyStructPropertyImplementation<>),
+			typeof(PeachyClassPropertyImplementation<>)
+			) with { MakeValue = true };
 
 		var bakery = configuration.CreateBakery("test");
 
@@ -59,7 +77,7 @@ public class BakingTests
 			Trace.Assert(mixin is not null);
 
 			mixin.Init(context);
-			mixin.Address = (UInt64)(Unsafe.SizeOf<SFoo>() * index);
+			mixin.Address = Unsafe.SizeOf<SFoo>() * index;
 
 			return target;
 		}
@@ -70,19 +88,34 @@ public class BakingTests
 
 		Assert.IsTrue(type.IsValueType);
 
-		foreach (var field in typeof(SFoo).GetFields())
+		var property = typeof(IFoo).GetProperty(propertyName);
+
+		Assert.IsNotNull(property);
+
+		var testerType = typeof(PropertyTester<>).MakeGenericType(property.PropertyType);
+
+		var tester = testerType.CreateInstance<PropertyTester>();
+
+		var defaultValue = GetDefaultValue(property.PropertyType);
+
+		var value = GetTestValue(property.PropertyType);
+
+		tester.Test(property.Name, defaultValue is not null, defaultValue, value, peach, ref targets[index]);
+	}
+
+	static Object? GetDefaultValue(Type type)
+	{
+		if (type.IsValueType)
 		{
-			var testerType = typeof(PropertyTester<>).MakeGenericType(field.FieldType);
-
-			var tester = testerType.CreateInstance<PropertyTester>();
-
-			var value = GetTestValue(field.FieldType);
-
-			tester.Test(field.Name, value, peach, ref targets[index]);
+			return Activator.CreateInstance(type)!;
+		}
+		else
+		{
+			return null;
 		}
 	}
 
-	public static Object GetTestValue(Type type)
+	static Object GetTestValue(Type type)
 	{
 		if (type == typeof(SByte))
 		{
@@ -100,6 +133,10 @@ public class BakingTests
 		{
 			return (Int64)42;
 		}
+		else if (type == typeof(String))
+		{
+			return "foo";
+		}
 		else
 		{
 			throw new NotImplementedException($"No test value for type {type.Name}");
@@ -108,25 +145,31 @@ public class BakingTests
 
 	public abstract class PropertyTester
 	{
-		public abstract void Test(String name, Object value, IFoo peach, ref SFoo target);
+		public abstract void Test(String name, Boolean isStruct, Object? defaultValue, Object value, IFoo peach, ref SFoo target);
 	}
 
 	public class PropertyTester<T> : PropertyTester
 	{
-		public override void Test(String name, Object value, IFoo peach, ref SFoo target)
+		public override void Test(String name, Boolean isStruct, Object? defaultValue, Object value, IFoo peach, ref SFoo target)
 		{
-			var defaultValue = Activator.CreateInstance(value.GetType())!;
-
 			var property = peach.GetType().GetProperty(name)!;
 			var field = target.GetType().GetField(name)!;
 
 			Assert.AreEqual(defaultValue, property.GetValue(peach));
-			Assert.AreEqual(defaultValue, field.GetValue(target));
+
+			if (isStruct)
+			{
+				Assert.AreEqual(defaultValue, field.GetValue(target));
+			}
 
 			property.SetValue(peach, value);
 
 			Assert.AreEqual(value, property.GetValue(peach));
-			Assert.AreEqual(value, field.GetValue(target));
+
+			if (isStruct)
+			{
+				Assert.AreEqual(value, field.GetValue(target));
+			}
 		}
 	}
 }

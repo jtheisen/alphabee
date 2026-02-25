@@ -19,24 +19,34 @@ public interface IBakeryComponentGenerators
 public class ComponentGenerators : IBakeryComponentGenerators
 {
     private readonly AbstractMethodGenerator? methodWrapperGenerator;
-    private readonly AbstractPropertyGenerator propertyGenerator;
-    private readonly AbstractEventGenerator eventGenerator;
+	private readonly AbstractPropertyGenerator structPropertyImplementationGenerator;
+	private readonly AbstractPropertyGenerator classPropertyImplementationGenerator;
+	private readonly AbstractEventGenerator eventGenerator;
 
     public ComponentGenerators(
         AbstractMethodGenerator? methodWrapperGenerator,
-        AbstractPropertyGenerator propertyImplementationGenerator,
-        AbstractEventGenerator eventGenerator)
+        AbstractPropertyGenerator structPropertyImplementationGenerator,
+		AbstractPropertyGenerator classPropertyImplementationGenerator,
+		AbstractEventGenerator eventGenerator)
     {
         this.methodWrapperGenerator = methodWrapperGenerator;
-        this.propertyGenerator = propertyImplementationGenerator;
-        this.eventGenerator = eventGenerator;
+		this.structPropertyImplementationGenerator = structPropertyImplementationGenerator;
+		this.classPropertyImplementationGenerator = classPropertyImplementationGenerator;
+		this.eventGenerator = eventGenerator;
     }
 
     public MixinGenerator[] GetMixInGenerators(Type type) => new MixinGenerator[] { };
 
     public AbstractPropertyGenerator? GetPropertyGenerator(PropertyInfo property)
     {
-        return propertyGenerator;
+        if (property.PropertyType.IsValueType)
+        {
+            return structPropertyImplementationGenerator;
+        }
+        else
+        {
+            return classPropertyImplementationGenerator;
+        }
     }
 
     public AbstractMethodGenerator? GetMethodGenerator(MethodInfo method)
@@ -48,11 +58,17 @@ public class ComponentGenerators : IBakeryComponentGenerators
 
     public AbstractEventGenerator GetEventGenerator(EventInfo evt) => eventGenerator;
 
-    static ComponentGenerators CreateInternal(Type? methodWrapperType = null, Type? propertyImplementationType = null, Type? propertyWrapperType = null, Type? eventImplementationType = null)
+    static ComponentGenerators CreateInternal(
+        Type? methodWrapperType = null,
+        Type? structPropertyImplementationType = null,
+		Type? classPropertyImplementationType = null,
+		Type? propertyWrapperType = null,
+        Type? eventImplementationType = null)
         => new ComponentGenerators(
             MethodGenerator.Create(methodWrapperType ?? typeof(TrivialMethodWrapper)),
-            PropertyGenerator.Create(propertyImplementationType ?? typeof(SimplePropertyImplementation<>), propertyWrapperType ?? typeof(TrivialPropertyWrapper)),
-            EventGenerator.Create(eventImplementationType ?? typeof(GenericEventImplementation<>), typeof(TrivialEventWrapper))
+            PropertyGenerator.Create(structPropertyImplementationType ?? typeof(SimplePropertyImplementation<>), propertyWrapperType ?? typeof(TrivialPropertyWrapper)),
+			PropertyGenerator.Create(classPropertyImplementationType ?? typeof(SimplePropertyImplementation<>), propertyWrapperType ?? typeof(TrivialPropertyWrapper)),
+			EventGenerator.Create(eventImplementationType ?? typeof(GenericEventImplementation<>), typeof(TrivialEventWrapper))
         );
 
     public static ComponentGenerators Create(params Type[] implementations)
@@ -64,17 +80,20 @@ public class ComponentGenerators : IBakeryComponentGenerators
 
         var methodWrapperType
             = FindType(implementations, typeof(IMethodWrapperImplementation));
-        var propertyImplementationType
-            = FindType(implementations, typeof(IPropertyImplementation));
-        var propertyWrapperType
+        var structPropertyImplementationType
+			= FindType(implementations, typeof(IStructPropertyImplementation)) ?? FindType(implementations, typeof(IPropertyImplementation));
+		var classPropertyImplementationType
+			= FindType(implementations, typeof(IClassPropertyImplementation)) ?? FindType(implementations, typeof(IPropertyImplementation));
+		var propertyWrapperType
             = FindType(implementations, typeof(IPropertyWrapperImplementation));
         var eventImplementationType
             = FindType(implementations, typeof(IEventImplementation));
 
         return CreateInternal(
             methodWrapperType,
-            propertyImplementationType,
-            propertyWrapperType,
+            structPropertyImplementationType,
+			classPropertyImplementationType,
+			propertyWrapperType,
             eventImplementationType
         );
     }

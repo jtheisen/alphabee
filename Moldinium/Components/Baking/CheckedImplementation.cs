@@ -47,7 +47,9 @@ public class CheckedImplementation
     {
         typeof(IMethodWrapperImplementation),
         typeof(IPropertyImplementation),
-        typeof(IPropertyWrapperImplementation),
+		typeof(IStructPropertyImplementation),
+		typeof(IClassPropertyImplementation),
+		typeof(IPropertyWrapperImplementation),
         typeof(IEventImplementation),
         typeof(IEventWrapperImplementation)
     };
@@ -94,8 +96,9 @@ public class CheckedImplementation
             .Concat(additionalInterfaceTypesToIgnore)
             .ToArray();
 
-        var implementationInterfaceType = implementationType
-            .GetInterfaces()
+        var allImplementationInterfaceTypes = implementationType.GetInterfaces();
+
+		var implementationInterfaceType = allImplementationInterfaceTypes
             .Where(i => !interfacesToIgnore.Contains(i))
             .Single($"Expected implementation type {implementationType} to implement only a single interface besides {String.Join(", ", additionalInterfaceTypesToIgnore.Cast<Type>())}")
             ;

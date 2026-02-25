@@ -32,6 +32,10 @@ public interface IEmptyImplementation : IImplementation { }
 
 public interface IPropertyImplementation : IImplementation { }
 
+public interface IStructPropertyImplementation : IImplementation { }
+
+public interface IClassPropertyImplementation : IImplementation { }
+
 public interface IPropertyWrapperImplementation : IImplementation { }
 
 public interface IMethodWrapperImplementation : IImplementation { }
