@@ -2,6 +2,7 @@
 using AlphaBee.Layouts.Structs;
 using Microsoft.Testing.Platform.Requests;
 using Moldinium.Baking;
+using System.Collections;
 using System.Diagnostics;
 using System.Reflection;
 
@@ -18,6 +19,7 @@ public class BakingTests
 		Int64 Integer64 { get; set; }
 
 		String String { get; set; }
+		Byte[] Bytes { get; set; }
 	}
 
 	public struct SFoo
@@ -28,6 +30,7 @@ public class BakingTests
 		public Int64 Integer64;
 
 		public Int64 String;
+		public Int64 Bytes;
 	}
 
 	public class TypeConfiguration<T> : ITypeConfiguration
@@ -137,9 +140,32 @@ public class BakingTests
 		{
 			return "foo";
 		}
+		else if (type == typeof(Byte[]))
+		{
+			return new Byte[] { 1, 2, 3 };
+		}
 		else
 		{
 			throw new NotImplementedException($"No test value for type {type.Name}");
+		}
+	}
+
+	static void AssertEqual(Object? expected, Object? actual)
+	{
+		Assert.AreEqual(expected?.GetType(), actual?.GetType());
+
+		if (expected is ICollection e && actual is ICollection a)
+		{
+			Assert.AreEqual(e.Count, a.Count);
+
+			foreach (var p in e.Cast<Object>().Zip(a.Cast<Object>()))
+			{
+				AssertEqual(p.First, p.Second);
+			}
+		}
+		else
+		{
+			Assert.AreEqual(expected, actual);
 		}
 	}
 
@@ -155,7 +181,7 @@ public class BakingTests
 			var property = peach.GetType().GetProperty(name)!;
 			var field = target.GetType().GetField(name)!;
 
-			Assert.AreEqual(defaultValue, property.GetValue(peach));
+			AssertEqual(defaultValue, property.GetValue(peach));
 
 			if (isStruct)
 			{
@@ -164,7 +190,7 @@ public class BakingTests
 
 			property.SetValue(peach, value);
 
-			Assert.AreEqual(value, property.GetValue(peach));
+			AssertEqual(value, property.GetValue(peach));
 
 			if (isStruct)
 			{
