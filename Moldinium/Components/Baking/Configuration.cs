@@ -18,35 +18,42 @@ public interface IBakeryComponentGenerators
 
 public class ComponentGenerators : IBakeryComponentGenerators
 {
-    private readonly AbstractMethodGenerator? methodWrapperGenerator;
-	private readonly AbstractPropertyGenerator structPropertyImplementationGenerator;
-	private readonly AbstractPropertyGenerator classPropertyImplementationGenerator;
+	private readonly PropertyImplementationProvider propertyImplementationProvider;
+	private readonly Type propertyWrapperType;
+	private readonly AbstractMethodGenerator? methodWrapperGenerator;
 	private readonly AbstractEventGenerator eventGenerator;
 
+    private readonly Dictionary<Type, AbstractPropertyGenerator> propertyGenerators = new();
+
     public ComponentGenerators(
-        AbstractMethodGenerator? methodWrapperGenerator,
-        AbstractPropertyGenerator structPropertyImplementationGenerator,
-		AbstractPropertyGenerator classPropertyImplementationGenerator,
-		AbstractEventGenerator eventGenerator)
+		PropertyImplementationProvider propertyImplementationProvider,
+        Type propertyWrapperType,
+		Type? methodWrapperType,
+		Type? eventImplementationType)
     {
-        this.methodWrapperGenerator = methodWrapperGenerator;
-		this.structPropertyImplementationGenerator = structPropertyImplementationGenerator;
-		this.classPropertyImplementationGenerator = classPropertyImplementationGenerator;
-		this.eventGenerator = eventGenerator;
+		this.propertyImplementationProvider = propertyImplementationProvider;
+		this.propertyWrapperType = propertyWrapperType;
+		methodWrapperGenerator = MethodGenerator.Create(methodWrapperType ?? typeof(TrivialMethodWrapper));
+		eventGenerator = EventGenerator.Create(eventImplementationType ?? typeof(GenericEventImplementation<>), typeof(TrivialEventWrapper));
+
+        foreach (var type in propertyImplementationProvider.GetAll())
+        {
+			propertyGenerators[type] = PropertyGenerator.Create(type, propertyWrapperType);
+		}
     }
 
     public MixinGenerator[] GetMixInGenerators(Type type) => new MixinGenerator[] { };
 
     public AbstractPropertyGenerator? GetPropertyGenerator(PropertyInfo property)
     {
-        if (property.PropertyType.IsValueType)
+		var type = propertyImplementationProvider.Get(property);
+
+        if (!propertyGenerators.TryGetValue(type, out var generator))
         {
-            return structPropertyImplementationGenerator;
-        }
-        else
-        {
-            return classPropertyImplementationGenerator;
-        }
+            throw new Exception($"Implementation type {type} was not listed by the provider");
+		}
+
+        return generator;
     }
 
     public AbstractMethodGenerator? GetMethodGenerator(MethodInfo method)
@@ -58,42 +65,46 @@ public class ComponentGenerators : IBakeryComponentGenerators
 
     public AbstractEventGenerator GetEventGenerator(EventInfo evt) => eventGenerator;
 
-    static ComponentGenerators CreateInternal(
-        Type? methodWrapperType = null,
-        Type? structPropertyImplementationType = null,
-		Type? classPropertyImplementationType = null,
-		Type? propertyWrapperType = null,
-        Type? eventImplementationType = null)
-        => new ComponentGenerators(
-            MethodGenerator.Create(methodWrapperType ?? typeof(TrivialMethodWrapper)),
-            PropertyGenerator.Create(structPropertyImplementationType ?? typeof(SimplePropertyImplementation<>), propertyWrapperType ?? typeof(TrivialPropertyWrapper)),
-			PropertyGenerator.Create(classPropertyImplementationType ?? typeof(SimplePropertyImplementation<>), propertyWrapperType ?? typeof(TrivialPropertyWrapper)),
-			EventGenerator.Create(eventImplementationType ?? typeof(GenericEventImplementation<>), typeof(TrivialEventWrapper))
-        );
+	public static ComponentGenerators Create(params Type[] implementations) => Create(null, implementations);
 
-    public static ComponentGenerators Create(params Type[] implementations)
+	public static ComponentGenerators Create(PropertyImplementationProvider? propertyImplementationProvider, params Type[] implementations)
     {
         foreach (var implementation in implementations)
         {
             CheckedImplementation.PreCheck(implementation);
         }
 
+		var propertyImplementationType
+	        = FindType(implementations, typeof(IPropertyImplementation));
+
+		if (propertyImplementationProvider is PropertyImplementationProvider provider)
+		{
+            var dynamicImplementations = provider.GetAll();
+
+            Trace.Assert(propertyImplementationType is null,
+                "Can't provide both PropertyImplementationProvider and an IPropertyImplementation type");
+
+            foreach (var implementation in dynamicImplementations)
+            {
+                CheckedImplementation.PreCheck(implementation);
+            }
+        }
+        else
+        {
+            propertyImplementationProvider = PropertyImplementationProvider.CreateForSingleType(propertyImplementationType ?? typeof(SimplePropertyImplementation<>));
+		}
+
         var methodWrapperType
             = FindType(implementations, typeof(IMethodWrapperImplementation));
-        var structPropertyImplementationType
-			= FindType(implementations, typeof(IStructPropertyImplementation)) ?? FindType(implementations, typeof(IPropertyImplementation));
-		var classPropertyImplementationType
-			= FindType(implementations, typeof(IClassPropertyImplementation)) ?? FindType(implementations, typeof(IPropertyImplementation));
 		var propertyWrapperType
-            = FindType(implementations, typeof(IPropertyWrapperImplementation));
+            = FindType(implementations, typeof(IPropertyWrapperImplementation)) ?? typeof(TrivialPropertyWrapper);
         var eventImplementationType
             = FindType(implementations, typeof(IEventImplementation));
 
-        return CreateInternal(
-            methodWrapperType,
-            structPropertyImplementationType,
-			classPropertyImplementationType,
+        return new ComponentGenerators(
+			propertyImplementationProvider,
 			propertyWrapperType,
+			methodWrapperType,
             eventImplementationType
         );
     }
@@ -110,7 +121,10 @@ public class ComponentGenerators : IBakeryComponentGenerators
 
 public record BakeryConfiguration(IBakeryComponentGenerators Generators, IDefaultProvider DefaultProvider, Boolean MakeAbstract = false, Boolean MakeValue = false)
 {
-    public static BakeryConfiguration Create(params Type[] implementations)
+	public static BakeryConfiguration Create(PropertyImplementationProvider propertyImplementationProvider, params Type[] implementations)
+		=> new BakeryConfiguration(ComponentGenerators.Create(propertyImplementationProvider, implementations), Defaults.GetDefaultDefaultProvider());
+
+	public static BakeryConfiguration Create(params Type[] implementations)
         => new BakeryConfiguration(ComponentGenerators.Create(implementations), Defaults.GetDefaultDefaultProvider());
 
     public static BakeryConfiguration PocGenerationConfiguration

@@ -249,8 +249,6 @@ public static class PropertyGenerator
     {
         var ignoredInterfaces = new[] {
             typeof(IPropertyImplementation),
-			typeof(IStructPropertyImplementation),
-			typeof(IClassPropertyImplementation),
 			typeof(IPropertyWrapperImplementation),
         };
 

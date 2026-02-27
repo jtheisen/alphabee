@@ -32,10 +32,6 @@ public interface IEmptyImplementation : IImplementation { }
 
 public interface IPropertyImplementation : IImplementation { }
 
-public interface IStructPropertyImplementation : IImplementation { }
-
-public interface IClassPropertyImplementation : IImplementation { }
-
 public interface IPropertyWrapperImplementation : IImplementation { }
 
 public interface IMethodWrapperImplementation : IImplementation { }
@@ -45,6 +41,32 @@ public interface IEventImplementation : IImplementation { }
 public interface IEventWrapperImplementation : IImplementation { }
 
 public struct VoidDummy { }
+
+public abstract class PropertyImplementationProvider
+{
+    public abstract Type Get(PropertyInfo property);
+
+	public abstract IEnumerable<Type> GetAll();
+
+	public static PropertyImplementationProvider CreateForSingleType(Type type)
+	{
+		var providerType = typeof(SingletonPropertyImplementationProvider<>).MakeGenericType(type);
+
+		return Activator.CreateInstance(providerType) as PropertyImplementationProvider
+			?? throw new Exception("Failed to create SingletonPropertyImplementationProvider");
+	}
+}
+
+public class SingletonPropertyImplementationProvider<T> : PropertyImplementationProvider
+    where T : IPropertyImplementation
+{
+	public override Type Get(PropertyInfo property) => typeof(T);
+
+	public override IEnumerable<Type> GetAll()
+	{
+        yield return typeof(T);
+	}
+}
 
 public static partial class Extensions
 {

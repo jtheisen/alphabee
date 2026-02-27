@@ -2,6 +2,7 @@
 using Moldinium.Baking;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Alphabee;
@@ -338,7 +339,7 @@ public struct ExamplePeachyMixin : IPeachyInternalMixin
 public interface IPeachyStructPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
 	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
-> : IStructPropertyImplementation
+> : IPropertyImplementation
 	where Value : unmanaged
 	where Mixin : IPeachyMixin
 {
@@ -360,7 +361,7 @@ public struct PeachyStructPropertyImplementation<
 public interface IPeachyClassPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
 	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
-> : IClassPropertyImplementation
+> : IPropertyImplementation
 	where Value : class
 	where Mixin : IPeachyMixin
 {
@@ -379,3 +380,25 @@ public struct PeachyClassPropertyImplementation<
 	public void Set(ref ExamplePeachyMixin mixin, Int32 offset, Value? value) => mixin.SetObject(offset, value);
 }
 
+public class PeachyPropertyImplementationProvider : PropertyImplementationProvider
+{
+	public override Type Get(PropertyInfo property)
+	{
+		var type = property.PropertyType;
+
+		if (!type.IsValueType)
+		{
+			return typeof(PeachyClassPropertyImplementation<>);
+		}
+		else
+		{
+			return typeof(PeachyStructPropertyImplementation<>);
+		}
+	}
+
+	public override IEnumerable<Type> GetAll()
+	{
+		yield return typeof(PeachyClassPropertyImplementation<>);
+		yield return typeof(PeachyStructPropertyImplementation<>);
+	}
+}

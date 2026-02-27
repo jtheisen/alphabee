@@ -65,8 +65,7 @@ public class BakingTests
 		var context = new PeachyContext(storage);
 
 		var configuration = BakeryConfiguration.Create(
-			typeof(PeachyStructPropertyImplementation<>),
-			typeof(PeachyClassPropertyImplementation<>)
+			new PeachyPropertyImplementationProvider()
 			) with { MakeValue = true };
 
 		var bakery = configuration.CreateBakery("test");

@@ -47,8 +47,6 @@ public class CheckedImplementation
     {
         typeof(IMethodWrapperImplementation),
         typeof(IPropertyImplementation),
-		typeof(IStructPropertyImplementation),
-		typeof(IClassPropertyImplementation),
 		typeof(IPropertyWrapperImplementation),
         typeof(IEventImplementation),
         typeof(IEventWrapperImplementation)
