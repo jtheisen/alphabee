@@ -2,7 +2,7 @@
 using System.Runtime.Intrinsics.Arm;
 using System.Runtime.Intrinsics.X86;
 
-namespace Tests.Information;
+namespace AlphaBee.Information;
 
 [TestClass]
 public class Hardware

@@ -1,6 +1,4 @@
-﻿using Alphabee;
-using AlphaBee.Layouts.Structs;
-using Microsoft.Testing.Platform.Requests;
+﻿using AlphaBee.Layouts.Structs;
 using Moldinium.Baking;
 using System.Collections;
 using System.Diagnostics;
@@ -11,6 +9,12 @@ namespace AlphaBee;
 [TestClass]
 public class BakingTests
 {
+	[TestMethod]
+	public void TestObjectTypeKinds()
+	{
+		Console.WriteLine(ObjectTypeKinds.ReportTypes());
+	}
+
 	public interface IFoo
 	{
 		SByte Integer8 { get; set; }

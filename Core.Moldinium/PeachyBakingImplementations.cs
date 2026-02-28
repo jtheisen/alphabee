@@ -1,11 +1,11 @@
-﻿using AlphaBee;
+﻿using AlphaBee.Utilities;
 using Moldinium.Baking;
-using System.ComponentModel;
 using System.Diagnostics;
+using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace Alphabee;
+namespace AlphaBee;
 
 public abstract class AbstractPeachyContext
 {
@@ -29,6 +29,28 @@ public abstract class AbstractTestStorage
 	public void SetValue<T>(Int64 offset, T value) where T : unmanaged => GetSpan<T>(offset, 1)[0] = value;
 
 	public ref T AllocateValue<T>(out Int64 address) where T : unmanaged => ref AllocateSpan<T>(out address, 1)[0];
+
+	public ref ObjectHeader GetObject(Int64 address, out Span<Byte> content)
+	{
+		var headerSize = Unsafe.SizeOf<ObjectHeader>();
+
+		ref var header = ref GetSpan<ObjectHeader>(address, 1)[0];
+
+		content = GetSpan<Byte>(address + headerSize, header.size);
+
+		return ref header;
+	}
+
+	public void AllocateObject(ObjectHeader header, out Int64 address, out Span<Byte> content)
+	{
+		var headerSize = Unsafe.SizeOf<ObjectHeader>();
+
+		var span = AllocateSpan<Byte>(out address, headerSize + header.size);
+
+		span.InterpretAs<ObjectHeader>()[0] = header;
+
+		content = span[headerSize..];
+	}
 }
 
 public class TestStorage : AbstractTestStorage
@@ -73,18 +95,18 @@ public class TestStorage : AbstractTestStorage
 		data = copy;
 	}
 
-	public override Span<T> AllocateSpan<T>(out Int64 address, Int32 length)
+	public override Span<T> AllocateSpan<T>(out Int64 referenceAddress, Int32 length)
 	{
-		address = position;
+		referenceAddress = position;
 
 		position += Unsafe.SizeOf<T>() * length;
 
-		return GetSpanCore<T>(address, length, extend: true);
+		return GetSpanCore<T>(referenceAddress, length, extend: true);
 	}
 
-	public override Span<T> GetSpan<T>(Int64 offset, Int32 length)
+	public override Span<T> GetSpan<T>(Int64 referenceAddress, Int32 length)
 	{
-		return GetSpanCore<T>(offset, length);
+		return GetSpanCore<T>(referenceAddress, length);
 	}
 }
 
@@ -112,114 +134,176 @@ public class PeachyContext : AbstractPeachyContext
 
 	public override T GetValue<T>(Int64 offset) => storage.GetValue<T>(offset);
 
-	public override void SetValue<T>(Int64 offset, T value) => storage.SetValue(offset, value);
+	public override void SetValue<T>(Int64 address, T value) => storage.SetValue(address, value);
 
-	public override T? GetObject<T>(Int64 offset) where T : class
+	public override T? GetObject<T>(Int64 referenceAddress) where T : class
 	{
-		var address = storage.GetValue<Int64>(offset);
+		var address = storage.GetValue<Int64>(referenceAddress);
 
 		if (address == 0) return null;
 
-		var handler = ObjectTypeKinds.GetHandler(typeof(T));
+		ref var header = ref storage.GetObject(address, out var content);
+
+		var handler = ObjectTypeKinds.GetHandler(in header);
 
 		return (T)handler.Get(storage, address);
 	}
 
-	public override void SetObject<T>(Int64 offset, T? value) where T : class
+	public override void SetObject<T>(Int64 referenceAddress, T? value) where T : class
 	{
 		var handler = ObjectTypeKinds.GetHandler(typeof(T));
 
 		if (value is null)
 		{
-			storage.SetValue<Int64>(offset, 0);
+			storage.SetValue<Int64>(referenceAddress, 0);
 		}
 		else
 		{
 			handler.Set(storage, value, out var address);
 
-			storage.SetValue(offset, address);
+			storage.SetValue(referenceAddress, address);
 		}
 	}
-}
-
-public enum ObjectTypeKind
-{
-	Regular = 0,
-	Bytes = 1,
-	Ucs2String = 2,
-
-	End = 4
 }
 
 public static class ObjectTypeKinds
 {
-	static AbstractTypeHandler[] handlers;
+	static readonly ObjectTypeHandler[] handlersByByte;
+
+	static readonly Dictionary<Type, ObjectTypeHandler> handlersByType = new();
 
 	static ObjectTypeKinds()
 	{
-		handlers = new AbstractTypeHandler[(Int32)ObjectTypeKind.End];
+		var typeCodes = Enum.GetValues<TypeCode>();
 
-		foreach (var handler in Enumerate())
+		handlersByByte = new ObjectTypeHandler[128];
+
+		var unimplementedHandler = new UnimplementedTypeHandler();
+
+		for (Byte i = 0; i < 128; ++i)
 		{
-			var i = (Int32)handler.Kind;
+			var typeByte = new TypeByte(i);
 
-			handlers[i] = handler;
+			var handler = handlersByByte[i] = GetHandlerType(typeByte)?.CreateInstance<ObjectTypeHandler>()
+				?? unimplementedHandler;
+
+			if (handler.Type is Type type)
+			{
+				Trace.Assert(!handlersByType.ContainsKey(type), $"There's already a handler registered for type '{type}'");
+
+				handlersByType[type] = handler;
+			}
 		}
 	}
 
-	static IEnumerable<AbstractTypeHandler> Enumerate()
+	static Type? GetHandlerType(TypeByte typeByte)
 	{
-		yield return new Ucs2StringTypeHandler();
-		yield return new BytesTypeHandler();
-	}
+		var code = typeByte.Code;
 
-	public static AbstractTypeHandler GetHandler(ObjectTypeKind kind)
-	{
-		return handlers[(Int32)kind] ?? throw new InvalidEnumArgumentException($"No handler for {kind}");
-	}
+		var isSpan = typeByte.IsSpan;
 
-	public static ObjectTypeKind GetKindForType(Type type)
-	{
-		if (type == typeof(String))
+		var isNullable = typeByte.IsNullable;
+
+		if (code == TypeCode.String)
 		{
-			return ObjectTypeKind.Ucs2String;
+			// A TypeCode.String means a Char span that is treated as a String
+			return isSpan || isNullable ? null : typeof(Ucs2StringTypeHandler);
 		}
-		else if (type == typeof(Byte[]))
+		else if (code == TypeCode.Object)
 		{
-			return ObjectTypeKind.Bytes;
+			// A TypeCode.Object means a reference to something else
+			// FIXME: implement this
+			return null;
+		}
+		else if (code.IsSupportedStruct())
+		{
+			// FIXME: this could be supported
+			if (!isSpan) return null;
+
+			var type = code.FindType();
+
+			if (isNullable)
+			{
+				// FIXME: we can implement this
+				return null;
+
+				// FIXME: unsafe, because the layout of Nullable<> could change
+				//type = typeof(Nullable<>).MakeGenericType(type);
+			}
+
+			return isSpan ? typeof(StructArrayTypeHandler<>).MakeGenericType(type) : null;
 		}
 		else
 		{
-			return ObjectTypeKind.Regular;
+			return null;
 		}
 	}
 
-	public static AbstractTypeHandler GetHandler(Type type)
+	public static String ReportTypes()
 	{
-		var kind = GetKindForType(type);
+		var writer = new StringWriter();
 
-		return GetHandler(kind);
+		for (Byte i = 0; i < 128; ++i)
+		{
+			writer.WriteLine($"{new TypeByte(i)} - {handlersByByte[i].Type?.Name ?? "n/a"}");
+		}
+
+		return writer.ToString();
+	}
+
+	public static ObjectTypeHandler GetHandler(in ObjectHeader header)
+	{
+		var typeByte = header.type.typeByte;
+
+		Trace.Assert(!typeByte.IsZero);
+
+		return handlersByByte[typeByte.value];
+	}
+
+	static ObjectTypeHandler? GetHandlerOrNull(Type type)
+	{
+		return handlersByType.GetValueOrDefault(type);
+	}
+
+	public static ObjectTypeHandler GetHandler(Type type)
+	{
+		return GetHandlerOrNull(type) ?? throw new Exception($"No handler exists for type '{type.Name}'");
 	}
 }
 
-public abstract class AbstractTypeHandler
+public abstract class ObjectTypeHandler
 {
-	public abstract ObjectTypeKind Kind { get; }
+	public abstract Type? Type { get; }
 
 	public abstract Object Get(AbstractTestStorage storage, Int64 offset);
 
 	public abstract void Set(AbstractTestStorage storage, Object untyped, out Int64 address);
 }
 
-public class Ucs2StringTypeHandler : AbstractTypeHandler
+public class UnimplementedTypeHandler : ObjectTypeHandler
 {
-	public override ObjectTypeKind Kind => ObjectTypeKind.Ucs2String;
+	public override Type? Type => null;
 
 	public override Object Get(AbstractTestStorage storage, Int64 offset)
 	{
-		var length = storage.GetValue<Int32>(offset);
+		throw new NotImplementedException();
+	}
 
-		var chars = storage.GetSpan<Char>(offset + 4, length);
+	public override void Set(AbstractTestStorage storage, Object untyped, out Int64 address)
+	{
+		throw new NotImplementedException();
+	}
+}
+
+public class Ucs2StringTypeHandler : ObjectTypeHandler
+{
+	public override Type? Type => typeof(String);
+
+	public override Object Get(AbstractTestStorage storage, Int64 address)
+	{
+		ref var header = ref storage.GetObject(address, out var content);
+
+		var chars = storage.GetSpan<Char>(address + ObjectHeader.Size, header.size / 2);
 
 		return new String(chars);
 	}
@@ -228,25 +312,26 @@ public class Ucs2StringTypeHandler : AbstractTypeHandler
 	{
 		var value = (String)untyped;
 
-		var bytes = storage.AllocateSpan<Byte>(out address, value.Length * 2 + 4);
+		var header = new ObjectHeader(new TypeRef(new TypeByte(TypeCode.String)), value.Length * 2);
 
-		bytes.InterpretAs<Int32>()[0] = value.Length;
+		storage.AllocateObject(header, out address, out var target);
 
-		var chars = bytes[4..].InterpretAs<Char>();
+		var chars = target.InterpretAs<Char>();
 
 		value.CopyTo(chars);
 	}
 }
 
-public class BytesTypeHandler : AbstractTypeHandler
+public class StructArrayTypeHandler<T> : ObjectTypeHandler
+	where T : unmanaged
 {
-	public override ObjectTypeKind Kind => ObjectTypeKind.Bytes;
+	public override Type? Type => typeof(T).MakeArrayType();
 
-	public override Object Get(AbstractTestStorage storage, Int64 offset)
+	public override Object Get(AbstractTestStorage storage, Int64 address)
 	{
-		var length = storage.GetValue<Int32>(offset);
+		ref var header = ref storage.GetObject(address, out var content);
 
-		var bytes = storage.GetSpan<Byte>(offset + 4, length);
+		var bytes = storage.GetSpan<Byte>(address + ObjectHeader.Size, header.size);
 
 		return bytes.ToArray();
 	}
@@ -255,11 +340,9 @@ public class BytesTypeHandler : AbstractTypeHandler
 	{
 		var value = (Byte[])untyped;
 
-		var bytes = storage.AllocateSpan<Byte>(out address, value.Length + 4);
+		var header = new ObjectHeader(new TypeRef(new TypeByte(TypeCode.Byte, isSpan: true)), value.Length);
 
-		bytes.InterpretAs<Int32>()[0] = value.Length;
-
-		var target = bytes[4..];
+		storage.AllocateObject(header, out address, out var target);
 
 		value.CopyTo(target);
 	}
