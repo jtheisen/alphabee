@@ -1,4 +1,17 @@
-﻿namespace AlphaBee;
+﻿using System.Net;
+
+namespace AlphaBee;
+
+public abstract class AbstractPeachyContext
+{
+	public abstract T GetValue<T>(Int64 offset) where T : unmanaged;
+
+	public abstract void SetValue<T>(Int64 offset, T value) where T : unmanaged;
+
+	public abstract Object? GetObject(Int64 offset);
+
+	public abstract void SetObject(Int64 offset, Object? value);
+}
 
 public class PeachyContext : AbstractPeachyContext
 {
@@ -13,7 +26,7 @@ public class PeachyContext : AbstractPeachyContext
 
 	public override void SetValue<T>(Int64 address, T value) => storage.SetValue(address, value);
 
-	public override T? GetObject<T>(Int64 referenceAddress) where T : class
+	public override Object? GetObject(Int64 referenceAddress)
 	{
 		var address = storage.GetValue<Int64>(referenceAddress);
 
@@ -21,24 +34,43 @@ public class PeachyContext : AbstractPeachyContext
 
 		ref var header = ref storage.GetObject(address, out var content);
 
-		var handler = ObjectTypeKinds.GetHandler(in header);
+		if (header.type.IsFundamental)
+		{
+			var handler = ObjectTypeKinds.GetHandler(in header);
 
-		return (T)handler.Get(storage, address);
+			return handler.Get(storage, address);
+		}
+		else
+		{
+			var peach = storage.CreatePeach(header.type);
+
+			peach.Init(this);
+			peach.Address = address;
+
+			return peach;
+		}
 	}
 
-	public override void SetObject<T>(Int64 referenceAddress, T? value) where T : class
+	public override void SetObject(Int64 referenceAddress, Object? value)
 	{
-		var handler = ObjectTypeKinds.GetHandler(typeof(T));
-
 		if (value is null)
 		{
 			storage.SetValue<Int64>(referenceAddress, 0);
 		}
 		else
 		{
-			handler.Set(storage, value, out var address);
+			if (value is IPeach peach)
+			{
+				storage.SetValue(referenceAddress, peach.Address);
+			}
+			else
+			{
+				var handler = ObjectTypeKinds.GetHandler(value.GetType());
 
-			storage.SetValue(referenceAddress, address);
+				handler.Set(storage, value, out var address);
+
+				storage.SetValue(referenceAddress, address);
+			}
 		}
 	}
 }

@@ -5,48 +5,35 @@ using System.Text;
 
 namespace AlphaBee;
 
-public interface ITypeDescription
-{
-	String?[]? Names { get; set; }
-
-	ITypeDescription?[]? Descriptions { get; set; }
-
-	TypeByte[] TypeBytes { get; set; }
-
-	Int32[] Offsets { get; set; }
-}
-
 [DebuggerDisplay("{ToString()}")]
-[StructLayout(LayoutKind.Explicit, Size = 8)]
+[StructLayout(LayoutKind.Explicit, Size = 4)]
 public readonly struct TypeRef
 {
 	[FieldOffset(0)]
-	public readonly Int64 address;
+	public readonly Int32 no;
 
-	[FieldOffset(7)]
+	[FieldOffset(3)]
 	public readonly TypeByte typeByte;
+
+	public Boolean IsFundamental => !typeByte.IsZero;
 
 	public TypeRef(TypeByte typeByte)
 	{
 		this.typeByte = typeByte;
 	}
 
-	public TypeRef(Int64 address)
+	public TypeRef(Int32 no)
 	{
-		this.address = address;
+		this.no = no;
 
 		Debug.Assert(typeByte.IsZero);
 	}
-
-	public static implicit operator TypeRef(Int64 address) => new TypeRef(address);
-
-	public static implicit operator Int64(TypeRef address) => address.address;
 
 	public override String ToString()
 	{
 		if (typeByte.IsZero)
 		{
-			return $"{address:x}";
+			return $"#{no}";
 		}
 		else
 		{
@@ -55,9 +42,13 @@ public readonly struct TypeRef
 	}
 }
 
+public static class ExtraTypeCodes
+{
+}
+
 [DebuggerDisplay("{ToString()}")]
 [StructLayout(LayoutKind.Explicit, Size = 1)]
-public readonly struct TypeByte
+public readonly struct TypeByte : IEquatable<TypeByte>
 {
 	[FieldOffset(0)]
 	public readonly Byte value;
@@ -78,16 +69,16 @@ public readonly struct TypeByte
 
 	public static implicit operator TypeByte(TypeCode code) => new TypeByte(code);
 
-	public TypeByte(Byte value)
+	public TypeByte(Byte value, Boolean isSpan = false, Boolean isNullable = false)
 	{
-		Trace.Assert(value <= 127);
+		this.value = (Byte)(value | (isSpan ? IsSpanPattern : 0) | (isNullable ? IsNullablePattern : 0));
 
-		this.value = value;
+		Trace.Assert(value <= 127);
 	}
 
 	public TypeByte(TypeCode code, Boolean isSpan = false, Boolean isNullable = false)
+		: this((Byte)code, isSpan, isNullable)
 	{
-		value = (Byte)((Byte)code | (isSpan ? IsSpanPattern : 0) | (isNullable ? IsNullablePattern : 0));
 	}
 
 	public override String ToString()
@@ -104,6 +95,14 @@ public readonly struct TypeByte
 		}
 		return b.ToString();
 	}
+
+	public Boolean Equals(TypeByte other) => value == other.value;
+
+	public static Boolean operator ==(TypeByte lhs, TypeByte rhs) => lhs.Equals(rhs);
+	public static Boolean operator !=(TypeByte lhs, TypeByte rhs) => !lhs.Equals(rhs);
+
+	public override Boolean Equals(Object? obj) => obj is TypeByte && Equals((TypeByte)obj);
+	public override int GetHashCode() => value.GetHashCode();
 }
 
 [DebuggerDisplay("{ToString()}")]

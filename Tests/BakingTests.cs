@@ -37,16 +37,6 @@ public class BakingTests
 		public Int64 Bytes;
 	}
 
-	public class TypeConfiguration<T> : ITypeConfiguration
-	{
-		static FieldEntry[] fields = typeof(T).GetLayoutFields().ToArray();
-
-		public Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName)
-		{
-			return fields.Single(f => f.FieldInfo.Name == property.Name).Layout.Offset;
-		}
-	}
-
 	public static IEnumerable<Object?[]> GetTestCases()
 	{
 		for (var i = 0; i < 2; ++i)
@@ -62,7 +52,7 @@ public class BakingTests
 	[DynamicData(nameof(GetTestCases), DynamicDataSourceType.Method)]
 	public void TestStructPropertyBaking(String propertyName, Int32 index)
 	{
-		var storage = new TestStorage(Unsafe.SizeOf<SFoo>() * 2);
+		var storage = new TestStorage(reserved: Unsafe.SizeOf<SFoo>() * 2);
 
 		var targets = storage.Data.AsSpan().InterpretAs<SFoo>();
 
@@ -76,9 +66,9 @@ public class BakingTests
 
 		IFoo Create()
 		{
-			var target = bakery.Create<IFoo>(new TypeConfiguration<SFoo>());
+			var target = bakery.Create<IFoo>(new StructLayoutTypeConfiguration<SFoo>());
 
-			var mixin = target as IPeachyMixin;
+			var mixin = target as IPeach;
 
 			Trace.Assert(mixin is not null);
 

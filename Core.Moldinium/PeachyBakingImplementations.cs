@@ -3,7 +3,7 @@ using System.Reflection;
 
 namespace AlphaBee;
 
-public interface IPeachyMixin
+public interface IPeach
 {
 	Int64 Address { get; set; }
 
@@ -11,7 +11,7 @@ public interface IPeachyMixin
 }
 
 [IgnoreForBaking]
-public interface IPeachyInternalMixin : IPeachyMixin
+public interface IInternalPeachMixin : IPeach
 {
 	T GetValue<T>(Int32 offset) where T : unmanaged;
 
@@ -22,7 +22,7 @@ public interface IPeachyInternalMixin : IPeachyMixin
 	void SetObject<T>(Int32 offset, T? value) where T : class;
 }
 
-public struct ExamplePeachyMixin : IPeachyInternalMixin
+public struct InternalPeachMixin : IInternalPeachMixin
 {
 	AbstractPeachyContext context;
 
@@ -51,7 +51,7 @@ public struct ExamplePeachyMixin : IPeachyInternalMixin
 	{
 		var address = GetFieldAddress(offset);
 
-		return context.GetObject<T>(address);
+		return (T?)context.GetObject(address);
 	}
 
 	public void SetObject<T>(Int32 offset, T? value) where T : class
@@ -65,7 +65,7 @@ public interface IPeachyStructPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
 > : IPropertyImplementation
 	where Value : unmanaged
-	where Mixin : IPeachyMixin
+	where Mixin : IPeach
 {
 	Value Get(ref Mixin mixin, Int32 offset);
 
@@ -74,12 +74,12 @@ public interface IPeachyStructPropertyImplementation<
 
 public struct PeachyStructPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value
-> : IPeachyStructPropertyImplementation<Value, ExamplePeachyMixin>
+> : IPeachyStructPropertyImplementation<Value, InternalPeachMixin>
 	where Value : unmanaged
 {
-	public Value Get(ref ExamplePeachyMixin mixin, Int32 offset) => mixin.GetValue<Value>(offset);
+	public Value Get(ref InternalPeachMixin mixin, Int32 offset) => mixin.GetValue<Value>(offset);
 
-	public void Set(ref ExamplePeachyMixin mixin, Int32 offset, Value value) => mixin.SetValue(offset, value);
+	public void Set(ref InternalPeachMixin mixin, Int32 offset, Value value) => mixin.SetValue(offset, value);
 }
 
 public interface IPeachyClassPropertyImplementation<
@@ -87,7 +87,7 @@ public interface IPeachyClassPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
 > : IPropertyImplementation
 	where Value : class
-	where Mixin : IPeachyMixin
+	where Mixin : IPeach
 {
 	Value? Get(ref Mixin mixin, Int32 offset);
 
@@ -96,12 +96,12 @@ public interface IPeachyClassPropertyImplementation<
 
 public struct PeachyClassPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value
-> : IPeachyClassPropertyImplementation<Value, ExamplePeachyMixin>
+> : IPeachyClassPropertyImplementation<Value, InternalPeachMixin>
 	where Value : class
 {
-	public Value? Get(ref ExamplePeachyMixin mixin, Int32 offset) => mixin.GetObject<Value>(offset);
+	public Value? Get(ref InternalPeachMixin mixin, Int32 offset) => mixin.GetObject<Value>(offset);
 
-	public void Set(ref ExamplePeachyMixin mixin, Int32 offset, Value? value) => mixin.SetObject(offset, value);
+	public void Set(ref InternalPeachMixin mixin, Int32 offset, Value? value) => mixin.SetObject(offset, value);
 }
 
 public class PeachyPropertyImplementationProvider : PropertyImplementationProvider

@@ -1,24 +1,16 @@
-﻿using System.Diagnostics;
+﻿using AlphaBee.Utilities;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace AlphaBee;
-
-public abstract class AbstractPeachyContext
-{
-	public abstract T GetValue<T>(Int64 offset) where T : unmanaged;
-
-	public abstract void SetValue<T>(Int64 offset, T value) where T : unmanaged;
-
-	public abstract T? GetObject<T>(Int64 offset) where T : class;
-
-	public abstract void SetObject<T>(Int64 offset, T? value) where T : class;
-}
 
 public abstract class AbstractTestStorage
 {
 	public abstract Span<T> GetSpan<T>(Int64 offset, Int32 length) where T : unmanaged;
 
 	public abstract Span<T> AllocateSpan<T>(out Int64 address, Int32 length) where T : unmanaged;
+
+	public abstract IPeach CreatePeach(TypeRef type);
 
 	public T GetValue<T>(Int64 offset) where T : unmanaged => GetSpan<T>(offset, 1)[0];
 
@@ -51,14 +43,17 @@ public abstract class AbstractTestStorage
 
 public class TestStorage : AbstractTestStorage
 {
+	private readonly ComplexTypeRegistry typeRegistry;
+
 	private Int64 position = 0;
 
 	private Byte[] data;
 
 	public Byte[] Data => data;
 
-	public TestStorage(Int32 reserved = 0)
+	public TestStorage(ComplexTypeRegistry? typeRegistry = null, Int32 reserved = 0)
 	{
+		this.typeRegistry = typeRegistry ?? new ComplexTypeRegistry();
 		position = reserved;
 		data = new Byte[Math.Max(reserved, 4)];
 	}
@@ -103,5 +98,12 @@ public class TestStorage : AbstractTestStorage
 	public override Span<T> GetSpan<T>(Int64 referenceAddress, Int32 length)
 	{
 		return GetSpanCore<T>(referenceAddress, length);
+	}
+
+	public override IPeach CreatePeach(TypeRef type)
+	{
+		var peachType = typeRegistry.Get(type);
+
+		return peachType.CreateInstance<IPeach>();
 	}
 }
