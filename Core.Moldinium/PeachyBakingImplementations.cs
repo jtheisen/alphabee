@@ -168,15 +168,15 @@ public class PeachyContext : AbstractPeachyContext
 
 public static class ObjectTypeKinds
 {
-	static readonly ObjectTypeHandler[] handlersByByte;
+	static readonly IObjectTypeHandler[] handlersByByte;
 
-	static readonly Dictionary<Type, ObjectTypeHandler> handlersByType = new();
+	static readonly Dictionary<Type, IObjectTypeHandler> handlersByType = new();
 
 	static ObjectTypeKinds()
 	{
 		var typeCodes = Enum.GetValues<TypeCode>();
 
-		handlersByByte = new ObjectTypeHandler[128];
+		handlersByByte = new IObjectTypeHandler[128];
 
 		var unimplementedHandler = new UnimplementedTypeHandler();
 
@@ -184,7 +184,7 @@ public static class ObjectTypeKinds
 		{
 			var typeByte = new TypeByte(i);
 
-			var handler = handlersByByte[i] = GetHandlerType(typeByte)?.CreateInstance<ObjectTypeHandler>()
+			var handler = handlersByByte[i] = GetHandlerType(typeByte)?.CreateInstance<IObjectTypeHandler>()
 				?? unimplementedHandler;
 
 			if (handler.Type is Type type)
@@ -251,7 +251,7 @@ public static class ObjectTypeKinds
 		return writer.ToString();
 	}
 
-	public static ObjectTypeHandler GetHandler(in ObjectHeader header)
+	public static IObjectTypeHandler GetHandler(in ObjectHeader header)
 	{
 		var typeByte = header.type.typeByte;
 
@@ -260,46 +260,46 @@ public static class ObjectTypeKinds
 		return handlersByByte[typeByte.value];
 	}
 
-	static ObjectTypeHandler? GetHandlerOrNull(Type type)
+	static IObjectTypeHandler? GetHandlerOrNull(Type type)
 	{
 		return handlersByType.GetValueOrDefault(type);
 	}
 
-	public static ObjectTypeHandler GetHandler(Type type)
+	public static IObjectTypeHandler GetHandler(Type type)
 	{
 		return GetHandlerOrNull(type) ?? throw new Exception($"No handler exists for type '{type.Name}'");
 	}
 }
 
-public abstract class ObjectTypeHandler
+public interface IObjectTypeHandler
 {
-	public abstract Type? Type { get; }
+	Type? Type { get; }
 
-	public abstract Object Get(AbstractTestStorage storage, Int64 offset);
+	Object Get(AbstractTestStorage storage, Int64 offset);
 
-	public abstract void Set(AbstractTestStorage storage, Object untyped, out Int64 address);
+	void Set(AbstractTestStorage storage, Object untyped, out Int64 address);
 }
 
-public class UnimplementedTypeHandler : ObjectTypeHandler
+public class UnimplementedTypeHandler : IObjectTypeHandler
 {
-	public override Type? Type => null;
+	public Type? Type => null;
 
-	public override Object Get(AbstractTestStorage storage, Int64 offset)
+	public Object Get(AbstractTestStorage storage, Int64 offset)
 	{
 		throw new NotImplementedException();
 	}
 
-	public override void Set(AbstractTestStorage storage, Object untyped, out Int64 address)
+	public void Set(AbstractTestStorage storage, Object untyped, out Int64 address)
 	{
 		throw new NotImplementedException();
 	}
 }
 
-public class Ucs2StringTypeHandler : ObjectTypeHandler
+public class Ucs2StringTypeHandler : IObjectTypeHandler
 {
-	public override Type? Type => typeof(String);
+	public Type? Type => typeof(String);
 
-	public override Object Get(AbstractTestStorage storage, Int64 address)
+	public Object Get(AbstractTestStorage storage, Int64 address)
 	{
 		ref var header = ref storage.GetObject(address, out var content);
 
@@ -308,7 +308,7 @@ public class Ucs2StringTypeHandler : ObjectTypeHandler
 		return new String(chars);
 	}
 
-	public override void Set(AbstractTestStorage storage, Object untyped, out Int64 address)
+	public void Set(AbstractTestStorage storage, Object untyped, out Int64 address)
 	{
 		var value = (String)untyped;
 
@@ -322,12 +322,12 @@ public class Ucs2StringTypeHandler : ObjectTypeHandler
 	}
 }
 
-public class StructArrayTypeHandler<T> : ObjectTypeHandler
+public class StructArrayTypeHandler<T> : IObjectTypeHandler
 	where T : unmanaged
 {
-	public override Type? Type => typeof(T).MakeArrayType();
+	public Type? Type => typeof(T).MakeArrayType();
 
-	public override Object Get(AbstractTestStorage storage, Int64 address)
+	public Object Get(AbstractTestStorage storage, Int64 address)
 	{
 		ref var header = ref storage.GetObject(address, out var content);
 
@@ -336,7 +336,7 @@ public class StructArrayTypeHandler<T> : ObjectTypeHandler
 		return bytes.ToArray();
 	}
 
-	public override void Set(AbstractTestStorage storage, Object untyped, out Int64 address)
+	public void Set(AbstractTestStorage storage, Object untyped, out Int64 address)
 	{
 		var value = (Byte[])untyped;
 
