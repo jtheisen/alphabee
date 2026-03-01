@@ -1,13 +1,11 @@
-﻿using AlphaBee.Layouts.Structs;
-using Moldinium.Baking;
+﻿using Moldinium.Baking;
 using System.Collections;
 using System.Diagnostics;
-using System.Reflection;
 
 namespace AlphaBee;
 
 [TestClass]
-public class BakingTests
+public class FundamentalTypeBaking
 {
 	[TestMethod]
 	public void TestObjectTypeKinds()
@@ -37,6 +35,12 @@ public class BakingTests
 		public Int64 Bytes;
 	}
 
+	public struct SFooWithHeader
+	{
+		public ObjectHeader header;
+		public SFoo foo;
+	}
+
 	public static IEnumerable<Object?[]> GetTestCases()
 	{
 		for (var i = 0; i < 2; ++i)
@@ -52,11 +56,11 @@ public class BakingTests
 	[DynamicData(nameof(GetTestCases), DynamicDataSourceType.Method)]
 	public void TestStructPropertyBaking(String propertyName, Int32 index)
 	{
-		var storage = new TestStorage(reserved: Unsafe.SizeOf<SFoo>() * 2);
+		var storage = new TestStorage(reserved: Unsafe.SizeOf<SFooWithHeader>() * 2);
 
-		var targets = storage.Data.AsSpan().InterpretAs<SFoo>();
+		var targets = storage.Data.AsSpan().InterpretAs<SFooWithHeader>();
 
-		var context = new PeachyContext(storage);
+		var context = new PeachyContext(storage, new PeachTypeRegistry());
 
 		var configuration = BakeryConfiguration.Create(
 			new PeachyPropertyImplementationProvider()
@@ -72,8 +76,7 @@ public class BakingTests
 
 			Trace.Assert(mixin is not null);
 
-			mixin.Init(context);
-			mixin.Address = Unsafe.SizeOf<SFoo>() * index;
+			mixin.Init(context, (Unsafe.SizeOf<SFoo>() + ObjectHeader.Size) * index);
 
 			return target;
 		}
@@ -96,7 +99,7 @@ public class BakingTests
 
 		var value = GetTestValue(property.PropertyType);
 
-		tester.Test(property.Name, defaultValue is not null, defaultValue, value, peach, ref targets[index]);
+		tester.Test(property.Name, defaultValue is not null, defaultValue, value, peach, ref targets[index].foo);
 	}
 
 	static Object? GetDefaultValue(Type type)

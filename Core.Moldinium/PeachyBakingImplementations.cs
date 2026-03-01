@@ -5,9 +5,11 @@ namespace AlphaBee;
 
 public interface IPeach
 {
-	Int64 Address { get; set; }
+	AbstractPeachyContext Context { get; }
 
-	void Init(AbstractPeachyContext context);
+	Int64 Address { get; }
+
+	void Init(AbstractPeachyContext context, Int64 address);
 }
 
 [IgnoreForBaking]
@@ -24,22 +26,25 @@ public interface IInternalPeachMixin : IPeach
 
 public struct InternalPeachMixin : IInternalPeachMixin
 {
+	Int64 address;
 	AbstractPeachyContext context;
 
-	public void Init(AbstractPeachyContext context)
+	public Int64 Address => address;
+	public AbstractPeachyContext Context => context;
+
+	public void Init(AbstractPeachyContext context, Int64 address)
 	{
 		this.context = context;
+		this.address = address;
 	}
 
-	public Int64 Address { get; set; }
-
-	Int64 GetFieldAddress(Int32 offset) => Address + (Int64)offset;
+	Int64 GetFieldAddress(Int32 offset) => address + offset;
 
 	public T GetValue<T>(Int32 offset) where T : unmanaged
 	{
-		var address = GetFieldAddress(offset);
+		var fieldAddress = GetFieldAddress(offset);
 
-		return context.GetValue<T>(address);
+		return context.GetValue<T>(fieldAddress);
 	}
 
 	public void SetValue<T>(Int32 offset, T value) where T : unmanaged

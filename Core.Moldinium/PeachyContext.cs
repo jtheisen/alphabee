@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using AlphaBee.Utilities;
+using System.Net;
 
 namespace AlphaBee;
 
@@ -11,15 +12,30 @@ public abstract class AbstractPeachyContext
 	public abstract Object? GetObject(Int64 offset);
 
 	public abstract void SetObject(Int64 offset, Object? value);
+
+	public T CreateObject<T>()
+		where T : class
+	{
+		var target = CreateObject(typeof(T));
+
+		return (T)target;
+	}
+
+	public abstract Object CreateObject(Type interfaceType);
+
+	public abstract Object CreateObject(TypeRef typeRef);
+
 }
 
 public class PeachyContext : AbstractPeachyContext
 {
 	private readonly AbstractTestStorage storage;
+	private readonly PeachTypeRegistry typeRegistry;
 
-	public PeachyContext(AbstractTestStorage storage)
+	public PeachyContext(AbstractTestStorage storage, PeachTypeRegistry typeRegistry)
 	{
 		this.storage = storage;
+		this.typeRegistry = typeRegistry;
 	}
 
 	public override T GetValue<T>(Int64 offset) => storage.GetValue<T>(offset);
@@ -42,10 +58,9 @@ public class PeachyContext : AbstractPeachyContext
 		}
 		else
 		{
-			var peach = storage.CreatePeach(header.type);
+			var peach = CreatePeach(header.type);
 
-			peach.Init(this);
-			peach.Address = address;
+			peach.Init(this, address);
 
 			return peach;
 		}
@@ -72,5 +87,34 @@ public class PeachyContext : AbstractPeachyContext
 				storage.SetValue(referenceAddress, address);
 			}
 		}
+	}
+
+	public override Object CreateObject(Type interfaceType)
+	{
+		var typeRef = typeRegistry.GetCanonicalTypeRef(interfaceType);
+
+		return CreateObject(typeRef);
+	}
+
+	public override Object CreateObject(TypeRef typeRef)
+	{
+		var entry = typeRegistry.Get(typeRef);
+
+		var header = new ObjectHeader(typeRef, entry.size);
+
+		storage.AllocateObject(header, out var address, out var content);
+
+		var peach = entry.peachType.CreateInstance<IPeach>();
+
+		peach.Init(this, address);
+
+		return peach;
+	}
+
+	IPeach CreatePeach(TypeRef type)
+	{
+		var entry = typeRegistry.Get(type);
+
+		return entry.peachType.CreateInstance<IPeach>();
 	}
 }

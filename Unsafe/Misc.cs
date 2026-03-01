@@ -42,7 +42,7 @@ public interface ISizeOfHelper
 	Int32 GetSizeOf();
 }
 
-public struct SizeOfHelper<T>
+public struct SizeOfHelper<T> : ISizeOfHelper
 	where T : unmanaged
 {
 	public Int32 GetSizeOf() => Unsafe.SizeOf<T>();

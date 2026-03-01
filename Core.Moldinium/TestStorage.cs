@@ -10,8 +10,6 @@ public abstract class AbstractTestStorage
 
 	public abstract Span<T> AllocateSpan<T>(out Int64 address, Int32 length) where T : unmanaged;
 
-	public abstract IPeach CreatePeach(TypeRef type);
-
 	public T GetValue<T>(Int64 offset) where T : unmanaged => GetSpan<T>(offset, 1)[0];
 
 	public void SetValue<T>(Int64 offset, T value) where T : unmanaged => GetSpan<T>(offset, 1)[0] = value;
@@ -43,7 +41,7 @@ public abstract class AbstractTestStorage
 
 public class TestStorage : AbstractTestStorage
 {
-	private readonly ComplexTypeRegistry typeRegistry;
+	private readonly PeachTypeRegistry typeRegistry;
 
 	private Int64 position = 0;
 
@@ -51,9 +49,9 @@ public class TestStorage : AbstractTestStorage
 
 	public Byte[] Data => data;
 
-	public TestStorage(ComplexTypeRegistry? typeRegistry = null, Int32 reserved = 0)
+	public TestStorage(PeachTypeRegistry? typeRegistry = null, Int32 reserved = 0)
 	{
-		this.typeRegistry = typeRegistry ?? new ComplexTypeRegistry();
+		this.typeRegistry = typeRegistry ?? new PeachTypeRegistry();
 		position = reserved;
 		data = new Byte[Math.Max(reserved, 4)];
 	}
@@ -98,12 +96,5 @@ public class TestStorage : AbstractTestStorage
 	public override Span<T> GetSpan<T>(Int64 referenceAddress, Int32 length)
 	{
 		return GetSpanCore<T>(referenceAddress, length);
-	}
-
-	public override IPeach CreatePeach(TypeRef type)
-	{
-		var peachType = typeRegistry.Get(type);
-
-		return peachType.CreateInstance<IPeach>();
 	}
 }
