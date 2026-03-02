@@ -1,6 +1,4 @@
-﻿using Moldinium.Baking;
-using System.Collections;
-using System.Diagnostics;
+﻿using System.Collections;
 
 namespace AlphaBee;
 
@@ -13,6 +11,8 @@ public class PeachTypeBaking
 		String? String { get; set; }
 
 		IFoo? Foo { get; set; }
+
+		Object?[]? Items { get; set; }
 	}
 
 	public struct SFoo
@@ -20,8 +20,9 @@ public class PeachTypeBaking
 		public Int64 String;
 
 		public Int64 Foo;
-	}
 
+		public Int64 Items;
+	}
 
 	public static IEnumerable<Object?[]> GetTestCases()
 	{
@@ -50,7 +51,7 @@ public class PeachTypeBaking
 	}
 
 	[TestMethod]
-	public void TestCreation()
+	public void TestScalar()
 	{
 		var foo = context.CreateObject<IFoo>();
 
@@ -76,6 +77,23 @@ public class PeachTypeBaking
 		Assert.AreEqual("baz", foo.Foo.String);
 		Assert.AreEqual("bar", nested.String);
 		Assert.AreEqual("foo", foo.String);
+	}
+
+	[TestMethod]
+	public void TestCollection()
+	{
+		var foo = context.CreateObject<IFoo>();
+
+		var foos = Enumerable.Range(1, 3)
+			.Select(i => context.CreateObject<IFoo>(f => f.String = $"{i}"))
+			.Cast<Object?>()
+			.ToArray();
+
+		Assert.AreEqual("2", (foos[1] as IFoo)?.String);
+
+		foo.Items = foos;
+
+		AssertEqual(foos, foo.Items);
 	}
 
 	static void AssertEqual(Object? expected, Object? actual)

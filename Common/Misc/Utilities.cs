@@ -135,8 +135,9 @@ public static partial class Extensions
         return value;
     }
 
-	public static T CreateInstance<T>(this Type type)
+	public static T CreateInstance<T>(this Type type, params Object?[]? args)
 	{
-		return (T)(Activator.CreateInstance(type) ?? throw new ArgumentException("Could not create instances from type"));
+		return (T)(Activator.CreateInstance(type, args)
+            ?? throw new ArgumentException("Could not create instances from type"));
 	}
 }

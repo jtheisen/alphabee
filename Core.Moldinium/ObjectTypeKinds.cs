@@ -5,7 +5,7 @@ namespace AlphaBee;
 
 public static class ObjectTypeKinds
 {
-	static readonly IObjectTypeHandler[] handlersByByte;
+	static readonly IObjectTypeHandler?[] handlersByByte;
 
 	static readonly Dictionary<Type, IObjectTypeHandler> handlersByType = new();
 
@@ -15,16 +15,21 @@ public static class ObjectTypeKinds
 
 		handlersByByte = new IObjectTypeHandler[128];
 
-		var unimplementedHandler = new UnimplementedTypeHandler();
-
 		for (Byte i = 0; i < 128; ++i)
 		{
 			var typeByte = new TypeByte(i);
 
-			var handler = handlersByByte[i] = GetHandlerType(typeByte)?.CreateInstance<IObjectTypeHandler>()
-				?? unimplementedHandler;
+			var handler = handlersByByte[i] = GetHandlerType(typeByte)?.CreateInstance<IObjectTypeHandler>();
 
-			if (handler.Type is Type type)
+			if (handler is not null)
+			{
+				var reportedTypeByte = handler.TypeRef.typeByte;
+
+				Trace.Assert(reportedTypeByte == typeByte,
+					$"Type handler '{handler}' reports TypeByte '{reportedTypeByte}', but '{typeByte}' was expected");
+			}
+
+			if (handler?.Type is Type type)
 			{
 				Trace.Assert(!handlersByType.ContainsKey(type), $"There's already a handler registered for type '{type}'");
 
@@ -44,11 +49,20 @@ public static class ObjectTypeKinds
 		if (code == TypeCode.String)
 		{
 			// A TypeCode.String means a Char span that is treated as a String
+
 			return isSpan || isNullable ? null : typeof(Ucs2StringTypeHandler);
 		}
 		else if (code == TypeCode.Object)
 		{
 			// A TypeCode.Object means a reference to something else
+
+			if (!isNullable) return null;
+
+			if (isSpan)
+			{
+				return typeof(ObjectArrayTypeHandler);
+			}
+
 			// FIXME: implement this
 			return null;
 		}
@@ -82,7 +96,7 @@ public static class ObjectTypeKinds
 
 		for (Byte i = 0; i < 128; ++i)
 		{
-			writer.WriteLine($"{new TypeByte(i)} - {handlersByByte[i].Type?.Name ?? "n/a"}");
+			writer.WriteLine($"{new TypeByte(i)} - {handlersByByte[i]?.Type?.Name ?? "n/a"}");
 		}
 
 		return writer.ToString();
@@ -94,7 +108,7 @@ public static class ObjectTypeKinds
 
 		Trace.Assert(!typeByte.IsZero);
 
-		return handlersByByte[typeByte.value];
+		return handlersByByte[typeByte.value] ?? throw new Exception($"No handler exists for TypeByte '{typeByte}'"); ;
 	}
 
 	static IObjectTypeHandler? GetHandlerOrNull(Type type)

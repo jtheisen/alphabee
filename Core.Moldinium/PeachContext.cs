@@ -13,12 +13,14 @@ public abstract class AbstractPeachContext
 
 	public abstract void SetObject(Int64 offset, Object? value);
 
-	public T CreateObject<T>()
+	public T CreateObject<T>(Action<T>? init = null)
 		where T : class
 	{
-		var target = CreateObject(typeof(T));
+		var target = (T)CreateObject(typeof(T));
 
-		return (T)target;
+		init?.Invoke(target);
+
+		return target;
 	}
 
 	public abstract Object CreateObject(Type interfaceType);
@@ -54,7 +56,7 @@ public class PeachContext : AbstractPeachContext
 		{
 			var handler = ObjectTypeKinds.GetHandler(in header);
 
-			return handler.Get(storage, address);
+			return handler.Get(storage, this, address);
 		}
 		else
 		{
@@ -82,7 +84,7 @@ public class PeachContext : AbstractPeachContext
 			{
 				var handler = ObjectTypeKinds.GetHandler(value.GetType());
 
-				handler.Set(storage, value, out var address);
+				handler.Set(storage, this, value, out var address);
 
 				storage.SetValue(referenceAddress, address);
 			}
