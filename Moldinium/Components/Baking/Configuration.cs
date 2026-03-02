@@ -91,7 +91,7 @@ public class ComponentGenerators : IBakeryComponentGenerators
         }
         else
         {
-            propertyImplementationProvider = PropertyImplementationProvider.CreateForSingleType(propertyImplementationType ?? typeof(SimplePropertyImplementation<>));
+            propertyImplementationProvider = new SingletonPropertyImplementationProvider(propertyImplementationType ?? typeof(SimplePropertyImplementation<>));
 		}
 
         var methodWrapperType

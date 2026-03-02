@@ -1,22 +1,8 @@
 ﻿using System.Reflection.Emit;
-using System.Reflection;
 using Moldinium.Common.Misc;
 using Moldinium.Common.Defaulting;
 
 namespace Moldinium.Baking;
-
-public interface IStandardPropertyImplementation<
-    [TypeKind(ImplementationTypeArgumentKind.Value)] Value,
-    [TypeKind(ImplementationTypeArgumentKind.Container)] Container,
-    [TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
-> : IPropertyImplementation
-{
-    void Init(Value def);
-
-    Value Get(Container self, ref Mixin mixin);
-
-    void Set(Container self, ref Mixin mixin, Value value);
-}
 
 public struct EmptyMixIn { }
 

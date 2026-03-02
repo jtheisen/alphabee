@@ -96,7 +96,7 @@ struct Layout<T> : ILayout
 
 			var i = bytes.IndexOfAnyExcept((Byte)0);
 
-			field.Layout = new LayoutEntry { Offset = i, Size = Helper.SizeOf(field.FieldInfo.FieldType) };
+			field.Layout = new LayoutEntry(i, Helper.SizeOf(field.FieldInfo.FieldType));
 		}
 	}
 }
@@ -118,7 +118,7 @@ public static class LayoutExtensions
 
 		foreach (var entry in entries)
 		{
-			result.AppendLine($"{entry.Layout.Offset,4}: {entry.FieldInfo.Name} ({entry.Layout.Size} bytes)");
+			result.AppendLine($"{entry.Layout.offset,4}: {entry.FieldInfo.Name} ({entry.Layout.size} bytes)");
 		}
 
 		return result.ToString();

@@ -47,24 +47,22 @@ public abstract class PropertyImplementationProvider
     public abstract Type Get(PropertyInfo property);
 
 	public abstract IEnumerable<Type> GetAll();
-
-	public static PropertyImplementationProvider CreateForSingleType(Type type)
-	{
-		var providerType = typeof(SingletonPropertyImplementationProvider<>).MakeGenericType(type);
-
-		return Activator.CreateInstance(providerType) as PropertyImplementationProvider
-			?? throw new Exception("Failed to create SingletonPropertyImplementationProvider");
-	}
 }
 
-public class SingletonPropertyImplementationProvider<T> : PropertyImplementationProvider
-    where T : IPropertyImplementation
+public class SingletonPropertyImplementationProvider : PropertyImplementationProvider
 {
-	public override Type Get(PropertyInfo property) => typeof(T);
+	private readonly Type implementationType;
+
+	public SingletonPropertyImplementationProvider(Type implementationType)
+	{
+		this.implementationType = implementationType;
+	}
+
+	public override Type Get(PropertyInfo property) => implementationType;
 
 	public override IEnumerable<Type> GetAll()
 	{
-        yield return typeof(T);
+        yield return implementationType;
 	}
 }
 

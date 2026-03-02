@@ -34,7 +34,7 @@ public class PeachTypeBaking
 		}
 	}
 
-	PeachyContext context = null!;
+	PeachContext context = null!;
 
 	[TestInitialize]
 	public void Setup()
@@ -46,7 +46,7 @@ public class PeachTypeBaking
 
 		var storage = new TestStorage(typeRegistry);
 
-		context = new PeachyContext(storage, typeRegistry);
+		context = new PeachContext(storage, typeRegistry);
 	}
 
 	[TestMethod]

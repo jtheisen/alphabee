@@ -3,7 +3,7 @@ using System.Net;
 
 namespace AlphaBee;
 
-public abstract class AbstractPeachyContext
+public abstract class AbstractPeachContext
 {
 	public abstract T GetValue<T>(Int64 offset) where T : unmanaged;
 
@@ -27,12 +27,12 @@ public abstract class AbstractPeachyContext
 
 }
 
-public class PeachyContext : AbstractPeachyContext
+public class PeachContext : AbstractPeachContext
 {
 	private readonly AbstractTestStorage storage;
 	private readonly PeachTypeRegistry typeRegistry;
 
-	public PeachyContext(AbstractTestStorage storage, PeachTypeRegistry typeRegistry)
+	public PeachContext(AbstractTestStorage storage, PeachTypeRegistry typeRegistry)
 	{
 		this.storage = storage;
 		this.typeRegistry = typeRegistry;

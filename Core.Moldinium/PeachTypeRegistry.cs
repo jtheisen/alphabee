@@ -1,5 +1,4 @@
-﻿using AlphaBee.Layouts;
-using Moldinium.Baking;
+﻿using Moldinium.Baking;
 using System.Diagnostics;
 using System.Reflection;
 
@@ -9,7 +8,7 @@ public class PeachTypeRegistry
 {
 	Int32 nextTypeNo = 1;
 
-	AbstractBakery bakery;
+	AbstractBakery peachBakery, layoutBakery;
 
 	public struct Entry
 	{
@@ -23,34 +22,45 @@ public class PeachTypeRegistry
 
 	public PeachTypeRegistry()
 	{
-		var configuration = BakeryConfiguration.Create(
-			new PeachyPropertyImplementationProvider()
-		) with
-		{ MakeValue = true };
+		var implProvider = new PeachPropertyImplementationProvider();
 
-		bakery = configuration.CreateBakery("peachy");
+		var peachBakeryConfiguration
+			= BakeryConfiguration.Create(implProvider) with { MakeValue = true };
 
+		peachBakery = peachBakeryConfiguration.CreateBakery("peaches");
+
+		var layoutBakeryConfiguration
+			= BakeryConfiguration.Create() with { MakeValue = true };
+
+		layoutBakery = layoutBakeryConfiguration.CreateBakery("layouts");
 	}
 
 	void AddType(Type interfaceType, ITypeConfiguration typeConfiguration, Int32 size)
 	{
 		//new StructLayoutTypeConfiguration<LayoutT>()
-		var implementationType = bakery.GetCreatedType(interfaceType, typeConfiguration);
+		var implementationType = peachBakery.GetCreatedType(interfaceType, typeConfiguration);
 
 		AddCanonicalType(interfaceType, implementationType, size);
 	}
 
 	public void AddType(Type interfaceType)
 	{
+		var layoutType = GetCanonicalLayoutStructType(interfaceType);
+
+		var layout = StructLayoutTypeConfiguration.Create(layoutType);
+
+		AddType(interfaceType, layout, layoutType.SizeOf());
+	}
+
+	Type GetCanonicalLayoutStructType(Type interfaceType)
+	{
 		if (interfaceType.GetCustomAttribute<PeachLayoutAttribute>()?.LayoutType is Type layoutType)
 		{
-			var layout = StructLayoutTypeConfiguration.Create(layoutType);
-
-			AddType(interfaceType, layout, layoutType.SizeOf());
+			return layoutType;
 		}
 		else
 		{
-			throw new NotImplementedException();
+			return layoutBakery.GetCreatedType(interfaceType);
 		}
 	}
 

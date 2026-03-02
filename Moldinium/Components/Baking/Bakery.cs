@@ -36,7 +36,7 @@ public abstract class AbstractBakery
         return bakedType;
     }
 
-    public abstract Type GetCreatedType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration);
+    public abstract Type GetCreatedType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration = null);
 }
 
 public abstract class AbstractlyBakery : AbstractBakery

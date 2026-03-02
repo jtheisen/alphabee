@@ -2,6 +2,12 @@
 
 public struct LayoutEntry
 {
-	public Int32 Offset;
-	public Int32 Size;
+	public readonly Int32 offset;
+	public readonly Int32 size;
+
+	public LayoutEntry(Int32 offset, Int32 size)
+	{
+		this.offset = offset;
+		this.size = size;
+	}
 }

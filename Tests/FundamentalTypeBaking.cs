@@ -60,10 +60,10 @@ public class FundamentalTypeBaking
 
 		var targets = storage.Data.AsSpan().InterpretAs<SFooWithHeader>();
 
-		var context = new PeachyContext(storage, new PeachTypeRegistry());
+		var context = new PeachContext(storage, new PeachTypeRegistry());
 
 		var configuration = BakeryConfiguration.Create(
-			new PeachyPropertyImplementationProvider()
+			new PeachPropertyImplementationProvider()
 			) with { MakeValue = true };
 
 		var bakery = configuration.CreateBakery("test");

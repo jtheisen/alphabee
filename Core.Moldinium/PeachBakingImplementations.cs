@@ -5,11 +5,11 @@ namespace AlphaBee;
 
 public interface IPeach
 {
-	AbstractPeachyContext Context { get; }
+	AbstractPeachContext Context { get; }
 
 	Int64 Address { get; }
 
-	void Init(AbstractPeachyContext context, Int64 address);
+	void Init(AbstractPeachContext context, Int64 address);
 }
 
 [IgnoreForBaking]
@@ -27,12 +27,12 @@ public interface IInternalPeachMixin : IPeach
 public struct InternalPeachMixin : IInternalPeachMixin
 {
 	Int64 address;
-	AbstractPeachyContext context;
+	AbstractPeachContext context;
 
 	public Int64 Address => address;
-	public AbstractPeachyContext Context => context;
+	public AbstractPeachContext Context => context;
 
-	public void Init(AbstractPeachyContext context, Int64 address)
+	public void Init(AbstractPeachContext context, Int64 address)
 	{
 		this.context = context;
 		this.address = address;
@@ -109,7 +109,7 @@ public struct PeachyClassPropertyImplementation<
 	public void Set(ref InternalPeachMixin mixin, Int32 offset, Value? value) => mixin.SetObject(offset, value);
 }
 
-public class PeachyPropertyImplementationProvider : PropertyImplementationProvider
+public class PeachPropertyImplementationProvider : PropertyImplementationProvider
 {
 	public override Type Get(PropertyInfo property)
 	{
