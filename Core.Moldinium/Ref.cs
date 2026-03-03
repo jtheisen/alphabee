@@ -114,6 +114,9 @@ public readonly struct ObjectHeader
 	[FieldOffset(0)]
 	public readonly TypeRef type;
 
+	[FieldOffset(4)]
+	public readonly Int32 unused;
+
 	[FieldOffset(8)]
 	public readonly Int32 id;
 

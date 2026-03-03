@@ -6,6 +6,8 @@ namespace AlphaBee;
 
 public abstract class AbstractTestStorage
 {
+	public abstract Boolean IsEmpty { get; }
+
 	public abstract Span<T> GetSpan<T>(Int64 offset, Int32 length) where T : unmanaged;
 
 	public abstract Span<T> AllocateSpan<T>(out Int64 address, Int32 length) where T : unmanaged;
@@ -55,6 +57,8 @@ public class TestStorage : AbstractTestStorage
 		position = reserved;
 		data = new Byte[Math.Max(reserved, 4)];
 	}
+
+	public override Boolean IsEmpty => position == 0;
 
 	Span<T> GetSpanCore<T>(Int64 offset, Int32 length, Boolean extend = false) where T : unmanaged
 	{

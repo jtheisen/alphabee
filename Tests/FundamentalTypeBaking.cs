@@ -70,7 +70,7 @@ public class FundamentalTypeBaking
 
 		IFoo Create()
 		{
-			var target = bakery.Create<IFoo>(new StructLayoutTypeConfiguration<SFoo>());
+			var target = bakery.Create<IFoo>(PeachTypeConfiguration.Create<IFoo, SFoo>());
 
 			var mixin = target as IPeach;
 

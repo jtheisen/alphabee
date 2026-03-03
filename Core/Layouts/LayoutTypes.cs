@@ -1,6 +1,9 @@
-﻿namespace AlphaBee.Layouts;
+﻿using System.Diagnostics.CodeAnalysis;
 
-public struct LayoutEntry
+namespace AlphaBee.Layouts;
+
+[DebuggerDisplay("{ToString()}")]
+public struct LayoutEntry : IEquatable<LayoutEntry>
 {
 	public readonly Int32 offset;
 	public readonly Int32 size;
@@ -9,5 +12,25 @@ public struct LayoutEntry
 	{
 		this.offset = offset;
 		this.size = size;
+	}
+
+	public Boolean Equals(LayoutEntry other)
+	{
+		return other.offset == offset && other.size == size;
+	}
+
+	public override Int32 GetHashCode()
+	{
+		return offset.GetHashCode() ^ size.GetHashCode();
+	}
+
+	public override Boolean Equals([NotNullWhen(true)] Object? obj)
+	{
+		return obj is LayoutEntry other ? Equals(other) : false;
+	}
+
+	public override String ToString()
+	{
+		return $"{offset} ({size} bytes)";
 	}
 }

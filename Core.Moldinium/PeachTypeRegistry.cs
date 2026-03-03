@@ -16,11 +16,13 @@ public class PeachTypeRegistry
 		public Int32 size;
 	}
 
-	List<Entry?> peachTypesByRef = new();
+	private readonly IClrTypeResolver clrTypeResolver;
 
-	Dictionary<Type, TypeRef> canonicalTypeRefs = new();
+	private readonly List<Entry?> peachTypesByRef = new();
 
-	public PeachTypeRegistry()
+	private readonly Dictionary<Type, TypeRef> canonicalTypeRefs = new();
+
+	public PeachTypeRegistry(IClrTypeResolver? clrTypeResolver = null)
 	{
 		var implProvider = new PeachPropertyImplementationProvider();
 
@@ -33,23 +35,35 @@ public class PeachTypeRegistry
 			= BakeryConfiguration.Create() with { MakeValue = true };
 
 		layoutBakery = layoutBakeryConfiguration.CreateBakery("layouts");
+		this.clrTypeResolver = clrTypeResolver ?? new ClrTypeResolver();
 	}
 
-	void AddType(Type interfaceType, ITypeConfiguration typeConfiguration, Int32 size)
+	public void AddType(ITypeDescription description)
 	{
+		var typeConfiguration = PeachTypeConfiguration.Create(clrTypeResolver, description);
+
+		AddType(typeConfiguration);
+	}
+
+	void AddType(IPeachTypeConfiguration typeConfiguration)
+	{
+		var interfaceType = typeConfiguration.ClrType;
+
+		Trace.Assert(interfaceType.IsInterface);
+
 		//new StructLayoutTypeConfiguration<LayoutT>()
 		var implementationType = peachBakery.GetCreatedType(interfaceType, typeConfiguration);
 
-		AddCanonicalType(interfaceType, implementationType, size);
+		AddCanonicalType(interfaceType, implementationType, typeConfiguration.Size);
 	}
 
 	public void AddType(Type interfaceType)
 	{
 		var layoutType = GetCanonicalLayoutStructType(interfaceType);
 
-		var layout = StructLayoutTypeConfiguration.Create(layoutType);
+		var layout = PeachTypeConfiguration.Create(interfaceType, layoutType);
 
-		AddType(interfaceType, layout, layoutType.SizeOf());
+		AddType(layout);
 	}
 
 	Type GetCanonicalLayoutStructType(Type interfaceType)
