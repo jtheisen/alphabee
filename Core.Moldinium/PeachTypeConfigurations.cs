@@ -18,24 +18,6 @@ public interface IPeachTypeConfiguration : ITypeConfiguration
 	Type ClrType { get; }
 }
 
-//public class StructLayoutTypeConfiguration<PeachT, LayoutT> : IPeachTypeConfiguration
-//	where PeachT : class
-//	where LayoutT : unmanaged
-//{
-//	public Type ClrType => typeof(PeachT);	
-//	public Int32 Size => Unsafe.SizeOf<LayoutT>();
-
-//	static FieldEntry[] fields = typeof(LayoutT).GetLayoutFields().ToArray();
-
-//	public Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName)
-//	{
-//		return fields.Single(f => f.FieldInfo.Name == property.Name).Layout.offset + ObjectHeader.Size;
-//	}
-
-//	public override Int32 GetHashCode() => GetType().GetHashCode();
-//	public override Boolean Equals(Object? obj) => GetType() == obj?.GetType();
-//}
-
 public struct PropertyNumbersDictionary : IEquatable<PropertyNumbersDictionary>
 {
 	public readonly PeachTypeLayoutDict dict;
