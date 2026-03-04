@@ -31,18 +31,22 @@ public class PeachTypeRegistry
 
 	public PeachTypeRegistry(IClrTypeResolver? clrTypeResolver = null)
 	{
-		var implProvider = new PeachPropertyImplementationProvider();
+		peachBakery = CreateBakery<PeachPropertyImplementationProvider>("peaches");
+		layoutBakery = CreateBakery<LayoutPropertyImplementationProvider>("layouts");
 
-		var peachBakeryConfiguration
-			= BakeryConfiguration.Create(implProvider) with { MakeValue = true };
-
-		peachBakery = peachBakeryConfiguration.CreateBakery("peaches");
-
-		var layoutBakeryConfiguration
-			= BakeryConfiguration.Create() with { MakeValue = true };
-
-		layoutBakery = layoutBakeryConfiguration.CreateBakery("layouts");
 		this.clrTypeResolver = clrTypeResolver ?? new ClrTypeResolver();
+	}
+
+	static AbstractBakery CreateBakery<ProviderT>(String name)
+		where ProviderT : PropertyImplementationProvider, new()
+	{
+		var provider = new ProviderT();
+
+		var config = BakeryConfiguration.Create(provider) with { MakeValue = true };
+
+		var bakery = config.CreateBakery(name);
+
+		return bakery;
 	}
 
 	public Int32 Count => nextTypeNo;
