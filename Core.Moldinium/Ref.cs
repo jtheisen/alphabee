@@ -7,7 +7,7 @@ namespace AlphaBee;
 
 [DebuggerDisplay("{ToString()}")]
 [StructLayout(LayoutKind.Explicit, Size = 4)]
-public readonly struct TypeRef
+public readonly struct TypeRef : IEquatable<TypeRef>
 {
 	[FieldOffset(0)]
 	public readonly Int32 no;
@@ -40,6 +40,8 @@ public readonly struct TypeRef
 			return $"{typeByte}";
 		}
 	}
+
+	public Boolean Equals(TypeRef other) => no == other.no;
 }
 
 [DebuggerDisplay("{ToString()}")]
@@ -69,7 +71,7 @@ public readonly struct TypeByte : IEquatable<TypeByte>
 	{
 		this.value = (SByte)(value | (isSpan ? IsSpanPattern : 0) | (isNullable ? IsNullablePattern : 0));
 
-		Trace.Assert(value > 0);
+		Trace.Assert(value >= 0);
 	}
 
 	public TypeByte(TypeCode code, Boolean isSpan = false, Boolean isNullable = false)

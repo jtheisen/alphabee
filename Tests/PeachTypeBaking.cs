@@ -42,8 +42,8 @@ public class PeachTypeBaking
 	{
 		var typeRegistry = new PeachTypeRegistry();
 
-		typeRegistry.GetCanonicalImplementationType(typeof(ITypeDescription));
-		typeRegistry.GetCanonicalImplementationType(typeof(IFoo));
+		typeRegistry.EnsureCanonicalImplementation(typeof(ITypeDescription));
+		typeRegistry.EnsureCanonicalImplementation(typeof(IFoo));
 
 		var storage = new TestStorage(typeRegistry);
 

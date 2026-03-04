@@ -68,11 +68,13 @@ public class FundamentalTypeBaking
 
 		var bakery = configuration.CreateBakery("test");
 
+		Int32 no = 0;
+
 		IFoo Create()
 		{
-			var target = bakery.Create<IFoo>(PeachTypeConfiguration.Create<IFoo, SFoo>());
+			var target = bakery.Create<IFoo>((PeachTypeConfiguration.Create<IFoo, SFoo>(), ++no));
 
-			var mixin = target as IPeach;
+			var mixin = target as IPeachMixin;
 
 			Trace.Assert(mixin is not null);
 

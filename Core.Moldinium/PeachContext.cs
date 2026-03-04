@@ -76,7 +76,7 @@ public class PeachContext : AbstractPeachContext
 		}
 		else
 		{
-			if (value is IPeach peach)
+			if (value is IPeachMixin peach)
 			{
 				storage.SetValue(referenceAddress, peach.Address);
 			}
@@ -91,32 +91,32 @@ public class PeachContext : AbstractPeachContext
 		}
 	}
 
-	public override Object CreateObject(Type interfaceType)
+	public override Object CreateObject(Type clrType)
 	{
-		var typeRef = typeRegistry.GetCanonicalTypeRef(interfaceType);
+		typeRegistry.LookupClrType(clrType, out var typeRef, out _);
 
 		return CreateObject(typeRef);
 	}
 
 	public override Object CreateObject(TypeRef typeRef)
 	{
-		var entry = typeRegistry.Get(typeRef);
+		var entry = typeRegistry.GetEntry(typeRef);
 
 		var header = new ObjectHeader(typeRef, entry.Configuration.Size);
 
 		storage.AllocateObject(header, out var address, out var content);
 
-		var peach = entry.ImplementationType.CreateInstance<IPeach>();
+		var peach = entry.ImplementationType.CreateInstance<IPeachMixin>();
 
 		peach.Init(this, address);
 
 		return peach;
 	}
 
-	IPeach CreatePeach(TypeRef type)
+	IPeachMixin CreatePeach(TypeRef type)
 	{
-		var entry = typeRegistry.Get(type);
+		var entry = typeRegistry.GetEntry(type);
 
-		return entry.ImplementationType.CreateInstance<IPeach>();
+		return entry.ImplementationType.CreateInstance<IPeachMixin>();
 	}
 }

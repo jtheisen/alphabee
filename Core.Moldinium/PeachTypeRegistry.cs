@@ -2,7 +2,8 @@
 using System.Diagnostics;
 using System.Reflection;
 
-using PeachTypeInfo = (System.Type, AlphaBee.IPeachTypeConfiguration);
+using PeachTypeInfo = (System.Type interfaceType, AlphaBee.IPeachTypeConfiguration typeConfiguration);
+using CanonicalInfo = (AlphaBee.TypeRef typeRef, System.Type implementationType);
 
 namespace AlphaBee;
 
@@ -21,28 +22,30 @@ public class PeachTypeRegistry
 
 	private readonly List<Entry?> peachTypesByRef = new();
 
-	private readonly Dictionary<Type, TypeRef> canonicalTypeRefs = new();
-
 	private readonly Dictionary<Type, TypeRef> typeRefsByImplementationType = new();
 
-	private readonly Dictionary<IPeachTypeConfiguration, Type> canonicalImplementationTypesByConfiguration = new();
+	private readonly Dictionary<IPeachTypeConfiguration, TypeRef> typeRefsByConfiguration = new();
+
+	private readonly Dictionary<Type, CanonicalInfo> canonicalInfoByInterfaceType = new();
+
+	//private readonly Dictionary<IPeachTypeConfiguration, Type> canonicalImplementationTypesByConfiguration = new();
 
 	private readonly Dictionary<Type, List<PeachTypeInfo>> infosByImplementationType = new();
 
 	public PeachTypeRegistry(IClrTypeResolver? clrTypeResolver = null)
 	{
 		peachBakery = CreateBakery<PeachPropertyImplementationProvider>("peaches");
-		layoutBakery = CreateBakery<LayoutPropertyImplementationProvider>("layouts");
+		layoutBakery = CreateBakery<LayoutPropertyImplementationProvider>("layouts", prefixBackingFields: false);
 
 		this.clrTypeResolver = clrTypeResolver ?? new ClrTypeResolver();
 	}
 
-	static AbstractBakery CreateBakery<ProviderT>(String name)
+	static AbstractBakery CreateBakery<ProviderT>(String name, Boolean prefixBackingFields = true)
 		where ProviderT : PropertyImplementationProvider, new()
 	{
 		var provider = new ProviderT();
 
-		var config = BakeryConfiguration.Create(provider) with { MakeValue = true };
+		var config = BakeryConfiguration.Create(provider) with { MakeValue = true, PrefixBackingFields = prefixBackingFields };
 
 		var bakery = config.CreateBakery(name);
 
@@ -50,6 +53,23 @@ public class PeachTypeRegistry
 	}
 
 	public Int32 Count => nextTypeNo;
+
+	public void Validate()
+	{
+		for (var i = 0; i < nextTypeNo; ++i)
+		{
+			var entry = peachTypesByRef[i];
+
+			Trace.Assert(entry is not null);
+			Trace.Assert(entry.TypeRef.no == i);
+
+			Trace.Assert(entry.TypeRef.Equals(typeRefsByImplementationType[entry.ImplementationType]));
+
+			var info = infosByImplementationType[entry.ImplementationType];
+
+			
+		}
+	}
 
 	public IEnumerable<PeachTypeInfo> GetTypesForInterfaceType(Type interfaceType)
 	{
@@ -60,17 +80,20 @@ public class PeachTypeRegistry
 	{
 		var configuration = PeachTypeConfiguration.Create(clrTypeResolver, description);
 
-		var isNewImplementationType = EnsureImplementationType(configuration, out var implementationType);
+		return AddAlternativeType(configuration, new TypeRef(description.No));
+	}
 
-		Trace.Assert(!isNewImplementationType, "Duplicate type registration");
-
-		var typeRef = new TypeRef(description.No);
-		Set(new Entry(typeRef, configuration, implementationType));
+	public Type AddAlternativeType(PeachTypeConfiguration configuration, TypeRef? typeRefOrNull, Boolean allowNewImplementation = false)
+	{
+		if (!EnsureImplementationType(configuration, out var typeRef, out var implementationType, typeRefOrNull))
+		{
+			Trace.Assert(allowNewImplementation, "Duplicate type registration");
+		}
 
 		return implementationType;
 	}
 
-	public Type GetCanonicalImplementationType(Type interfaceType)
+	public Type EnsureCanonicalImplementation(Type interfaceType)
 	{
 		EnsureCanonicalImplementation(interfaceType, out _, out var implementationType);
 
@@ -79,15 +102,180 @@ public class PeachTypeRegistry
 
 	public void EnsureCanonicalImplementation(Type interfaceType, out TypeRef typeRef, out Type implementationType)
 	{
-		if (canonicalTypeRefs.TryGetValue(interfaceType, out typeRef))
+		if (canonicalInfoByInterfaceType.TryGetValue(interfaceType, out var info))
 		{
-			implementationType = Get(typeRef).ImplementationType;
+			typeRef = info.typeRef;
+			implementationType = info.implementationType;
 		}
 		else
 		{
-			AddType(interfaceType, out typeRef, out implementationType);
+			AddCanonicalType(interfaceType, out typeRef, out implementationType);
 		}
 	}
+
+	void AddCanonicalType(Type interfaceType, out TypeRef typeRef, out Type implementationType)
+	{
+		Trace.Assert(!canonicalInfoByInterfaceType.ContainsKey(interfaceType), $"Type {interfaceType} already has a canonical implementation");
+
+		var layoutType = GetCanonicalLayoutStructType(interfaceType);
+
+		var configuration = PeachTypeConfiguration.Create(interfaceType, layoutType);
+
+		if (typeRefsByConfiguration.TryGetValue(configuration, out typeRef))
+		{
+			var entry = GetEntry(typeRef);
+
+			SetAsCanonical(interfaceType, typeRef);
+
+			implementationType = entry.ImplementationType;
+		}
+		else
+		{
+			EnsureImplementationType(configuration, out typeRef, out implementationType);
+
+			SetAsCanonical(interfaceType, typeRef);
+		}
+	}
+
+	Boolean EnsureImplementationType(PeachTypeConfiguration typeConfiguration, out TypeRef typeRef, out Type implementationType, TypeRef? desiredTypeRef = null)
+	{
+		var interfaceType = typeConfiguration.InterfaceType;
+
+		Trace.Assert(interfaceType.IsInterface);
+
+		if (typeRefsByConfiguration.TryGetValue(typeConfiguration, out typeRef))
+		{
+			Trace.Assert(desiredTypeRef?.Equals(typeRef) ?? true, $"Trying to ensure type {desiredTypeRef}, the same layout already exists under {typeRef}");
+
+			implementationType = GetEntry(typeRef).ImplementationType;
+
+			return false;
+		}
+		else
+		{
+			typeRef = desiredTypeRef ?? CreateTypeRef();
+
+			implementationType = peachBakery.Resolve(interfaceType, (typeConfiguration, typeRef.no));
+
+			if (!infosByImplementationType.TryGetValue(typeConfiguration.InterfaceType, out var list))
+			{
+				list = infosByImplementationType[typeConfiguration.InterfaceType] = new List<PeachTypeInfo>();
+			}
+
+			list.Add((implementationType, typeConfiguration));
+
+			SetEntry(new Entry(typeRef, typeConfiguration, implementationType));
+
+			return true;
+		}
+	}
+
+	Type GetCanonicalLayoutStructType(Type interfaceType)
+	{
+		if (interfaceType.GetCustomAttribute<PeachLayoutAttribute>()?.LayoutType is Type layoutType)
+		{
+			return layoutType;
+		}
+		else
+		{
+			return layoutBakery.Resolve(interfaceType);
+		}
+	}
+
+	void Throw(Entry entry)
+	{
+		throw new Exception($"Implemenation type {entry.ImplementationType} was already set");
+	}
+
+	void SetEntry(Entry entry)
+	{
+		Debug.Assert(!entry.TypeRef.IsFundamental);
+
+		if (!typeRefsByImplementationType.TryAdd(entry.ImplementationType, entry.TypeRef))
+		{
+			Throw(entry);
+		}
+
+		if (!typeRefsByConfiguration.TryAdd(entry.Configuration, entry.TypeRef))
+		{
+			Throw(entry);
+		}
+
+		while (peachTypesByRef.Count <= entry.TypeRef.no)
+		{
+			peachTypesByRef.Add(default);
+		}
+
+		var no = entry.TypeRef.no;
+
+		if (peachTypesByRef[no] is not null)
+		{
+			throw new Exception($"Type no {no} is already registered");
+		}
+
+		peachTypesByRef[no] = entry;
+	}
+
+	public Entry GetEntry(TypeRef typeRef)
+	{
+		Trace.Assert(!typeRef.IsFundamental);
+
+		try
+		{
+			return peachTypesByRef[typeRef.no] ?? Throw(typeRef);
+		}
+		catch (ArgumentOutOfRangeException)
+		{
+			return Throw(typeRef);
+		}
+	}
+
+	void SetAsCanonical(Type interfaceType, TypeRef typeRef)
+	{
+		var entry = GetEntry(typeRef);
+
+		if (!canonicalInfoByInterfaceType.TryAdd(interfaceType, (typeRef, entry.ImplementationType)))
+		{
+			throw new InvalidOperationException($"Interface ${interfaceType} already has a canonical TypeRef");
+		}
+
+		entry.InterfaceType = interfaceType;
+	}
+
+	public CanonicalInfo LookupCanonical(Type type)
+	{
+		try
+		{
+			return canonicalInfoByInterfaceType[type];
+		}
+		catch (ArgumentOutOfRangeException)
+		{
+			throw new ArgumentException($"Type {type} is unknown");
+		}
+	}
+
+	static Entry Throw(TypeRef type)
+	{
+		throw new ArgumentException($"Type {type} is unknown");
+	}
+
+	public void LookupClrType(Type type, out TypeRef typeRef, out Type clrType)
+	{
+		if (ObjectTypeKinds.GetHandlerOrNull(type) is IObjectTypeHandler handler)
+		{
+			typeRef = handler.TypeRef;
+			clrType = type;
+		}
+		else
+		{
+			var info = LookupCanonical(type);
+			typeRef = info.typeRef;
+			var entry = GetEntry(info.typeRef);
+			clrType = entry.InterfaceType ?? throw new Exception($"The type {type} is not canonical after all");
+		}
+	}
+
+	TypeRef CreateTypeRef() => new TypeRef(nextTypeNo++);
 
 	public void WriteAllTypeDescriptions(Object?[] targets, ref Boolean didWrite)
 	{
@@ -121,7 +309,7 @@ public class PeachTypeRegistry
 		target.ClrName = clrTypeResolver.GetFqTypeName(configuration.InterfaceType);
 		target.Size = configuration.Size;
 
-		var kvps = configuration.Fields.dict.ToArray();
+		var kvps = configuration.Properties.dict.ToArray();
 
 		var n = kvps.Length;
 
@@ -146,145 +334,4 @@ public class PeachTypeRegistry
 
 		target.Properties = descriptionEntries;
 	}
-
-	void AddType(Type interfaceType, out TypeRef typeRef, out Type implementationType)
-	{
-		var layoutType = GetCanonicalLayoutStructType(interfaceType);
-
-		var configuration = PeachTypeConfiguration.Create(interfaceType, layoutType);
-
-		var isNewImplementationType = EnsureImplementationType(configuration, out implementationType);
-
-		if (isNewImplementationType)
-		{
-			typeRef = CreateTypeRef();
-			Set(new Entry(typeRef, configuration, implementationType));
-		}
-		else if (!typeRefsByImplementationType.TryGetValue(implementationType, out typeRef))
-		{
-			throw new Exception($"Can't find TypeRef for implementation type {implementationType}");
-		}
-
-		SetCanonicalTypeRef(interfaceType, typeRef);
-	}
-
-	Boolean EnsureImplementationType(IPeachTypeConfiguration typeConfiguration, out Type implementationType)
-	{
-		if (!canonicalImplementationTypesByConfiguration.TryGetValue(typeConfiguration, out implementationType!))
-		{
-			var interfaceType = typeConfiguration.InterfaceType;
-
-			Trace.Assert(interfaceType.IsInterface);
-
-			implementationType = peachBakery.GetCreatedType(interfaceType, typeConfiguration);
-
-			if (!infosByImplementationType.TryGetValue(typeConfiguration.InterfaceType, out var list))
-			{
-				list = infosByImplementationType[typeConfiguration.InterfaceType] = new List<PeachTypeInfo>();
-			}
-
-			list.Add((implementationType, typeConfiguration));
-
-			canonicalImplementationTypesByConfiguration[typeConfiguration] = implementationType;
-
-			return true;
-		}
-
-		return false;
-	}
-
-	Type GetCanonicalLayoutStructType(Type interfaceType)
-	{
-		if (interfaceType.GetCustomAttribute<PeachLayoutAttribute>()?.LayoutType is Type layoutType)
-		{
-			return layoutType;
-		}
-		else
-		{
-			return layoutBakery.GetCreatedType(interfaceType);
-		}
-	}
-
-	void Set(in Entry entry)
-	{
-		Debug.Assert(!entry.TypeRef.IsFundamental);
-
-		if (!typeRefsByImplementationType.TryAdd(entry.ImplementationType, entry.TypeRef))
-		{
-			throw new Exception($"Implemenation type {entry.ImplementationType} was already added");
-		}
-
-		while (peachTypesByRef.Count <= entry.TypeRef.no)
-		{
-			peachTypesByRef.Add(default);
-		}
-
-		var no = entry.TypeRef.no;
-
-		if (peachTypesByRef[no] is not null)
-		{
-			throw new Exception($"Type no {no} is already registered");
-		}
-
-		peachTypesByRef[no] = entry;
-	}
-
-	public Entry Get(TypeRef typeRef)
-	{
-		Trace.Assert(!typeRef.IsFundamental);
-
-		try
-		{
-			return peachTypesByRef[typeRef.no] ?? Throw(typeRef);
-		}
-		catch (ArgumentOutOfRangeException)
-		{
-			return Throw(typeRef);
-		}
-	}
-
-	void SetCanonicalTypeRef(Type interfaceType, TypeRef typeRef)
-	{
-		if (!canonicalTypeRefs.TryAdd(interfaceType, typeRef))
-		{
-			throw new InvalidOperationException($"Interface ${interfaceType} already has a canonical TypeRef");
-		}
-
-		var entry = Get(typeRef);
-		entry.InterfaceType = interfaceType;
-	}
-
-	static Entry Throw(TypeRef type)
-	{
-		throw new ArgumentException($"Type {type} is unknown");
-	}
-
-	public void LookupClrType(Type type, out TypeRef typeRef, out Type clrType)
-	{
-		if (ObjectTypeKinds.GetHandlerOrNull(type) is IObjectTypeHandler handler)
-		{
-			typeRef = handler.TypeRef;
-			clrType = type;
-		}
-		else
-		{
-			typeRef = GetCanonicalTypeRef(type);
-			var entry = Get(typeRef);
-			clrType = entry.InterfaceType ?? throw new Exception($"The type {type} is not canonical after all");
-		}
-	}
-
-	public TypeRef GetCanonicalTypeRef(Type type)
-	{
-		try
-		{
-			return canonicalTypeRefs[type];
-		}
-		catch (ArgumentOutOfRangeException)
-		{
-			throw new ArgumentException($"Type {type} is unknown");
-		}
-	}
-
-	TypeRef CreateTypeRef() => new TypeRef(nextTypeNo++);
 }

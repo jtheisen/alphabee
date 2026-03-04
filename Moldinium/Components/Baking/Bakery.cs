@@ -6,11 +6,28 @@ namespace Moldinium.Baking;
 
 public abstract class AbstractBakery
 {
-    Dictionary<(Type, ITypeConfiguration?), Type> bakedTypes = new();
-
-    public T Create<T>(ITypeConfiguration? typeConfiguration = null)
+    public struct TypeVariant
     {
-        var type = Resolve(typeof(T), typeConfiguration);
+        public ITypeConfiguration Configuration { get; private set; }
+        public Int32 Id { get; private set; }
+
+        public static implicit operator TypeVariant((ITypeConfiguration configuration, Int32 id) pair)
+        {
+            return new TypeVariant(pair.configuration, pair.id);
+        }
+
+		public TypeVariant(ITypeConfiguration configuration, Int32 id)
+		{
+			Configuration = configuration;
+			Id = id;
+		}
+	}
+
+    Dictionary<(Type, Int32?), Type> bakedTypes = new();
+
+    public T Create<T>(TypeVariant? variant = null)
+    {
+        var type = Resolve(typeof(T), variant);
 
         var instance = Activator.CreateInstance(type);
 
@@ -24,19 +41,19 @@ public abstract class AbstractBakery
         }
     }
 
-    public Type Resolve(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration = null)
+    public Type Resolve(Type interfaceOrBaseType, TypeVariant? variant = null)
     {
-        var key = (interfaceOrBaseType, typeConfiguration);
+        var key = (interfaceOrBaseType, variant?.Id);
 
 		if (!bakedTypes.TryGetValue(key, out var bakedType))
         {
-            bakedTypes[key] = bakedType = GetCreatedType(interfaceOrBaseType, typeConfiguration);
+            bakedTypes[key] = bakedType = CreateType(interfaceOrBaseType, variant?.Configuration, variant?.Id);
         }
 
         return bakedType;
     }
 
-    public abstract Type GetCreatedType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration = null);
+    protected abstract Type CreateType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration = null, Int32? typeId = null);
 }
 
 public abstract class AbstractlyBakery : AbstractBakery
@@ -57,18 +74,26 @@ public abstract class AbstractlyBakery : AbstractBakery
         moduleBuilder = assemblyBuilder.DefineDynamicModule(name);
     }
 
-    /** FullName is of the form [namespace].[parent-class-name]+[type-name]^[parameters] and that is almost the form
+	/** FullName is of the form [namespace].[parent-class-name]+[type-name]^[parameters] and that is almost the form
      * the TypeBuilder expects - just the '+' is something it rejects (escapes) which is sensible given the type isn't
      * going to actually be a nested type. The next best thing is to just replace the '+' with a '.'. */
-    protected virtual String GetTypeName(Type interfaceOrBaseType) => interfaceOrBaseType.FullName?.Replace('+', '.') ?? "";
+	protected String GetTypeName(Type interfaceOrBaseType, Int32? typeId)
+	{
+		var baseName = interfaceOrBaseType.FullName?.Replace('+', '.') ?? "";
 
-    public override Type GetCreatedType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration)
+        if (typeId is Int32 id)
+        {
+            baseName = $"#{id}";
+        }
+
+        return baseName;
+	}
+
+	protected override Type CreateType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration, Int32? typeId)
     {
-        // FIXME: allow types with different property integers
+        var name = GetTypeName(interfaceOrBaseType, typeId);
 
-        var name = GetTypeName(interfaceOrBaseType);
-
-        return moduleBuilder.GetType(name) ?? CreateImpl(name, interfaceOrBaseType, typeConfiguration);
+        return CreateImpl(name, interfaceOrBaseType, typeConfiguration);
     }
 
     protected abstract Type CreateImpl(String name, Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration);
@@ -108,11 +133,16 @@ public class Bakery : AbstractlyBakery
         defaultProvider = this.configuration.DefaultProvider;
     }
 
-    (ImplementationMapping mapping, Type[] publicMixins) Analyze(Type interfaceOrBaseType)
+    (ImplementationMapping mapping, Type[] publicMixins) Analyze(Type interfaceOrBaseType, IEnumerable<Type> extraInterfaces)
     {
         var processor = new AnalyzingBakingProcessor(generators);
 
         processor.VisitFirst(interfaceOrBaseType);
+
+        foreach (var extraInterface in extraInterfaces)
+        {
+            processor.VisitFirst(extraInterface);
+        }
 
         var interfaceTypes = processor.Interfaces;
         var mixinTypes = processor.PublicMixins;
@@ -129,11 +159,13 @@ public class Bakery : AbstractlyBakery
 			configuration.MakeValue ? typeof(ValueType) :
 			interfaceOrBaseType.IsClass ? interfaceOrBaseType : null;
 
-		var (interfaceMapping, publicMixins) = Analyze(interfaceOrBaseType);
+        var extraInterfaces = typeConfiguration?.GetExtraInterfaces() ?? Enumerable.Empty<Type>();
+
+		var (interfaceMapping, publicMixins) = Analyze(interfaceOrBaseType, extraInterfaces);
 
 		var processor = new BuildingBakingProcessor(
 			name, baseType, typeAttributes, interfaceMapping, defaultProvider, generators,
-            EnsureAccessToAssembly, moduleBuilder, typeConfiguration);
+            EnsureAccessToAssembly, moduleBuilder, configuration.PrefixBackingFields, typeConfiguration);
 
 		return processor.Create(interfaceMapping.Interfaces, publicMixins);
 	}

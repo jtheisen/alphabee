@@ -10,6 +10,8 @@ public interface IBuildingContext
     ILGenerator ConstructorGenerator { get; }
     IDefaultProvider DefaultProvider { get; }
 
+    Boolean PrefixBackingFields { get; }
+
     IntegerOrNullRetrieverForArgumentName? GetIntegerOrNullRetrieverForArgumentName(PropertyInfo property);
 
 	NullableFlag GetNullableFlagForInterface(Type interfaceType);
@@ -62,10 +64,13 @@ public class BuildingBakingProcessor : BakingProcessorWithComponentGenerators, I
     private readonly ImplementationMapping implementationMapping;
     private readonly IDefaultProvider defaultProvider;
     private readonly AccessEnsurer ensureAccess;
+	private readonly Boolean prefixBackingFields;
 	private readonly ITypeConfiguration? typeConfiguration;
 
 	private readonly TypeBuilder typeBuilder;
     private readonly ILGenerator constructorGenerator;
+
+    
 
     private readonly Dictionary<Type, NullableFlag> nullableFlags = new Dictionary<Type, NullableFlag>();
     private readonly HashSet<Type> interfacesAndBases = new HashSet<Type>();
@@ -85,13 +90,14 @@ public class BuildingBakingProcessor : BakingProcessorWithComponentGenerators, I
     public BuildingBakingProcessor(
         String name, Type? baseType, TypeAttributes typeAttributes, ImplementationMapping implementationMapping,
         IDefaultProvider defaultProvider, IBakeryComponentGenerators generators, AccessEnsurer ensureAccess,
-        ModuleBuilder moduleBuilder, ITypeConfiguration? typeConfiguration = null
+        ModuleBuilder moduleBuilder, Boolean prefixBackingFields, ITypeConfiguration? typeConfiguration = null
     )
         : base(generators)
     {
         this.implementationMapping = implementationMapping;
         this.defaultProvider = defaultProvider;
         this.ensureAccess = ensureAccess;
+		this.prefixBackingFields = prefixBackingFields;
 		this.typeConfiguration = typeConfiguration;
 
 		typeBuilder = moduleBuilder.DefineType(name, typeAttributes, baseType);
@@ -104,6 +110,8 @@ public class BuildingBakingProcessor : BakingProcessorWithComponentGenerators, I
 
         constructorGenerator = constructorBuilder.GetILGenerator();
     }
+
+    public Boolean PrefixBackingFields => prefixBackingFields;
 
 	public IntegerOrNullRetrieverForArgumentName? GetIntegerOrNullRetrieverForArgumentName(PropertyInfo property)
     {

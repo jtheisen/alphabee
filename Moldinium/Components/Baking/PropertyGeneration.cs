@@ -207,7 +207,9 @@ public class GenericPropertyGenerator : AbstractPropertyGenerator
 
         var propertyImplementationType = implementation.MakeImplementationType(propertyOrHandlerType: property.PropertyType);
 
-        var fieldBuilder = typeBuilder.DefineField($"backing_{property.Name}", propertyImplementationType, FieldAttributes.Private);
+        var fieldName = state.PrefixBackingFields ? $"backing_{property.Name}" : property.Name;
+
+		var fieldBuilder = typeBuilder.DefineField(fieldName, propertyImplementationType, FieldAttributes.Private);
 
         var propertyImplementation = new PropertyImplementation(
             GetMethodImplementation(fieldBuilder, "Get", outerGetImplementation),

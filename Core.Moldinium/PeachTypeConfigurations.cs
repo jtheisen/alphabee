@@ -74,11 +74,23 @@ public struct PropertyNumbersDictionary : IEquatable<PropertyNumbersDictionary>
 	}
 }
 
-public record PeachTypeConfiguration(PropertyNumbersDictionary Fields, Int32 Size, Type InterfaceType) : IPeachTypeConfiguration
+public record PeachTypeConfiguration(PropertyNumbersDictionary Properties, Int32 Size, Type InterfaceType) : IPeachTypeConfiguration
 {
+	static readonly PropertyInfo TypeRefProperty = typeof(IPeach).GetProperty(nameof(IPeach.ImplementationTypeRef))!;
+
+	public IEnumerable<Type> GetExtraInterfaces()
+	{
+		yield return typeof(IPeach);
+	}
+
 	public Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName)
 	{
-		var layout = Fields.dict[property];
+		if (property == TypeRefProperty)
+		{
+			return 0;
+		}
+
+		var layout = Properties.dict[property];
 
 		switch (argumentName)
 		{

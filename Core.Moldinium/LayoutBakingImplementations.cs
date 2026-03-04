@@ -3,17 +3,10 @@ using System.Reflection;
 
 namespace AlphaBee;
 
-public interface ILayoutMixin
-{
-}
-
-public struct LayoutMixin : ILayoutMixin
-{
-}
+#pragma warning disable CS0169
 
 public interface ILayoutStructPropertyImplementation<
-	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
-	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
+	[TypeKind(ImplementationTypeArgumentKind.Value)] Value
 > : IPropertyImplementation
 	where Value : unmanaged
 {
@@ -24,7 +17,7 @@ public interface ILayoutStructPropertyImplementation<
 
 public struct LayoutStructPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value
-> : ILayoutStructPropertyImplementation<Value, LayoutMixin>
+> : ILayoutStructPropertyImplementation<Value>
 	where Value : unmanaged
 {
 	Value value;
@@ -35,8 +28,7 @@ public struct LayoutStructPropertyImplementation<
 }
 
 public interface ILayoutClassPropertyImplementation<
-	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
-	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
+	[TypeKind(ImplementationTypeArgumentKind.Value)] Value
 > : IPropertyImplementation
 	where Value : class
 {
@@ -47,7 +39,7 @@ public interface ILayoutClassPropertyImplementation<
 
 public struct LayoutClassPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value
-> : ILayoutClassPropertyImplementation<Value, LayoutMixin>
+> : ILayoutClassPropertyImplementation<Value>
 	where Value : class
 {
 	Int64 address;

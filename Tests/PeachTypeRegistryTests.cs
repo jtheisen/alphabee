@@ -1,4 +1,6 @@
-﻿namespace AlphaBee;
+﻿using System.Runtime.InteropServices;
+
+namespace AlphaBee;
 
 [TestClass]
 public class PeachTypeRegistryTests
@@ -8,13 +10,36 @@ public class PeachTypeRegistryTests
 	public interface IFoo
 	{
 		public Int32 Number { get; set; }
+
+		public IBar Bar { get; set; }
 	}
 
 	public interface IBar
 	{
 		public String String { get; set; }
+	}
 
-		public IFoo Foo { get; set; }
+	[StructLayout(LayoutKind.Sequential)]
+	public struct SFoo1
+	{
+		public Int32 Number;
+
+		public Int64 Bar;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	public struct SFoo2
+	{
+		public Int64 Bar;
+
+		public Int32 Number;
+	}
+
+	public struct SFoo3
+	{
+		public Int64 Bar;
+
+		public Int32 Number;
 	}
 
 	[TestInitialize]
@@ -37,10 +62,32 @@ public class PeachTypeRegistryTests
 	{
 		var initialCount = registry.Count;
 
+		var foo2Type = AddAlternativeLayout<IFoo, SFoo2>();
+
+		Assert.AreEqual(initialCount + 1, registry.Count);
+
+		var foo1Type = AddAlternativeLayout<IFoo, SFoo1>();
+
+		Assert.AreEqual(initialCount + 2, registry.Count);
+
+		var foo3Type = AddAlternativeLayout<IFoo, SFoo3>();
+
+		Assert.AreEqual(initialCount + 2, registry.Count);
+
 		registry.EnsureCanonicalImplementation(typeof(IFoo), out var fooRef, out var fooType);
 		registry.EnsureCanonicalImplementation(typeof(IBar), out var barRef, out var barType);
 
-		Assert.AreEqual(initialCount, fooRef.no);
-		Assert.AreEqual(initialCount + 1, barRef.no);
+		Assert.AreEqual(foo1Type, fooType);
+		Assert.AreNotEqual(foo2Type, fooType);
+
+		Assert.AreEqual(initialCount + 1, fooRef.no);
+		Assert.AreEqual(initialCount + 2, barRef.no);
+	}
+
+	Type AddAlternativeLayout<InterfaceT, LayoutT>()
+	{
+		var layoutType = PeachTypeConfiguration.Create(typeof(InterfaceT), typeof(LayoutT));
+
+		return registry.AddAlternativeType(layoutType, null, allowNewImplementation: true);
 	}
 }

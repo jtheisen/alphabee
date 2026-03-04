@@ -3,7 +3,12 @@ using System.Reflection;
 
 namespace AlphaBee;
 
-public interface IPeach
+public interface IPeach : IPeachMixin
+{
+	TypeRef ImplementationTypeRef { get; }
+}
+
+public interface IPeachMixin
 {
 	AbstractPeachContext Context { get; }
 
@@ -13,7 +18,7 @@ public interface IPeach
 }
 
 [IgnoreForBaking]
-public interface IInternalPeachMixin : IPeach
+public interface IInternalPeachMixin : IPeachMixin
 {
 	T GetValue<T>(Int32 offset) where T : unmanaged;
 
@@ -70,7 +75,7 @@ public interface IPeachyStructPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
 > : IPropertyImplementation
 	where Value : unmanaged
-	where Mixin : IPeach
+	where Mixin : IPeachMixin
 {
 	Value Get(ref Mixin mixin, Int32 offset);
 
@@ -92,7 +97,7 @@ public interface IPeachyClassPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
 > : IPropertyImplementation
 	where Value : class
-	where Mixin : IPeach
+	where Mixin : IPeachMixin
 {
 	Value? Get(ref Mixin mixin, Int32 offset);
 
@@ -109,6 +114,20 @@ public struct PeachyClassPropertyImplementation<
 	public void Set(ref InternalPeachMixin mixin, Int32 offset, Value? value) => mixin.SetObject(offset, value);
 }
 
+public interface IPeachyTypeRefPropertyImplementation : IPropertyImplementation
+{
+	TypeRef Get(Int32 typeNo);
+
+	void Set(Int32 typeNo);
+}
+
+public struct PeachyTypeRefPropertyImplementation : IPeachyTypeRefPropertyImplementation
+{
+	public TypeRef Get(Int32 typeNo) => new TypeRef(typeNo);
+
+	public void Set(Int32 typeNo) => throw new NotImplementedException();
+}
+
 public class PeachPropertyImplementationProvider : PropertyImplementationProvider
 {
 	public override Type Get(PropertyInfo property)
@@ -118,6 +137,10 @@ public class PeachPropertyImplementationProvider : PropertyImplementationProvide
 		if (!type.IsValueType)
 		{
 			return typeof(PeachyClassPropertyImplementation<>);
+		}
+		else if (type == typeof(TypeRef) && property.Name == nameof(IPeach.ImplementationTypeRef))
+		{
+			return typeof(PeachyTypeRefPropertyImplementation);
 		}
 		else
 		{
@@ -129,5 +152,6 @@ public class PeachPropertyImplementationProvider : PropertyImplementationProvide
 	{
 		yield return typeof(PeachyClassPropertyImplementation<>);
 		yield return typeof(PeachyStructPropertyImplementation<>);
+		yield return typeof(PeachyTypeRefPropertyImplementation);
 	}
 }
