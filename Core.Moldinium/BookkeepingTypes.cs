@@ -13,12 +13,24 @@ public class PeachLayoutAttribute : Attribute
 [PeachLayout(typeof(HiveRoot))]
 public interface IHiveRoot
 {
-	public Object?[]? TypeDescriptions { get; }
+	public Object?[]? TypeDescriptions { get; set; }
 }
 
 public struct HiveRoot
 {
 	public Int64 TypeDescriptions;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct TypeDescriptionEntry
+{
+	public String? ClrName { get; init; }
+
+	public TypeRef? TypeRef { get; init; }
+
+	public Int32 Offset { get; init; }
+
+	public Int32 Size { get; init; }
 }
 
 [PeachLayout(typeof(TypeDescriptionLayout))]
@@ -30,15 +42,7 @@ public interface ITypeDescription
 	
 	String? ClrName { get; set; }
 
-	String?[]? ClrNames { get; set; }
-
-	ITypeDescription?[]? Descriptions { get; set; }
-
-	TypeRef[] TypeRefs { get; set; }
-
-	Int32[] Offsets { get; set; }
-
-	Int32[] Sizes { get; set; }
+	TypeDescriptionEntry[]? Properties { get; set; }
 }
 
 [StructLayout(LayoutKind.Explicit)]
@@ -54,17 +58,5 @@ public struct TypeDescriptionLayout
 	public Int64 ClrName;
 
 	[FieldOffset(16)]
-	public Int64 ClrNames;
-
-	[FieldOffset(24)]
-	public Int64 Descriptions;
-
-	[FieldOffset(24)]
-	public Int64 TypeRefs;
-
-	[FieldOffset(32)]
-	public Int64 Offsets;
-
-	[FieldOffset(32)]
-	public Int64 Sizes;
+	public Int64 Properties;
 }

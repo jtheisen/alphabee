@@ -67,7 +67,7 @@ public struct StructArrayTypeHandler<T> : IObjectTypeHandler
 {
 	public Type? Type => typeof(T).MakeArrayType();
 
-	public TypeRef TypeRef => new TypeRef(new TypeByte(Type.GetTypeCode(typeof(T)), isSpan: true));
+	public TypeRef TypeRef => new TypeRef(new TypeByte(typeof(T).GetTypeCode(), isSpan: true));
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{

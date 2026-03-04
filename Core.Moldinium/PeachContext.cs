@@ -102,11 +102,11 @@ public class PeachContext : AbstractPeachContext
 	{
 		var entry = typeRegistry.Get(typeRef);
 
-		var header = new ObjectHeader(typeRef, entry.size);
+		var header = new ObjectHeader(typeRef, entry.Configuration.Size);
 
 		storage.AllocateObject(header, out var address, out var content);
 
-		var peach = entry.peachType.CreateInstance<IPeach>();
+		var peach = entry.ImplementationType.CreateInstance<IPeach>();
 
 		peach.Init(this, address);
 
@@ -117,6 +117,6 @@ public class PeachContext : AbstractPeachContext
 	{
 		var entry = typeRegistry.Get(type);
 
-		return entry.peachType.CreateInstance<IPeach>();
+		return entry.ImplementationType.CreateInstance<IPeach>();
 	}
 }

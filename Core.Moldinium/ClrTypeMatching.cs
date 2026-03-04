@@ -49,6 +49,11 @@ public class ClrTypeResolver : IClrTypeResolver
 
 public static class ClrTypeMatching
 {
+	public static String GetFqTypeName(this IClrTypeResolver resolver, Type type)
+	{
+		return type.FullName ?? throw new Exception($"Strangly no FullName on type {type}");
+	}
+
 	public static PropertyInfo GetClrProperty(this IClrTypeResolver resolver, String name)
 	{
 		ParseFqPropertyName(name, out var fqTypeName, out var propertyName);
@@ -79,5 +84,4 @@ public static class ClrTypeMatching
 
 		return $"{type.FullName}.{property.Name}";
 	}
-
 }

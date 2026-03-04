@@ -42,16 +42,12 @@ public readonly struct TypeRef
 	}
 }
 
-public static class ExtraTypeCodes
-{
-}
-
 [DebuggerDisplay("{ToString()}")]
 [StructLayout(LayoutKind.Explicit, Size = 1)]
 public readonly struct TypeByte : IEquatable<TypeByte>
 {
 	[FieldOffset(0)]
-	public readonly Byte value;
+	public readonly SByte value;
 
 	static Int32 IsNullablePattern = 1 << 6;
 
@@ -71,9 +67,9 @@ public readonly struct TypeByte : IEquatable<TypeByte>
 
 	public TypeByte(Byte value, Boolean isSpan = false, Boolean isNullable = false)
 	{
-		this.value = (Byte)(value | (isSpan ? IsSpanPattern : 0) | (isNullable ? IsNullablePattern : 0));
+		this.value = (SByte)(value | (isSpan ? IsSpanPattern : 0) | (isNullable ? IsNullablePattern : 0));
 
-		Trace.Assert(value <= 127);
+		Trace.Assert(value > 0);
 	}
 
 	public TypeByte(TypeCode code, Boolean isSpan = false, Boolean isNullable = false)

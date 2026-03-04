@@ -111,7 +111,7 @@ public static class ObjectTypeKinds
 		return handlersByByte[typeByte.value] ?? throw new Exception($"No handler exists for TypeByte '{typeByte}'"); ;
 	}
 
-	static IObjectTypeHandler? GetHandlerOrNull(Type type)
+	public static IObjectTypeHandler? GetHandlerOrNull(Type type)
 	{
 		return handlersByType.GetValueOrDefault(type);
 	}

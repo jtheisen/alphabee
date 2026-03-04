@@ -8,6 +8,8 @@ public class Hive
 
 	private readonly PeachTypeRegistry typeRegistry = new();
 
+	private readonly PeachContext context;
+
 	private readonly IHiveRoot root;
 
 	public AbstractTestStorage Storage => storage;
@@ -18,6 +20,8 @@ public class Hive
 	{
 		this.storage = storage;
 
+		context = new PeachContext(storage, typeRegistry);
+
 		root = EnsureHiveRoot();
 
 		LoadTypes();
@@ -25,8 +29,6 @@ public class Hive
 
 	IHiveRoot EnsureHiveRoot()
 	{
-		var context = new PeachContext(storage, typeRegistry);
-
 		if (storage.IsEmpty)
 		{
 			return context.CreateObject<IHiveRoot>();
@@ -44,13 +46,31 @@ public class Hive
 
 	void LoadTypes()
 	{
-		var types = root.TypeDescriptions?.Cast<ITypeDescription>();
+		var descriptions = root.TypeDescriptions?.Cast<ITypeDescription>();
 
-		Trace.Assert(types is not null);
+		Trace.Assert(descriptions is not null);
 
-		foreach (var type in types)
+		foreach (var description in descriptions)
 		{
-			
+			Trace.Assert(description is not null);
+
+			typeRegistry.AddStoredType(description);
+		}
+	}
+
+	void StoreTypes()
+	{
+		var descriptions = new Object?[typeRegistry.Count];
+
+		root.TypeDescriptions?.CopyTo(descriptions, 0);
+
+		var didWrite = false;
+
+		typeRegistry.WriteAllTypeDescriptions(descriptions, ref didWrite);
+
+		if (didWrite)
+		{
+			root.TypeDescriptions = descriptions;
 		}
 	}
 }

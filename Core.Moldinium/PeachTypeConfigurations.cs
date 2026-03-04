@@ -15,7 +15,7 @@ namespace AlphaBee;
 public interface IPeachTypeConfiguration : ITypeConfiguration
 {
 	Int32 Size { get; }
-	Type ClrType { get; }
+	Type InterfaceType { get; }
 }
 
 public struct PropertyNumbersDictionary : IEquatable<PropertyNumbersDictionary>
@@ -74,7 +74,7 @@ public struct PropertyNumbersDictionary : IEquatable<PropertyNumbersDictionary>
 	}
 }
 
-public record PeachTypeConfiguration(PropertyNumbersDictionary Fields, Int32 Size, Type ClrType) : IPeachTypeConfiguration
+public record PeachTypeConfiguration(PropertyNumbersDictionary Fields, Int32 Size, Type InterfaceType) : IPeachTypeConfiguration
 {
 	public Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName)
 	{
@@ -96,7 +96,7 @@ public record PeachTypeConfiguration(PropertyNumbersDictionary Fields, Int32 Siz
 		return Create(typeof(PeachT), typeof(LayoutT));
 	}
 
-	public static IPeachTypeConfiguration Create(Type peachType, Type layoutType)
+	public static PeachTypeConfiguration Create(Type peachType, Type layoutType)
 	{
 		var layoutFields = layoutType.GetLayoutFields();
 
@@ -114,16 +114,13 @@ public record PeachTypeConfiguration(PropertyNumbersDictionary Fields, Int32 Siz
 		return new PeachTypeConfiguration(dict, layoutType.SizeOf(), peachType);
 	}
 
-	public static IPeachTypeConfiguration Create(IClrTypeResolver resolver, ITypeDescription description)
+	public static PeachTypeConfiguration Create(IClrTypeResolver resolver, ITypeDescription description)
 	{
-		if (description.Offsets?.Length is not Int32 n)
-		{
-			throw new Exception($"No offsets in type descriptor");
-		}
+		var properties = description.Properties;
 
-		Trace.Assert(description.Sizes?.Length == n);
-		Trace.Assert(description.ClrNames?.Length == n);
-		Trace.Assert(description.TypeRefs?.Length == n);
+		Trace.Assert(properties is not null);
+
+		var n = properties.Length;
 
 		var size = description.Size;
 
@@ -139,16 +136,13 @@ public record PeachTypeConfiguration(PropertyNumbersDictionary Fields, Int32 Siz
 
 		for (var i = 0; i < n; i++)
 		{
-			var name = description.ClrNames[i];
-			var typeRef = description.TypeRefs[i];
-			var offset = description.Offsets[i];
-			var fieldSize = description.Sizes[i];
+			ref var entry = ref properties[i];
 
-			Trace.Assert(name is not null);
+			Trace.Assert(entry.ClrName is not null);
 
-			var property = resolver.GetClrProperty(name);
+			var property = resolver.GetClrProperty(entry.ClrName);
 
-			dict.Add(property, new LayoutEntry(offset, fieldSize));
+			dict.Add(property, new LayoutEntry(entry.Offset, entry.Size));
 		}
 
 		return new PeachTypeConfiguration(dict, size, clrType);
