@@ -91,9 +91,9 @@ public class PeachContext : AbstractPeachContext
 		}
 	}
 
-	public override Object CreateObject(Type clrType)
+	public override Object CreateObject(Type interfaceType)
 	{
-		typeRegistry.LookupClrType(clrType, out var typeNo, out _);
+		typeRegistry.EnsureCanonicalImplementation(interfaceType, out var typeNo, out _);
 
 		return CreateObject(typeNo);
 	}

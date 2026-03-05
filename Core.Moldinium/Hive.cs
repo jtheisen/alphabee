@@ -23,8 +23,6 @@ public class Hive
 		context = new PeachContext(storage, typeRegistry);
 
 		root = EnsureHiveRoot();
-
-		LoadTypes();
 	}
 
 	IHiveRoot EnsureHiveRoot()
@@ -39,6 +37,8 @@ public class Hive
 			var hiveRoot = context.GetObject(0) as IHiveRoot;
 
 			Trace.Assert(hiveRoot is not null, "Failed to get hive root");
+
+			LoadTypes();
 
 			return hiveRoot;
 		}

@@ -10,10 +10,15 @@ public class PeachLayoutAttribute : Attribute
 	public PeachLayoutAttribute(Type layoutType) => LayoutType = layoutType;
 }
 
+//public class ForPropertyAttribute : Attribute
+//{
+
+//}
+
 [PeachLayout(typeof(HiveRoot))]
 public interface IHiveRoot
 {
-	public Object?[]? TypeDescriptions { get; set; }
+	Object?[]? TypeDescriptions { get; set; }
 }
 
 public struct HiveRoot
