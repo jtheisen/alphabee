@@ -7,10 +7,59 @@ using System.Reflection;
 
 using PeachTypeLayoutDict = System.Collections.Generic.Dictionary<
 	System.Reflection.PropertyInfo,
-	AlphaBee.Layouts.LayoutEntry
+	AlphaBee.PropertyEntry
 >;
 
 namespace AlphaBee;
+
+public interface IPropRefResolver
+{
+	PropRef GetPropRef(PropertyInfo propertyInfo);
+}
+
+public class TrivialPropRefResolver : IPropRefResolver
+{
+	public static readonly TrivialPropRefResolver Instance = new();
+
+	PropRef IPropRefResolver.GetPropRef(PropertyInfo propertyInfo) => default;
+}
+
+[DebuggerDisplay("{ToString()}")]
+public readonly struct PropertyEntry : IEquatable<PropertyEntry>
+{
+	readonly PropRef propRef;
+	readonly LayoutEntry layout;
+
+	public PropRef PropRef => propRef; 
+	public Int32 Offset => layout.offset;
+	public Int32 Size => layout.size;
+
+	public PropertyEntry(PropRef propRef, LayoutEntry layout)
+	{
+		this.propRef = propRef;
+		this.layout = layout;
+	}
+
+	public Boolean Equals(PropertyEntry other)
+	{
+		return propRef.Equals(other.propRef) && layout.Equals(other.layout);
+	}
+
+	public override Int32 GetHashCode()
+	{
+		return propRef.GetHashCode() ^ layout.GetHashCode();
+	}
+
+	public override Boolean Equals([NotNullWhen(true)] Object? obj)
+	{
+		return obj is PropertyEntry other ? Equals(other) : false;
+	}
+
+	public override String ToString()
+	{
+		return $"{propRef}:{layout}";
+	}
+}
 
 public interface IPeachTypeConfiguration : ITypeConfiguration
 {
@@ -79,19 +128,26 @@ public struct PropertyNumbersDictionary : IEquatable<PropertyNumbersDictionary>
 // Can compare, and represents only the configuration part that uniquily identifies the layout
 public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, Type InterfaceType)
 {
-	public static PeachTypeLayout Create<PeachT, LayoutT>()
+	public static PeachTypeLayout CreateWithoutPropRefs<PeachT, LayoutT>()
 		where PeachT : class
 		where LayoutT : struct
 	{
-		return Create(typeof(PeachT), typeof(LayoutT));
+		return CreateWithoutPropRefs(typeof(PeachT), typeof(LayoutT));
 	}
 
-	public PeachTypeConfiguration ToConfiguration(TypeRef typeRef)
+	public static PeachTypeLayout Create<PeachT, LayoutT>(IPropRefResolver resolver)
+		where PeachT : class
+		where LayoutT : struct
 	{
-		return new PeachTypeConfiguration(this, typeRef, true);
+		return Create(typeof(PeachT), typeof(LayoutT), resolver);
 	}
 
-	public static PeachTypeLayout Create(Type peachType, Type layoutType)
+	public static PeachTypeLayout CreateWithoutPropRefs(Type peachType, Type layoutType)
+	{
+		return Create(peachType, layoutType, TrivialPropRefResolver.Instance);
+	}
+
+	public static PeachTypeLayout Create(Type peachType, Type layoutType, IPropRefResolver resolver)
 	{
 		var layoutFields = layoutType.GetLayoutFields();
 
@@ -103,13 +159,16 @@ public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, 
 
 			Trace.Assert(property is not null);
 
-			dict[property] = field.Layout;
+			var propRef = resolver.GetPropRef(property);
+
+			dict[property] = new PropertyEntry(propRef, field.Layout);
 		}
 
 		return new PeachTypeLayout(dict, layoutType.SizeOf(), peachType);
 	}
 
-	public static PeachTypeLayout Create(IClrTypeResolver resolver, ITypeDescription description)
+	public static PeachTypeLayout Create(
+		IClrTypeResolver typeResolver, IPropRefResolver propRefResolver, ITypeDescription description)
 	{
 		var properties = description.Properties;
 
@@ -125,7 +184,7 @@ public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, 
 
 		Trace.Assert(clrTypeName is not null);
 
-		var clrType = resolver.GetClrType(clrTypeName);
+		var clrType = typeResolver.GetClrType(clrTypeName);
 
 		var dict = new PeachTypeLayoutDict();
 
@@ -135,12 +194,21 @@ public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, 
 
 			Trace.Assert(entry.ClrName is not null);
 
-			var property = resolver.GetClrProperty(entry.ClrName);
+			var property = typeResolver.GetClrProperty(entry.ClrName);
 
-			dict.Add(property, new LayoutEntry(entry.Offset, entry.Size));
+			var propRef = propRefResolver.GetPropRef(property);
+
+			var layoutEntry = new LayoutEntry(entry.Offset, entry.Size);
+
+			dict.Add(property, new PropertyEntry(propRef, layoutEntry));
 		}
 
 		return new PeachTypeLayout(dict, size, clrType);
+	}
+
+	public PeachTypeConfiguration ToConfiguration(TypeRef typeRef)
+	{
+		return new PeachTypeConfiguration(this, typeRef, true);
 	}
 }
 
@@ -185,7 +253,7 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 		switch (argumentName)
 		{
 			case "offset":
-				return entry.offset + ObjectHeader.Size;
+				return entry.Offset + ObjectHeader.Size;
 			default:
 				throw new Exception($"Unknown number argument '{argumentName}'");
 		}

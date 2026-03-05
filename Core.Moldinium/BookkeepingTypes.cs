@@ -24,13 +24,15 @@ public struct HiveRoot
 [StructLayout(LayoutKind.Sequential)]
 public struct TypeDescriptionEntry
 {
-	public String? ClrName { get; init; }
+	public Int32 PropertyNo { get; set; }
 
 	public TypeRef? TypeRef { get; init; }
 
 	public Int32 Offset { get; init; }
 
 	public Int32 Size { get; init; }
+
+	public String? ClrName { get; init; }
 }
 
 [PeachLayout(typeof(TypeDescriptionLayout))]
@@ -39,7 +41,7 @@ public interface ITypeDescription
 	Int32 No { get; set; }
 
 	Int32 Size { get; set; }
-	
+
 	String? ClrName { get; set; }
 
 	TypeDescriptionEntry[]? Properties { get; set; }

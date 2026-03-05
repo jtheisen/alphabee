@@ -8,22 +8,22 @@ using PeachTypeInfo = (System.Type implementationType, AlphaBee.PeachTypeConfigu
 
 namespace AlphaBee;
 
-public class PeachTypeRegistry
+public class PeachTypeRegistry : IPropRefResolver
 {
-	Int32 nextTypeNo = 1;
+	Int32 nextTypeNo = 1, nextPropNo = 1;
 
 	AbstractBakery peachBakery, layoutBakery;
 
-	public record Entry(TypeRef TypeRef, PeachTypeConfiguration Configuration, Type ImplementationType)
+	public record Entry(TypeRef TypeRef, PeachTypeConfiguration Configuration, Type InterfaceType, Type ImplementationType)
 	{
 		public PeachTypeLayout Layout => Configuration.Layout;
-
-		public Type? InterfaceType { get; set; }
 	}
 
 	private readonly IClrTypeResolver clrTypeResolver;
 
 	private readonly List<Entry?> peachTypesByRef = new();
+
+	private readonly Dictionary<PropertyInfo, PropRef> propRefsByPropertyInfo = new();
 
 	private readonly Dictionary<Type, TypeRef> typeRefsByImplementationType = new();
 
@@ -124,7 +124,7 @@ public class PeachTypeRegistry
 
 	public Type AddStoredType(ITypeDescription description)
 	{
-		var configuration = PeachTypeLayout.Create(clrTypeResolver, description);
+		var configuration = PeachTypeLayout.Create(clrTypeResolver, this, description);
 
 		return AddAlternativeType(configuration, new TypeRef(description.No));
 	}
@@ -153,34 +153,41 @@ public class PeachTypeRegistry
 			typeRef = info.typeRef;
 			implementationType = info.implementationType;
 		}
+		else if (infosByInterfaceType.TryGetValue(interfaceType, out var list) && list.Count > 0)
+		{
+			var first = list[0];
+
+			typeRef = typeRefsByImplementationType[first.implementationType];
+			implementationType = first.implementationType;
+		}
 		else
 		{
-			AddCanonicalType(interfaceType, out typeRef, out implementationType);
+			CreateCanonicalType(interfaceType, out typeRef, out implementationType);
 		}
 	}
 
-	void AddCanonicalType(Type interfaceType, out TypeRef typeRef, out Type implementationType)
+	public PropRef GetPropRef(PropertyInfo propertyInfo)
+	{
+		return propRefsByPropertyInfo[propertyInfo];
+	}
+
+	void CreateCanonicalType(Type interfaceType, out TypeRef typeRef, out Type implementationType)
 	{
 		Trace.Assert(!canonicalInfoByInterfaceType.ContainsKey(interfaceType), $"Type {interfaceType} already has a canonical implementation");
 
+		Trace.Assert(!infosByInterfaceType.ContainsKey(interfaceType), $"Type {interfaceType} already has an implementation");
+
+		EnsurePropRefs(interfaceType);
+
 		var layoutType = GetCanonicalLayoutStructType(interfaceType);
 
-		var configuration = PeachTypeLayout.Create(interfaceType, layoutType);
+		var layout = PeachTypeLayout.Create(interfaceType, layoutType, this);
 
-		if (typeRefsByLayout.TryGetValue(configuration, out typeRef))
-		{
-			var entry = GetEntry(typeRef);
+		Trace.Assert(!typeRefsByLayout.ContainsKey(layout), $"Type {interfaceType} gets a layout that is already known, even though the respective implementation is not");
 
-			SetAsCanonical(interfaceType, typeRef);
+		EnsureImplementationType(layout, out typeRef, out implementationType);
 
-			implementationType = entry.ImplementationType;
-		}
-		else
-		{
-			EnsureImplementationType(configuration, out typeRef, out implementationType);
-
-			SetAsCanonical(interfaceType, typeRef);
-		}
+		SetAsCanonical(interfaceType, typeRef);
 	}
 
 	Boolean EnsureImplementationType(PeachTypeLayout typeLayout, out TypeRef typeRef, out Type implementationType, TypeRef? desiredTypeRef = null)
@@ -193,12 +200,18 @@ public class PeachTypeRegistry
 		{
 			Trace.Assert(desiredTypeRef?.Equals(typeRef) ?? true, $"Trying to ensure type {desiredTypeRef}, the same layout already exists under {typeRef}");
 
-			implementationType = GetEntry(typeRef).ImplementationType;
+			var entry = GetEntry(typeRef);
+
+			Trace.Assert(entry.InterfaceType == interfaceType);
+
+			implementationType = entry.ImplementationType;
 
 			return false;
 		}
 		else
 		{
+			EnsurePropRefs(typeLayout.InterfaceType, typeLayout);
+
 			typeRef = desiredTypeRef ?? CreateTypeRef();
 
 			var configuration = typeLayout.ToConfiguration(typeRef);
@@ -212,7 +225,7 @@ public class PeachTypeRegistry
 
 			list.Add((implementationType, configuration));
 
-			SetEntry(new Entry(typeRef, configuration, implementationType));
+			SetEntry(new Entry(typeRef, configuration, interfaceType, implementationType));
 
 			Debug.Assert(implementationType.Name.EndsWith(typeRef.no.ToString()), $"Created type {implementationType}'s name doesn't say it's number for TypeRef {typeRef}");
 
@@ -290,8 +303,6 @@ public class PeachTypeRegistry
 		{
 			throw new InvalidOperationException($"Interface ${interfaceType} already has a canonical TypeRef");
 		}
-
-		entry.InterfaceType = interfaceType;
 	}
 
 	public CanonicalInfo LookupCanonical(Type type)
@@ -328,6 +339,43 @@ public class PeachTypeRegistry
 	}
 
 	TypeRef CreateTypeRef() => new TypeRef(nextTypeNo++);
+
+	#region PropRefs
+
+	public void EnsurePropRefs(Type interfaceType)
+	{
+		foreach (var property in interfaceType.GetProperties())
+		{
+			EnsurePropRef(property);
+		}
+	}
+
+	void EnsurePropRefs(Type interfaceType, PeachTypeLayout layout)
+	{
+		foreach (var property in interfaceType.GetProperties())
+		{
+			if (layout.Properties.dict.TryGetValue(property, out var entry))
+			{
+				EnsurePropRef(property, entry.PropRef);
+			}
+
+			EnsurePropRef(property);
+		}
+	}
+
+	PropRef EnsurePropRef(PropertyInfo property, PropRef? desiredPropRef = null)
+	{
+		if (!propRefsByPropertyInfo.TryGetValue(property, out var propRef))
+		{
+			propRef = propRefsByPropertyInfo[property] = desiredPropRef ?? new PropRef(nextPropNo++);
+		}
+
+		return propRef;
+	}
+
+	#endregion
+
+	#region Diagnostic reporting
 
 	public void WriteAllTypeDescriptions(Object?[] targets, ref Boolean didWrite)
 	{
@@ -378,12 +426,14 @@ public class PeachTypeRegistry
 			descriptionEntries[i] = new TypeDescriptionEntry
 			{
 				ClrName = clrTypeResolver.GetFqTypeName(clrType),
-				Offset = entry.offset,
-				Size = entry.size,
+				Offset = entry.Offset,
+				Size = entry.Size,
 				TypeRef = typeRef
 			};
 		}
 
 		target.Properties = descriptionEntries;
 	}
+
+	#endregion
 }

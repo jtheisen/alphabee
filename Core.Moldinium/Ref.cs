@@ -44,6 +44,43 @@ public readonly struct TypeRef : IEquatable<TypeRef>
 	}
 
 	public Boolean Equals(TypeRef other) => no == other.no;
+
+	public static Boolean operator ==(TypeRef lhs, TypeRef rhs) => lhs.Equals(rhs);
+	public static Boolean operator !=(TypeRef lhs, TypeRef rhs) => !lhs.Equals(rhs);
+
+	public override bool Equals(Object? obj) => obj is TypeRef other ? other.Equals(this) : false;
+	public override int GetHashCode() => no.GetHashCode();
+}
+
+[DebuggerDisplay("{ToString()}")]
+[StructLayout(LayoutKind.Explicit, Size = 4)]
+public readonly struct PropRef : IEquatable<PropRef>
+{
+	[FieldOffset(0)]
+	public readonly Int32 no;
+
+	public PropRef(Int32 no)
+	{
+		this.no = no;
+	}
+
+	public static implicit operator PropRef(Int32 no)
+	{
+		return new PropRef(no);
+	}
+
+	public override String ToString()
+	{
+		return $"#{no}";
+	}
+
+	public Boolean Equals(PropRef other) => no == other.no;
+
+	public static Boolean operator ==(PropRef lhs, PropRef rhs) => lhs.Equals(rhs);
+	public static Boolean operator !=(PropRef lhs, PropRef rhs) => !lhs.Equals(rhs);
+
+	public override bool Equals(Object? obj) => obj is PropRef other ? other.Equals(this) : false;
+	public override int GetHashCode() => no.GetHashCode();
 }
 
 [DebuggerDisplay("{ToString()}")]
@@ -101,7 +138,7 @@ public readonly struct TypeByte : IEquatable<TypeByte>
 	public static Boolean operator ==(TypeByte lhs, TypeByte rhs) => lhs.Equals(rhs);
 	public static Boolean operator !=(TypeByte lhs, TypeByte rhs) => !lhs.Equals(rhs);
 
-	public override Boolean Equals(Object? obj) => obj is TypeByte && Equals((TypeByte)obj);
+	public override Boolean Equals(Object? obj) => obj is TypeByte other ? other.Equals(this) : false;
 	public override int GetHashCode() => value.GetHashCode();
 }
 

@@ -35,11 +35,11 @@ public class PeachTypeRegistryTests
 		public Int32 Number;
 	}
 
-	public struct SFoo3
+	public struct SFoo1b
 	{
-		public Int64 Bar;
-
 		public Int32 Number;
+
+		public Int64 Bar;
 	}
 
 	[TestInitialize]
@@ -60,21 +60,22 @@ public class PeachTypeRegistryTests
 	[TestMethod]
 	public void TestAddingCanonicalsAfterAlternates()
 	{
-		var initialCount = registry.Count;
+		var foo1Type = AddAlternativeLayout<IFoo, SFoo1>();
+
+		Assert.AreEqual(2, registry.Count);
 
 		var foo2Type = AddAlternativeLayout<IFoo, SFoo2>();
 
-		Assert.AreEqual(initialCount + 1, registry.Count);
+		Assert.AreEqual(3, registry.Count);
 
-		var foo1Type = AddAlternativeLayout<IFoo, SFoo1>();
+		var foo1bType = AddAlternativeLayout<IFoo, SFoo1b>();
 
-		Assert.AreEqual(initialCount + 2, registry.Count);
+		Assert.AreEqual(3, registry.Count);
 
-		var foo3Type = AddAlternativeLayout<IFoo, SFoo3>();
+		Assert.AreEqual(1, foo1Type.CreateInstance<IPeach>()?.ImplementationTypeRef.no);
 
-		Assert.AreEqual(initialCount + 2, registry.Count);
-
-		Assert.AreEqual(initialCount + 1, foo1Type.CreateInstance<IPeach>()?.ImplementationTypeRef.no);
+		Assert.AreEqual(foo1Type, foo1bType);
+		Assert.AreNotEqual(foo1Type, foo2Type);
 
 		registry.EnsureCanonicalImplementation(typeof(IFoo), out var fooRef, out var fooType);
 		registry.EnsureCanonicalImplementation(typeof(IBar), out var barRef, out var barType);
@@ -82,15 +83,17 @@ public class PeachTypeRegistryTests
 		Assert.AreEqual(foo1Type, fooType);
 		Assert.AreNotEqual(foo2Type, fooType);
 
-		Assert.AreEqual(initialCount + 1, fooRef.no);
-		Assert.AreEqual(initialCount + 2, barRef.no);
+		Assert.AreEqual(1, fooRef.no);
+		Assert.AreEqual(3, barRef.no);
 
 		registry.Validate();
 	}
 
 	Type AddAlternativeLayout<InterfaceT, LayoutT>()
 	{
-		var layoutType = PeachTypeLayout.Create(typeof(InterfaceT), typeof(LayoutT));
+		registry.EnsurePropRefs(typeof(InterfaceT));
+
+		var layoutType = PeachTypeLayout.Create(typeof(InterfaceT), typeof(LayoutT), registry);
 
 		return registry.AddAlternativeType(layoutType, null, allowNewImplementation: true);
 	}
