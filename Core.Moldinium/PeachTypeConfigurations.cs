@@ -167,8 +167,7 @@ public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, 
 		return new PeachTypeLayout(dict, layoutType.SizeOf(), peachType);
 	}
 
-	public static PeachTypeLayout Create(
-		IClrTypeResolver typeResolver, IPropNoResolver propNoResolver, ITypeDescription description)
+	public static PeachTypeLayout Create(IClrTypeResolver typeResolver, ITypeDescription description)
 	{
 		var properties = description.Properties;
 
@@ -196,7 +195,7 @@ public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, 
 
 			var property = typeResolver.GetClrProperty(entry.ClrName);
 
-			var propNo = propNoResolver.GetPropNo(property);
+			var propNo = entry.PropertyNo;
 
 			var layoutEntry = new LayoutEntry(entry.Offset, entry.Size);
 

@@ -114,13 +114,6 @@ public class PeachTypeRegistry : IPropNoResolver
 		return infosByInterfaceType[interfaceType];
 	}
 
-	public Type AddStoredType(ITypeDescription description)
-	{
-		var configuration = PeachTypeLayout.Create(clrTypeResolver, this, description);
-
-		return AddAlternativeType(configuration, new TypeNo(description.No));
-	}
-
 	public Type AddAlternativeType(PeachTypeLayout configuration, TypeNo? typeNoOrNull, Boolean allowNewImplementation = false)
 	{
 		if (!EnsureImplementationType(configuration, out var typeNo, out var implementationType, typeNoOrNull))
@@ -369,7 +362,14 @@ public class PeachTypeRegistry : IPropNoResolver
 
 	#endregion
 
-	#region Export
+	#region Export / Import
+
+	public Type AddStoredType(ITypeDescription description)
+	{
+		var configuration = PeachTypeLayout.Create(clrTypeResolver, description);
+
+		return AddAlternativeType(configuration, new TypeNo(description.No));
+	}
 
 	public void WriteAllTypeDescriptions(Object?[] targets, ref Boolean didWrite)
 	{
@@ -420,6 +420,7 @@ public class PeachTypeRegistry : IPropNoResolver
 			descriptionEntries[i] = new TypeDescriptionEntry
 			{
 				ClrName = clrTypeResolver.GetFqTypeName(clrType),
+				PropertyNo = GetPropNo(property).no,
 				Offset = entry.Offset,
 				Size = entry.Size,
 				TypeNo = typeNo
