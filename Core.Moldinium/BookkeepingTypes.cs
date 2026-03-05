@@ -26,7 +26,7 @@ public struct TypeDescriptionEntry
 {
 	public Int32 PropertyNo { get; set; }
 
-	public TypeRef? TypeRef { get; init; }
+	public TypeNo? TypeNo { get; init; }
 
 	public Int32 Offset { get; init; }
 

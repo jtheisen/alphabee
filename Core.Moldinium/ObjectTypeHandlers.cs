@@ -9,7 +9,7 @@ public interface IObjectTypeHandler
 {
 	Type? Type { get; }
 
-	TypeRef TypeRef { get; }
+	TypeNo TypeNo { get; }
 
 	Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address);
 
@@ -20,7 +20,7 @@ public struct UnimplementedTypeHandler : IObjectTypeHandler
 {
 	public Type? Type => null;
 
-	public TypeRef TypeRef => throw new NotImplementedException();
+	public TypeNo TypeNo => throw new NotImplementedException();
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 offset)
 	{
@@ -37,7 +37,7 @@ public struct Ucs2StringTypeHandler : IObjectTypeHandler
 {
 	public Type? Type => typeof(String);
 
-	public TypeRef TypeRef => new TypeRef(new TypeByte(TypeCode.String));
+	public TypeNo TypeNo => new TypeNo(new TypeByte(TypeCode.String));
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{
@@ -52,7 +52,7 @@ public struct Ucs2StringTypeHandler : IObjectTypeHandler
 	{
 		var value = (String)untyped;
 
-		var header = new ObjectHeader(TypeRef, value.Length * 2);
+		var header = new ObjectHeader(TypeNo, value.Length * 2);
 
 		storage.AllocateObject(header, out address, out var target);
 
@@ -67,7 +67,7 @@ public struct StructArrayTypeHandler<T> : IObjectTypeHandler
 {
 	public Type? Type => typeof(T).MakeArrayType();
 
-	public TypeRef TypeRef => new TypeRef(new TypeByte(typeof(T).GetTypeCode(), isSpan: true));
+	public TypeNo TypeNo => new TypeNo(new TypeByte(typeof(T).GetTypeCode(), isSpan: true));
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{
@@ -82,7 +82,7 @@ public struct StructArrayTypeHandler<T> : IObjectTypeHandler
 	{
 		var value = (Byte[])untyped;
 
-		var header = new ObjectHeader(TypeRef, value.Length);
+		var header = new ObjectHeader(TypeNo, value.Length);
 
 		storage.AllocateObject(header, out address, out var target);
 
@@ -129,7 +129,7 @@ public struct ObjectArrayTypeHandler : IObjectTypeHandler
 {
 	public Type? Type => typeof(Object?[]);
 
-	public TypeRef TypeRef => new TypeRef(new TypeByte(TypeCode.Object, isSpan: true, isNullable: true));
+	public TypeNo TypeNo => new TypeNo(new TypeByte(TypeCode.Object, isSpan: true, isNullable: true));
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{
@@ -155,7 +155,7 @@ public struct ObjectArrayTypeHandler : IObjectTypeHandler
 
 		var n = array.Length;
 
-		var header = new ObjectHeader(TypeRef, n * 8);
+		var header = new ObjectHeader(TypeNo, n * 8);
 
 		storage.AllocateObject(header, out address, out _);
 

@@ -25,7 +25,7 @@ public abstract class AbstractPeachContext
 
 	public abstract Object CreateObject(Type interfaceType);
 
-	public abstract Object CreateObject(TypeRef typeRef);
+	public abstract Object CreateObject(TypeNo typeNo);
 
 }
 
@@ -93,16 +93,16 @@ public class PeachContext : AbstractPeachContext
 
 	public override Object CreateObject(Type clrType)
 	{
-		typeRegistry.LookupClrType(clrType, out var typeRef, out _);
+		typeRegistry.LookupClrType(clrType, out var typeNo, out _);
 
-		return CreateObject(typeRef);
+		return CreateObject(typeNo);
 	}
 
-	public override Object CreateObject(TypeRef typeRef)
+	public override Object CreateObject(TypeNo typeNo)
 	{
-		var entry = typeRegistry.GetEntry(typeRef);
+		var entry = typeRegistry.GetEntry(typeNo);
 
-		var header = new ObjectHeader(typeRef, entry.Layout.Size);
+		var header = new ObjectHeader(typeNo, entry.Layout.Size);
 
 		storage.AllocateObject(header, out var address, out var content);
 
@@ -113,7 +113,7 @@ public class PeachContext : AbstractPeachContext
 		return peach;
 	}
 
-	IPeachMixin CreatePeach(TypeRef type)
+	IPeachMixin CreatePeach(TypeNo type)
 	{
 		var entry = typeRegistry.GetEntry(type);
 

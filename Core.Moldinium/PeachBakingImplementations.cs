@@ -5,7 +5,7 @@ namespace AlphaBee;
 
 public interface IPeach : IPeachMixin
 {
-	TypeRef ImplementationTypeRef { get; }
+	TypeNo ImplementationTypeNo { get; }
 }
 
 public interface IPeachMixin
@@ -114,16 +114,16 @@ public struct PeachyClassPropertyImplementation<
 	public void Set(ref InternalPeachMixin mixin, Int32 offset, Value? value) => mixin.SetObject(offset, value);
 }
 
-public interface IPeachyTypeRefPropertyImplementation : IPropertyImplementation
+public interface IPeachyTypeNoPropertyImplementation : IPropertyImplementation
 {
-	TypeRef Get(Int32 typeNo);
+	TypeNo Get(Int32 typeNo);
 
 	void Set(Int32 typeNo);
 }
 
-public struct PeachyTypeRefPropertyImplementation : IPeachyTypeRefPropertyImplementation
+public struct PeachyTypeNoPropertyImplementation : IPeachyTypeNoPropertyImplementation
 {
-	public TypeRef Get(Int32 typeNo) => new TypeRef(typeNo);
+	public TypeNo Get(Int32 typeNo) => new TypeNo(typeNo);
 
 	public void Set(Int32 typeNo) => throw new NotImplementedException();
 }
@@ -138,9 +138,9 @@ public class PeachPropertyImplementationProvider : PropertyImplementationProvide
 		{
 			return typeof(PeachyClassPropertyImplementation<>);
 		}
-		else if (type == typeof(TypeRef) && property.Name == nameof(IPeach.ImplementationTypeRef))
+		else if (type == typeof(TypeNo) && property.Name == nameof(IPeach.ImplementationTypeNo))
 		{
-			return typeof(PeachyTypeRefPropertyImplementation);
+			return typeof(PeachyTypeNoPropertyImplementation);
 		}
 		else
 		{
@@ -152,6 +152,6 @@ public class PeachPropertyImplementationProvider : PropertyImplementationProvide
 	{
 		yield return typeof(PeachyClassPropertyImplementation<>);
 		yield return typeof(PeachyStructPropertyImplementation<>);
-		yield return typeof(PeachyTypeRefPropertyImplementation);
+		yield return typeof(PeachyTypeNoPropertyImplementation);
 	}
 }

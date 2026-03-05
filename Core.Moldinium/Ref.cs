@@ -7,7 +7,7 @@ namespace AlphaBee;
 
 [DebuggerDisplay("{ToString()}")]
 [StructLayout(LayoutKind.Explicit, Size = 4)]
-public readonly struct TypeRef : IEquatable<TypeRef>
+public readonly struct TypeNo : IEquatable<TypeNo>
 {
 	[FieldOffset(0)]
 	public readonly Int32 no;
@@ -17,19 +17,19 @@ public readonly struct TypeRef : IEquatable<TypeRef>
 
 	public Boolean IsFundamental => !typeByte.IsZero;
 
-	public TypeRef(TypeByte typeByte)
+	public TypeNo(TypeByte typeByte)
 	{
 		this.typeByte = typeByte;
 	}
 
-	public TypeRef(Int32 no)
+	public TypeNo(Int32 no)
 	{
 		this.no = no;
 
 		Debug.Assert(typeByte.IsZero);
 	}
 
-	public static implicit operator TypeRef(Int32 no) => new TypeRef(no);
+	public static implicit operator TypeNo(Int32 no) => new TypeNo(no);
 
 	public override String ToString()
 	{
@@ -43,30 +43,30 @@ public readonly struct TypeRef : IEquatable<TypeRef>
 		}
 	}
 
-	public Boolean Equals(TypeRef other) => no == other.no;
+	public Boolean Equals(TypeNo other) => no == other.no;
 
-	public static Boolean operator ==(TypeRef lhs, TypeRef rhs) => lhs.Equals(rhs);
-	public static Boolean operator !=(TypeRef lhs, TypeRef rhs) => !lhs.Equals(rhs);
+	public static Boolean operator ==(TypeNo lhs, TypeNo rhs) => lhs.Equals(rhs);
+	public static Boolean operator !=(TypeNo lhs, TypeNo rhs) => !lhs.Equals(rhs);
 
-	public override bool Equals(Object? obj) => obj is TypeRef other ? other.Equals(this) : false;
+	public override bool Equals(Object? obj) => obj is TypeNo other ? other.Equals(this) : false;
 	public override int GetHashCode() => no.GetHashCode();
 }
 
 [DebuggerDisplay("{ToString()}")]
 [StructLayout(LayoutKind.Explicit, Size = 4)]
-public readonly struct PropRef : IEquatable<PropRef>
+public readonly struct PropNo : IEquatable<PropNo>
 {
 	[FieldOffset(0)]
 	public readonly Int32 no;
 
-	public PropRef(Int32 no)
+	public PropNo(Int32 no)
 	{
 		this.no = no;
 	}
 
-	public static implicit operator PropRef(Int32 no)
+	public static implicit operator PropNo(Int32 no)
 	{
-		return new PropRef(no);
+		return new PropNo(no);
 	}
 
 	public override String ToString()
@@ -74,12 +74,12 @@ public readonly struct PropRef : IEquatable<PropRef>
 		return $"#{no}";
 	}
 
-	public Boolean Equals(PropRef other) => no == other.no;
+	public Boolean Equals(PropNo other) => no == other.no;
 
-	public static Boolean operator ==(PropRef lhs, PropRef rhs) => lhs.Equals(rhs);
-	public static Boolean operator !=(PropRef lhs, PropRef rhs) => !lhs.Equals(rhs);
+	public static Boolean operator ==(PropNo lhs, PropNo rhs) => lhs.Equals(rhs);
+	public static Boolean operator !=(PropNo lhs, PropNo rhs) => !lhs.Equals(rhs);
 
-	public override bool Equals(Object? obj) => obj is PropRef other ? other.Equals(this) : false;
+	public override bool Equals(Object? obj) => obj is PropNo other ? other.Equals(this) : false;
 	public override int GetHashCode() => no.GetHashCode();
 }
 
@@ -149,7 +149,7 @@ public readonly struct ObjectHeader
 	public static Int32 Size => Unsafe.SizeOf<ObjectHeader>();
 
 	[FieldOffset(0)]
-	public readonly TypeRef type;
+	public readonly TypeNo type;
 
 	[FieldOffset(4)]
 	public readonly Int32 unused;
@@ -160,7 +160,7 @@ public readonly struct ObjectHeader
 	[FieldOffset(12)]
 	public readonly Int32 size;
 
-	public ObjectHeader(TypeRef type, Int32 size)
+	public ObjectHeader(TypeNo type, Int32 size)
 	{
 		this.type = type;
 		this.id = 0;

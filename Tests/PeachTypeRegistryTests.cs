@@ -61,18 +61,8 @@ public class PeachTypeRegistryTests
 	public void TestAddingCanonicalsAfterAlternates()
 	{
 		var foo1Type = AddAlternativeLayout<IFoo, SFoo1>();
-
-		Assert.AreEqual(2, registry.Count);
-
 		var foo2Type = AddAlternativeLayout<IFoo, SFoo2>();
-
-		Assert.AreEqual(3, registry.Count);
-
 		var foo1bType = AddAlternativeLayout<IFoo, SFoo1b>();
-
-		Assert.AreEqual(3, registry.Count);
-
-		Assert.AreEqual(1, foo1Type.CreateInstance<IPeach>()?.ImplementationTypeRef.no);
 
 		Assert.AreEqual(foo1Type, foo1bType);
 		Assert.AreNotEqual(foo1Type, foo2Type);
@@ -83,6 +73,10 @@ public class PeachTypeRegistryTests
 		Assert.AreEqual(foo1Type, fooType);
 		Assert.AreNotEqual(foo2Type, fooType);
 
+		Assert.AreEqual(1, foo1Type.CreateInstance<IPeach>()?.ImplementationTypeNo.no);
+		Assert.AreEqual(2, foo2Type.CreateInstance<IPeach>()?.ImplementationTypeNo.no);
+		Assert.AreEqual(1, foo1bType.CreateInstance<IPeach>()?.ImplementationTypeNo.no);
+
 		Assert.AreEqual(1, fooRef.no);
 		Assert.AreEqual(3, barRef.no);
 
@@ -91,7 +85,7 @@ public class PeachTypeRegistryTests
 
 	Type AddAlternativeLayout<InterfaceT, LayoutT>()
 	{
-		registry.EnsurePropRefs(typeof(InterfaceT));
+		registry.EnsurePropNos(typeof(InterfaceT));
 
 		var layoutType = PeachTypeLayout.Create(typeof(InterfaceT), typeof(LayoutT), registry);
 

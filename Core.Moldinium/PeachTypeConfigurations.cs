@@ -12,42 +12,42 @@ using PeachTypeLayoutDict = System.Collections.Generic.Dictionary<
 
 namespace AlphaBee;
 
-public interface IPropRefResolver
+public interface IPropNoResolver
 {
-	PropRef GetPropRef(PropertyInfo propertyInfo);
+	PropNo GetPropNo(PropertyInfo propertyInfo);
 }
 
-public class TrivialPropRefResolver : IPropRefResolver
+public class TrivialPropNoResolver : IPropNoResolver
 {
-	public static readonly TrivialPropRefResolver Instance = new();
+	public static readonly TrivialPropNoResolver Instance = new();
 
-	PropRef IPropRefResolver.GetPropRef(PropertyInfo propertyInfo) => default;
+	PropNo IPropNoResolver.GetPropNo(PropertyInfo propertyInfo) => default;
 }
 
 [DebuggerDisplay("{ToString()}")]
 public readonly struct PropertyEntry : IEquatable<PropertyEntry>
 {
-	readonly PropRef propRef;
+	readonly PropNo propNo;
 	readonly LayoutEntry layout;
 
-	public PropRef PropRef => propRef; 
+	public PropNo PropNo => propNo; 
 	public Int32 Offset => layout.offset;
 	public Int32 Size => layout.size;
 
-	public PropertyEntry(PropRef propRef, LayoutEntry layout)
+	public PropertyEntry(PropNo propNo, LayoutEntry layout)
 	{
-		this.propRef = propRef;
+		this.propNo = propNo;
 		this.layout = layout;
 	}
 
 	public Boolean Equals(PropertyEntry other)
 	{
-		return propRef.Equals(other.propRef) && layout.Equals(other.layout);
+		return propNo.Equals(other.propNo) && layout.Equals(other.layout);
 	}
 
 	public override Int32 GetHashCode()
 	{
-		return propRef.GetHashCode() ^ layout.GetHashCode();
+		return propNo.GetHashCode() ^ layout.GetHashCode();
 	}
 
 	public override Boolean Equals([NotNullWhen(true)] Object? obj)
@@ -57,7 +57,7 @@ public readonly struct PropertyEntry : IEquatable<PropertyEntry>
 
 	public override String ToString()
 	{
-		return $"{propRef}:{layout}";
+		return $"{propNo}:{layout}";
 	}
 }
 
@@ -128,26 +128,26 @@ public struct PropertyNumbersDictionary : IEquatable<PropertyNumbersDictionary>
 // Can compare, and represents only the configuration part that uniquily identifies the layout
 public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, Type InterfaceType)
 {
-	public static PeachTypeLayout CreateWithoutPropRefs<PeachT, LayoutT>()
+	public static PeachTypeLayout CreateWithoutPropNos<PeachT, LayoutT>()
 		where PeachT : class
 		where LayoutT : struct
 	{
-		return CreateWithoutPropRefs(typeof(PeachT), typeof(LayoutT));
+		return CreateWithoutPropNos(typeof(PeachT), typeof(LayoutT));
 	}
 
-	public static PeachTypeLayout Create<PeachT, LayoutT>(IPropRefResolver resolver)
+	public static PeachTypeLayout Create<PeachT, LayoutT>(IPropNoResolver resolver)
 		where PeachT : class
 		where LayoutT : struct
 	{
 		return Create(typeof(PeachT), typeof(LayoutT), resolver);
 	}
 
-	public static PeachTypeLayout CreateWithoutPropRefs(Type peachType, Type layoutType)
+	public static PeachTypeLayout CreateWithoutPropNos(Type peachType, Type layoutType)
 	{
-		return Create(peachType, layoutType, TrivialPropRefResolver.Instance);
+		return Create(peachType, layoutType, TrivialPropNoResolver.Instance);
 	}
 
-	public static PeachTypeLayout Create(Type peachType, Type layoutType, IPropRefResolver resolver)
+	public static PeachTypeLayout Create(Type peachType, Type layoutType, IPropNoResolver resolver)
 	{
 		var layoutFields = layoutType.GetLayoutFields();
 
@@ -159,16 +159,16 @@ public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, 
 
 			Trace.Assert(property is not null);
 
-			var propRef = resolver.GetPropRef(property);
+			var propNo = resolver.GetPropNo(property);
 
-			dict[property] = new PropertyEntry(propRef, field.Layout);
+			dict[property] = new PropertyEntry(propNo, field.Layout);
 		}
 
 		return new PeachTypeLayout(dict, layoutType.SizeOf(), peachType);
 	}
 
 	public static PeachTypeLayout Create(
-		IClrTypeResolver typeResolver, IPropRefResolver propRefResolver, ITypeDescription description)
+		IClrTypeResolver typeResolver, IPropNoResolver propNoResolver, ITypeDescription description)
 	{
 		var properties = description.Properties;
 
@@ -196,43 +196,43 @@ public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, 
 
 			var property = typeResolver.GetClrProperty(entry.ClrName);
 
-			var propRef = propRefResolver.GetPropRef(property);
+			var propNo = propNoResolver.GetPropNo(property);
 
 			var layoutEntry = new LayoutEntry(entry.Offset, entry.Size);
 
-			dict.Add(property, new PropertyEntry(propRef, layoutEntry));
+			dict.Add(property, new PropertyEntry(propNo, layoutEntry));
 		}
 
 		return new PeachTypeLayout(dict, size, clrType);
 	}
 
-	public PeachTypeConfiguration ToConfiguration(TypeRef typeRef)
+	public PeachTypeConfiguration ToConfiguration(TypeNo typeNo)
 	{
-		return new PeachTypeConfiguration(this, typeRef, true);
+		return new PeachTypeConfiguration(this, typeNo, true);
 	}
 }
 
 // Compares only the layout part and tags all the remaining configuration data along
 public class PeachTypeConfiguration : IPeachTypeConfiguration
 {
-	static readonly PropertyInfo TypeRefProperty = typeof(IPeach).GetProperty(nameof(IPeach.ImplementationTypeRef))!;
+	static readonly PropertyInfo TypeNoProperty = typeof(IPeach).GetProperty(nameof(IPeach.ImplementationTypeNo))!;
 
 	private readonly PeachTypeLayout layout;
-	private readonly TypeRef typeRef;
+	private readonly TypeNo typeNo;
 	private readonly Boolean useSuffix;
 
 	public PeachTypeLayout Layout => layout;
 
-	public String? TypeSuffix => useSuffix ? $"#{typeRef.no}" : null;
+	public String? TypeSuffix => useSuffix ? $"#{typeNo.no}" : null;
 
 	public Int32 Size => layout.Size;
 
 	public Type InterfaceType => layout.InterfaceType;
 
-	public PeachTypeConfiguration(PeachTypeLayout layout, TypeRef typeRef, Boolean useSuffix)
+	public PeachTypeConfiguration(PeachTypeLayout layout, TypeNo typeNo, Boolean useSuffix)
 	{
 		this.layout = layout;
-		this.typeRef = typeRef;
+		this.typeNo = typeNo;
 		this.useSuffix = useSuffix;
 	}
 
@@ -243,9 +243,9 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 
 	public Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName)
 	{
-		if (property == TypeRefProperty)
+		if (property == TypeNoProperty)
 		{
-			return typeRef.no;
+			return typeNo.no;
 		}
 
 		var entry = layout.Properties.dict[property];

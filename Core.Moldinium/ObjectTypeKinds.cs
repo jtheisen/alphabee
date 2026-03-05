@@ -23,7 +23,7 @@ public static class ObjectTypeKinds
 
 			if (handler is not null)
 			{
-				var reportedTypeByte = handler.TypeRef.typeByte;
+				var reportedTypeByte = handler.TypeNo.typeByte;
 
 				Trace.Assert(reportedTypeByte == typeByte,
 					$"Type handler '{handler}' reports TypeByte '{reportedTypeByte}', but '{typeByte}' was expected");
