@@ -14,10 +14,12 @@ namespace AlphaBee;
 
 public interface IPeachTypeConfiguration : ITypeConfiguration
 {
+	PeachTypeLayout Layout { get; }
 	Int32 Size { get; }
 	Type InterfaceType { get; }
 }
 
+// Exists only because normal dictionaries can't be compared
 public struct PropertyNumbersDictionary : IEquatable<PropertyNumbersDictionary>
 {
 	public readonly PeachTypeLayoutDict dict;
@@ -74,41 +76,22 @@ public struct PropertyNumbersDictionary : IEquatable<PropertyNumbersDictionary>
 	}
 }
 
-public record PeachTypeConfiguration(PropertyNumbersDictionary Properties, Int32 Size, Type InterfaceType) : IPeachTypeConfiguration
+// Can compare, and represents only the configuration part that uniquily identifies the layout
+public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, Type InterfaceType)
 {
-	static readonly PropertyInfo TypeRefProperty = typeof(IPeach).GetProperty(nameof(IPeach.ImplementationTypeRef))!;
-
-	public IEnumerable<Type> GetExtraInterfaces()
-	{
-		yield return typeof(IPeach);
-	}
-
-	public Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName)
-	{
-		if (property == TypeRefProperty)
-		{
-			return 0;
-		}
-
-		var layout = Properties.dict[property];
-
-		switch (argumentName)
-		{
-			case "offset":
-				return layout.offset + ObjectHeader.Size;
-			default:
-				throw new Exception($"Unknown number argument '{argumentName}'");
-		}
-	}
-
-	public static IPeachTypeConfiguration Create<PeachT, LayoutT>()
+	public static PeachTypeLayout Create<PeachT, LayoutT>()
 		where PeachT : class
 		where LayoutT : struct
 	{
 		return Create(typeof(PeachT), typeof(LayoutT));
 	}
 
-	public static PeachTypeConfiguration Create(Type peachType, Type layoutType)
+	public PeachTypeConfiguration ToConfiguration(TypeRef typeRef)
+	{
+		return new PeachTypeConfiguration(this, typeRef, true);
+	}
+
+	public static PeachTypeLayout Create(Type peachType, Type layoutType)
 	{
 		var layoutFields = layoutType.GetLayoutFields();
 
@@ -123,10 +106,10 @@ public record PeachTypeConfiguration(PropertyNumbersDictionary Properties, Int32
 			dict[property] = field.Layout;
 		}
 
-		return new PeachTypeConfiguration(dict, layoutType.SizeOf(), peachType);
+		return new PeachTypeLayout(dict, layoutType.SizeOf(), peachType);
 	}
 
-	public static PeachTypeConfiguration Create(IClrTypeResolver resolver, ITypeDescription description)
+	public static PeachTypeLayout Create(IClrTypeResolver resolver, ITypeDescription description)
 	{
 		var properties = description.Properties;
 
@@ -157,6 +140,58 @@ public record PeachTypeConfiguration(PropertyNumbersDictionary Properties, Int32
 			dict.Add(property, new LayoutEntry(entry.Offset, entry.Size));
 		}
 
-		return new PeachTypeConfiguration(dict, size, clrType);
+		return new PeachTypeLayout(dict, size, clrType);
 	}
+}
+
+// Compares only the layout part and tags all the remaining configuration data along
+public class PeachTypeConfiguration : IPeachTypeConfiguration
+{
+	static readonly PropertyInfo TypeRefProperty = typeof(IPeach).GetProperty(nameof(IPeach.ImplementationTypeRef))!;
+
+	private readonly PeachTypeLayout layout;
+	private readonly TypeRef typeRef;
+	private readonly Boolean useSuffix;
+
+	public PeachTypeLayout Layout => layout;
+
+	public String? TypeSuffix => useSuffix ? $"#{typeRef.no}" : null;
+
+	public Int32 Size => layout.Size;
+
+	public Type InterfaceType => layout.InterfaceType;
+
+	public PeachTypeConfiguration(PeachTypeLayout layout, TypeRef typeRef, Boolean useSuffix)
+	{
+		this.layout = layout;
+		this.typeRef = typeRef;
+		this.useSuffix = useSuffix;
+	}
+
+	public IEnumerable<Type> GetExtraInterfaces()
+	{
+		yield return typeof(IPeach);
+	}
+
+	public Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName)
+	{
+		if (property == TypeRefProperty)
+		{
+			return typeRef.no;
+		}
+
+		var entry = layout.Properties.dict[property];
+
+		switch (argumentName)
+		{
+			case "offset":
+				return entry.offset + ObjectHeader.Size;
+			default:
+				throw new Exception($"Unknown number argument '{argumentName}'");
+		}
+	}
+
+	public override Int32 GetHashCode() => layout.GetHashCode();
+
+	public override Boolean Equals(Object? obj) => layout?.Equals(obj) ?? false;
 }

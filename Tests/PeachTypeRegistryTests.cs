@@ -58,7 +58,7 @@ public class PeachTypeRegistryTests
 	}
 
 	[TestMethod]
-	public void Test2()
+	public void TestAddingCanonicalsAfterAlternates()
 	{
 		var initialCount = registry.Count;
 
@@ -74,6 +74,8 @@ public class PeachTypeRegistryTests
 
 		Assert.AreEqual(initialCount + 2, registry.Count);
 
+		Assert.AreEqual(initialCount + 1, foo1Type.CreateInstance<IPeach>()?.ImplementationTypeRef.no);
+
 		registry.EnsureCanonicalImplementation(typeof(IFoo), out var fooRef, out var fooType);
 		registry.EnsureCanonicalImplementation(typeof(IBar), out var barRef, out var barType);
 
@@ -82,11 +84,13 @@ public class PeachTypeRegistryTests
 
 		Assert.AreEqual(initialCount + 1, fooRef.no);
 		Assert.AreEqual(initialCount + 2, barRef.no);
+
+		registry.Validate();
 	}
 
 	Type AddAlternativeLayout<InterfaceT, LayoutT>()
 	{
-		var layoutType = PeachTypeConfiguration.Create(typeof(InterfaceT), typeof(LayoutT));
+		var layoutType = PeachTypeLayout.Create(typeof(InterfaceT), typeof(LayoutT));
 
 		return registry.AddAlternativeType(layoutType, null, allowNewImplementation: true);
 	}

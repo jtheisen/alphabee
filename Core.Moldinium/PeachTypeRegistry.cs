@@ -1,9 +1,10 @@
-﻿using Moldinium.Baking;
+﻿using AlphaBee.Utilities;
+using Moldinium.Baking;
+using Moldinium.Utilities;
 using System.Diagnostics;
 using System.Reflection;
-
-using PeachTypeInfo = (System.Type interfaceType, AlphaBee.IPeachTypeConfiguration typeConfiguration);
 using CanonicalInfo = (AlphaBee.TypeRef typeRef, System.Type implementationType);
+using PeachTypeInfo = (System.Type implementationType, AlphaBee.PeachTypeConfiguration typeConfiguration);
 
 namespace AlphaBee;
 
@@ -15,6 +16,8 @@ public class PeachTypeRegistry
 
 	public record Entry(TypeRef TypeRef, PeachTypeConfiguration Configuration, Type ImplementationType)
 	{
+		public PeachTypeLayout Layout => Configuration.Layout;
+
 		public Type? InterfaceType { get; set; }
 	}
 
@@ -24,13 +27,11 @@ public class PeachTypeRegistry
 
 	private readonly Dictionary<Type, TypeRef> typeRefsByImplementationType = new();
 
-	private readonly Dictionary<IPeachTypeConfiguration, TypeRef> typeRefsByConfiguration = new();
+	private readonly Dictionary<PeachTypeLayout, TypeRef> typeRefsByLayout = new();
 
 	private readonly Dictionary<Type, CanonicalInfo> canonicalInfoByInterfaceType = new();
 
-	//private readonly Dictionary<IPeachTypeConfiguration, Type> canonicalImplementationTypesByConfiguration = new();
-
-	private readonly Dictionary<Type, List<PeachTypeInfo>> infosByImplementationType = new();
+	private readonly Dictionary<Type, List<PeachTypeInfo>> infosByInterfaceType = new();
 
 	public PeachTypeRegistry(IClrTypeResolver? clrTypeResolver = null)
 	{
@@ -56,7 +57,7 @@ public class PeachTypeRegistry
 
 	public void Validate()
 	{
-		for (var i = 0; i < nextTypeNo; ++i)
+		for (var i = 1; i < nextTypeNo; ++i)
 		{
 			var entry = peachTypesByRef[i];
 
@@ -65,25 +66,70 @@ public class PeachTypeRegistry
 
 			Trace.Assert(entry.TypeRef.Equals(typeRefsByImplementationType[entry.ImplementationType]));
 
-			var info = infosByImplementationType[entry.ImplementationType];
+			Trace.Assert(typeRefsByLayout[entry.Layout].Equals(entry.TypeRef));
 
-			
+			if (entry.InterfaceType is Type interfaceType)
+			{
+				var infos = infosByInterfaceType[entry.InterfaceType];
+
+				var singleMatchingInfo = infos.Single(i => i.typeConfiguration.Layout.Equals(entry.Layout));
+
+				Trace.Assert(singleMatchingInfo.implementationType == entry.ImplementationType);
+				Trace.Assert(singleMatchingInfo.typeConfiguration == entry.Configuration);
+			}
+
+			var peach = entry.ImplementationType.CreateInstance<IPeach>();
+
+			Trace.Assert(peach.ImplementationTypeRef.Equals(entry.TypeRef));
+
+			if (entry.InterfaceType is Type canonicalInterfaceType)
+			{
+				var (typeRef2, implementationType2) = canonicalInfoByInterfaceType[canonicalInterfaceType];
+
+				Trace.Assert(typeRef2.Equals(entry.TypeRef));
+				Trace.Assert(implementationType2 == entry.ImplementationType);
+			}
+		}
+
+		foreach (var p in typeRefsByImplementationType)
+		{
+			var entry = GetEntry(p.Value);
+
+			Trace.Assert(entry.TypeRef.Equals(p.Value));
+			Trace.Assert(entry.ImplementationType.Equals(p.Key));
+		}
+
+		foreach (var p in typeRefsByLayout)
+		{
+			var entry = GetEntry(p.Value);
+
+			Trace.Assert(p.Key.Equals(entry.Layout));
+		}
+
+		foreach (var p in canonicalInfoByInterfaceType)
+		{
+			var (interfaceType, (typeRef, implementationType)) = p;
+
+			var entry = GetEntry(typeRef);
+
+			Trace.Assert(interfaceType == entry.InterfaceType);
+			Trace.Assert(implementationType == entry.ImplementationType);
 		}
 	}
 
 	public IEnumerable<PeachTypeInfo> GetTypesForInterfaceType(Type interfaceType)
 	{
-		return infosByImplementationType[interfaceType];
+		return infosByInterfaceType[interfaceType];
 	}
 
 	public Type AddStoredType(ITypeDescription description)
 	{
-		var configuration = PeachTypeConfiguration.Create(clrTypeResolver, description);
+		var configuration = PeachTypeLayout.Create(clrTypeResolver, description);
 
 		return AddAlternativeType(configuration, new TypeRef(description.No));
 	}
 
-	public Type AddAlternativeType(PeachTypeConfiguration configuration, TypeRef? typeRefOrNull, Boolean allowNewImplementation = false)
+	public Type AddAlternativeType(PeachTypeLayout configuration, TypeRef? typeRefOrNull, Boolean allowNewImplementation = false)
 	{
 		if (!EnsureImplementationType(configuration, out var typeRef, out var implementationType, typeRefOrNull))
 		{
@@ -119,9 +165,9 @@ public class PeachTypeRegistry
 
 		var layoutType = GetCanonicalLayoutStructType(interfaceType);
 
-		var configuration = PeachTypeConfiguration.Create(interfaceType, layoutType);
+		var configuration = PeachTypeLayout.Create(interfaceType, layoutType);
 
-		if (typeRefsByConfiguration.TryGetValue(configuration, out typeRef))
+		if (typeRefsByLayout.TryGetValue(configuration, out typeRef))
 		{
 			var entry = GetEntry(typeRef);
 
@@ -137,13 +183,13 @@ public class PeachTypeRegistry
 		}
 	}
 
-	Boolean EnsureImplementationType(PeachTypeConfiguration typeConfiguration, out TypeRef typeRef, out Type implementationType, TypeRef? desiredTypeRef = null)
+	Boolean EnsureImplementationType(PeachTypeLayout typeLayout, out TypeRef typeRef, out Type implementationType, TypeRef? desiredTypeRef = null)
 	{
-		var interfaceType = typeConfiguration.InterfaceType;
+		var interfaceType = typeLayout.InterfaceType;
 
 		Trace.Assert(interfaceType.IsInterface);
 
-		if (typeRefsByConfiguration.TryGetValue(typeConfiguration, out typeRef))
+		if (typeRefsByLayout.TryGetValue(typeLayout, out typeRef))
 		{
 			Trace.Assert(desiredTypeRef?.Equals(typeRef) ?? true, $"Trying to ensure type {desiredTypeRef}, the same layout already exists under {typeRef}");
 
@@ -155,16 +201,20 @@ public class PeachTypeRegistry
 		{
 			typeRef = desiredTypeRef ?? CreateTypeRef();
 
-			implementationType = peachBakery.Resolve(interfaceType, (typeConfiguration, typeRef.no));
+			var configuration = typeLayout.ToConfiguration(typeRef);
 
-			if (!infosByImplementationType.TryGetValue(typeConfiguration.InterfaceType, out var list))
+			implementationType = peachBakery.Resolve(interfaceType, configuration);
+
+			if (!infosByInterfaceType.TryGetValue(interfaceType, out var list))
 			{
-				list = infosByImplementationType[typeConfiguration.InterfaceType] = new List<PeachTypeInfo>();
+				list = infosByInterfaceType[interfaceType] = new List<PeachTypeInfo>();
 			}
 
-			list.Add((implementationType, typeConfiguration));
+			list.Add((implementationType, configuration));
 
-			SetEntry(new Entry(typeRef, typeConfiguration, implementationType));
+			SetEntry(new Entry(typeRef, configuration, implementationType));
+
+			Debug.Assert(implementationType.Name.EndsWith(typeRef.no.ToString()), $"Created type {implementationType}'s name doesn't say it's number for TypeRef {typeRef}");
 
 			return true;
 		}
@@ -196,7 +246,7 @@ public class PeachTypeRegistry
 			Throw(entry);
 		}
 
-		if (!typeRefsByConfiguration.TryAdd(entry.Configuration, entry.TypeRef))
+		if (!typeRefsByLayout.TryAdd(entry.Layout, entry.TypeRef))
 		{
 			Throw(entry);
 		}
@@ -219,6 +269,8 @@ public class PeachTypeRegistry
 	public Entry GetEntry(TypeRef typeRef)
 	{
 		Trace.Assert(!typeRef.IsFundamental);
+
+		Trace.Assert(typeRef.no > 0);
 
 		try
 		{
@@ -297,12 +349,12 @@ public class PeachTypeRegistry
 			{
 				didWrite = true;
 
-				WriteTypeDescription(target, entry.Configuration, i);
+				WriteTypeDescription(target, entry.Layout, i);
 			}
 		}
 	}
 
-	public void WriteTypeDescription(ITypeDescription target, PeachTypeConfiguration configuration, Int32 no)
+	public void WriteTypeDescription(ITypeDescription target, PeachTypeLayout configuration, Int32 no)
 	{
 		target.No = no;
 

@@ -1,5 +1,7 @@
 ﻿namespace AlphaBee;
 
+#pragma warning disable CS0169
+
 [TestClass]
 public class PeachTypeConfigurationTests
 {
@@ -35,8 +37,8 @@ public class PeachTypeConfigurationTests
 	[DataRow(true, typeof(IFoo), typeof(FooLayout1), typeof(IFoo), typeof(FooLayout3))]
 	public void TestEqualitiesAndHashes(Boolean shouldBeEqual, Type description1, Type layout1, Type description2, Type layout2)
 	{
-		Object configuration1 = PeachTypeConfiguration.Create(description1, layout1);
-		Object configuration2 = PeachTypeConfiguration.Create(description2, layout2);
+		Object configuration1 = PeachTypeLayout.Create(description1, layout1);
+		Object configuration2 = PeachTypeLayout.Create(description2, layout2);
 
 		var areEqual = configuration1.Equals(configuration2);
 

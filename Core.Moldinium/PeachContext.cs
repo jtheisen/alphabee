@@ -102,7 +102,7 @@ public class PeachContext : AbstractPeachContext
 	{
 		var entry = typeRegistry.GetEntry(typeRef);
 
-		var header = new ObjectHeader(typeRef, entry.Configuration.Size);
+		var header = new ObjectHeader(typeRef, entry.Layout.Size);
 
 		storage.AllocateObject(header, out var address, out var content);
 

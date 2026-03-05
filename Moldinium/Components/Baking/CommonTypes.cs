@@ -199,7 +199,9 @@ public struct MethodImplementationInfo
 
 public interface ITypeConfiguration
 {
-    IEnumerable<Type> GetExtraInterfaces() => Enumerable.Empty<Type>();
+	String? TypeSuffix { get; }
+
+	IEnumerable<Type> GetExtraInterfaces() => Enumerable.Empty<Type>();
 
 	Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName);
 }

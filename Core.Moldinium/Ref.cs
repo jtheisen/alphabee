@@ -29,6 +29,8 @@ public readonly struct TypeRef : IEquatable<TypeRef>
 		Debug.Assert(typeByte.IsZero);
 	}
 
+	public static implicit operator TypeRef(Int32 no) => new TypeRef(no);
+
 	public override String ToString()
 	{
 		if (typeByte.IsZero)

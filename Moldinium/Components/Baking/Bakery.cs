@@ -6,26 +6,9 @@ namespace Moldinium.Baking;
 
 public abstract class AbstractBakery
 {
-    public struct TypeVariant
-    {
-        public ITypeConfiguration Configuration { get; private set; }
-        public Int32 Id { get; private set; }
+    Dictionary<(Type type, String? suffix), Type> bakedTypes = new();
 
-        public static implicit operator TypeVariant((ITypeConfiguration configuration, Int32 id) pair)
-        {
-            return new TypeVariant(pair.configuration, pair.id);
-        }
-
-		public TypeVariant(ITypeConfiguration configuration, Int32 id)
-		{
-			Configuration = configuration;
-			Id = id;
-		}
-	}
-
-    Dictionary<(Type, Int32?), Type> bakedTypes = new();
-
-    public T Create<T>(TypeVariant? variant = null)
+    public T Create<T>(ITypeConfiguration? variant = null)
     {
         var type = Resolve(typeof(T), variant);
 
@@ -41,19 +24,19 @@ public abstract class AbstractBakery
         }
     }
 
-    public Type Resolve(Type interfaceOrBaseType, TypeVariant? variant = null)
+    public Type Resolve(Type interfaceOrBaseType, ITypeConfiguration? variant = null)
     {
-        var key = (interfaceOrBaseType, variant?.Id);
+        var key = (interfaceOrBaseType, variant?.TypeSuffix);
 
 		if (!bakedTypes.TryGetValue(key, out var bakedType))
         {
-            bakedTypes[key] = bakedType = CreateType(interfaceOrBaseType, variant?.Configuration, variant?.Id);
+            bakedTypes[key] = bakedType = CreateType(interfaceOrBaseType, variant);
         }
 
         return bakedType;
     }
 
-    protected abstract Type CreateType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration = null, Int32? typeId = null);
+    protected abstract Type CreateType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration = null);
 }
 
 public abstract class AbstractlyBakery : AbstractBakery
@@ -77,21 +60,14 @@ public abstract class AbstractlyBakery : AbstractBakery
 	/** FullName is of the form [namespace].[parent-class-name]+[type-name]^[parameters] and that is almost the form
      * the TypeBuilder expects - just the '+' is something it rejects (escapes) which is sensible given the type isn't
      * going to actually be a nested type. The next best thing is to just replace the '+' with a '.'. */
-	protected String GetTypeName(Type interfaceOrBaseType, Int32? typeId)
+	protected String GetTypeName(Type interfaceOrBaseType, String? suffix)
 	{
-		var baseName = interfaceOrBaseType.FullName?.Replace('+', '.') ?? "";
-
-        if (typeId is Int32 id)
-        {
-            baseName = $"#{id}";
-        }
-
-        return baseName;
+		return $"{interfaceOrBaseType.FullName?.Replace('+', '.')}{suffix}";
 	}
 
-	protected override Type CreateType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration, Int32? typeId)
+	protected override Type CreateType(Type interfaceOrBaseType, ITypeConfiguration? typeConfiguration)
     {
-        var name = GetTypeName(interfaceOrBaseType, typeId);
+        var name = GetTypeName(interfaceOrBaseType, typeConfiguration?.TypeSuffix);
 
         return CreateImpl(name, interfaceOrBaseType, typeConfiguration);
     }
