@@ -33,5 +33,14 @@ public class AutoLayoutBakingTests
 
 		Activator.CreateInstance(implementationType);
 	}
-	
+
+	[TestMethod]
+	public void TestBaseProperties()
+	{
+		var typeRegistry = new PeachTypeRegistry();
+
+		typeRegistry.EnsureCanonicalImplementation(typeof(IDerived), out _, out var implementationType);
+
+		Assert.IsTrue(typeRegistry.GetPropNo(typeof(IBase).GetProperty(nameof(IBase.Foo))!).no > 0);
+	}
 }

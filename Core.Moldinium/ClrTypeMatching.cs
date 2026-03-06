@@ -66,6 +66,15 @@ public static class ClrTypeMatching
 		return property;
 	}
 
+	public static PropertyInfo GetNonNullProperty(this Type type, String propertyName)
+	{
+		var property = type.GetProperty(propertyName);
+
+		Trace.Assert(property is not null, $"Property {propertyName} does not exist on type {type.FullName}");
+
+		return property;
+	}
+
 	public static void ParseFqPropertyName(String fqPropertyName, out String fqTypeName, out String propertyName)
 	{
 		var i = fqPropertyName.LastIndexOf('.');

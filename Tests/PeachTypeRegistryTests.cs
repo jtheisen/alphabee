@@ -85,10 +85,10 @@ public class PeachTypeRegistryTests
 
 	Type AddAlternativeLayout<InterfaceT, LayoutT>()
 	{
-		registry.EnsurePropNos(typeof(InterfaceT));
+		registry.EnsureEntry(typeof(InterfaceT));
 
 		var layoutType = PeachTypeLayout.Create(typeof(InterfaceT), typeof(LayoutT), registry);
 
-		return registry.AddAlternativeType(layoutType, null, allowNewImplementation: true);
+		return registry.AddImplementation(layoutType, null, allowNewImplementation: true);
 	}
 }

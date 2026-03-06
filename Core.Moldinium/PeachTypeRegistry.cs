@@ -2,6 +2,7 @@
 using Moldinium.Baking;
 using Moldinium.Utilities;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using CanonicalInfo = (AlphaBee.TypeNo typeNo, System.Type implementationType);
 using PeachTypeInfo = (System.Type implementationType, AlphaBee.PeachTypeConfiguration typeConfiguration);
@@ -14,16 +15,75 @@ public class PeachTypeRegistry : IPropNoResolver
 
 	AbstractBakery peachBakery, layoutBakery;
 
-	public record Entry(TypeNo TypeNo, PeachTypeConfiguration Configuration, Type InterfaceType, Type ImplementationType)
+	public class Entry
 	{
-		public PeachTypeLayout Layout => Configuration.Layout;
+		public Entry(TypeNo TypeNo, Type InterfaceType)
+		{
+			this.TypeNo = TypeNo;
+			this.InterfaceType = InterfaceType;
+		}
+
+		public PeachTypeLayout? Layout => Configuration?.Layout;
+
+		public TypeNo TypeNo { get; }
+		public Type InterfaceType { get; }
+		public Boolean AreBaseInterfacesEnsured { get; private set; }
+		public PeachTypeConfiguration? Configuration { get; private set; }
+		public Type? ImplementationType { get; private set; }
+
+		public Boolean GetImplementation([MaybeNullWhen(false)] out PeachTypeConfiguration configuration, [MaybeNullWhen(false)] out Type implementationType)
+		{
+			configuration = Configuration;
+			implementationType = ImplementationType;
+
+			return configuration is not null && implementationType is not null;
+		}
+
+		void ThrowFailedSetImplementation()
+		{
+			throw new Exception($"Implemenation for {this} was already set");
+		}
+
+		public void EnsureBaseInterfaces(PeachTypeRegistry self)
+		{
+			foreach (var type in InterfaceType.GetInterfaces())
+			{
+				self.EnsureEntry(type);
+			}
+
+			AreBaseInterfacesEnsured = true;
+		}
+
+		public void SetImplementation(PeachTypeRegistry self, PeachTypeConfiguration configuration, Type implementationType)
+		{
+			if (!self.typeNosByImplementationType.TryAdd(ImplementationType = implementationType, TypeNo))
+			{
+				ThrowFailedSetImplementation();
+			}
+
+			if (!self.typeNosByLayout.TryAdd((Configuration = configuration).Layout, TypeNo))
+			{
+				ThrowFailedSetImplementation();
+			}
+
+			var interfaceType = configuration.InterfaceType;
+
+			if (!self.infosByInterfaceType.TryGetValue(interfaceType, out var list))
+			{
+				list = self.infosByInterfaceType[interfaceType] = new List<PeachTypeInfo>();
+			}
+
+			list.Add((implementationType, configuration));
+		}
 	}
 
 	private readonly IClrTypeResolver clrTypeResolver;
 
-	private readonly List<Entry?> peachTypesByNo = new();
+	private readonly List<Entry?> typesTypesByNo = new();
 
 	private readonly Dictionary<PropertyInfo, PropNo> propNosByPropertyInfo = new();
+
+	private readonly Dictionary<Type, TypeNo> typeNosByInterfaceType = new();
 
 	private readonly Dictionary<Type, TypeNo> typeNosByImplementationType = new();
 
@@ -67,19 +127,25 @@ public class PeachTypeRegistry : IPropNoResolver
 	{
 		for (var i = 1; i < nextTypeNo; ++i)
 		{
-			var entry = peachTypesByNo[i];
+			var entry = typesTypesByNo[i];
 
 			Trace.Assert(entry is not null);
 
-			var (typeNo, configuration, interfaceType, implementationType) = entry;
+			var typeNo = entry.TypeNo;
+			var interfaceType = entry.InterfaceType;
 
 			Trace.Assert(typeNo.no == i);
 
-			Trace.Assert(typeNo.Equals(typeNosByImplementationType[entry.ImplementationType]));
+			if (!entry.GetImplementation(out var configuration, out var implementationType))
+			{
+				continue;
+			}
 
-			Trace.Assert(typeNosByLayout[configuration.Layout].Equals(entry.TypeNo));
+			Trace.Assert(typeNo.Equals(typeNosByImplementationType[implementationType]));
 
 			var infos = infosByInterfaceType[interfaceType];
+
+			Trace.Assert(typeNosByLayout[configuration.Layout].Equals(entry.TypeNo));
 
 			var singleMatchingInfo = infos.Single(i => i.typeConfiguration.Layout.Equals(configuration.Layout));
 
@@ -96,7 +162,7 @@ public class PeachTypeRegistry : IPropNoResolver
 			var entry = GetEntry(p.Value);
 
 			Trace.Assert(entry.TypeNo.Equals(p.Value));
-			Trace.Assert(entry.ImplementationType.Equals(p.Key));
+			Trace.Assert(entry.ImplementationType!.Equals(p.Key));
 		}
 
 		foreach (var p in typeNosByLayout)
@@ -122,7 +188,7 @@ public class PeachTypeRegistry : IPropNoResolver
 		return infosByInterfaceType[interfaceType];
 	}
 
-	public Type AddAlternativeType(PeachTypeLayout configuration, TypeNo? typeNoOrNull, Boolean allowNewImplementation = false)
+	internal Type AddImplementation(PeachTypeLayout configuration, TypeNo? typeNoOrNull, Boolean allowNewImplementation = false)
 	{
 		if (!EnsureImplementationType(configuration, out var typeNo, out var implementationType, typeNoOrNull))
 		{
@@ -172,7 +238,7 @@ public class PeachTypeRegistry : IPropNoResolver
 
 		Trace.Assert(!infosByInterfaceType.ContainsKey(interfaceType), $"Type {interfaceType} already has an implementation");
 
-		EnsurePropNos(interfaceType);
+		EnsureEntry(interfaceType);
 
 		var layoutType = GetCanonicalLayoutStructType(interfaceType);
 
@@ -191,41 +257,37 @@ public class PeachTypeRegistry : IPropNoResolver
 
 		Trace.Assert(interfaceType.IsInterface);
 
+		Entry entry;
+
 		if (typeNosByLayout.TryGetValue(typeLayout, out typeNo))
 		{
 			Trace.Assert(desiredTypeNo?.Equals(typeNo) ?? true, $"Trying to ensure type {desiredTypeNo}, the same layout already exists under {typeNo}");
 
-			var entry = GetEntry(typeNo);
+			entry = GetEntry(typeNo);
 
 			Trace.Assert(entry.InterfaceType == interfaceType);
 
-			implementationType = entry.ImplementationType;
+			if (entry.ImplementationType is not null)
+			{
+				implementationType = entry.ImplementationType;
 
-			return false;
+				return false;
+			}
 		}
 		else
 		{
-			EnsurePropNos(typeLayout.InterfaceType, typeLayout);
+			entry = EnsureEntry(interfaceType);
 
-			typeNo = desiredTypeNo ?? CreateTypeNo();
-
-			var configuration = typeLayout.ToConfiguration(typeNo);
-
-			implementationType = peachBakery.Resolve(interfaceType, configuration);
-
-			if (!infosByInterfaceType.TryGetValue(interfaceType, out var list))
-			{
-				list = infosByInterfaceType[interfaceType] = new List<PeachTypeInfo>();
-			}
-
-			list.Add((implementationType, configuration));
-
-			SetEntry(new Entry(typeNo, configuration, interfaceType, implementationType));
-
-			Debug.Assert(implementationType.Name.EndsWith(typeNo.no.ToString()), $"Created type {implementationType}'s name doesn't say it's number for TypeNo {typeNo}");
-
-			return true;
+			typeNo = entry.TypeNo;
 		}
+
+		var configuration = typeLayout.ToConfiguration(typeNo);
+
+		implementationType = peachBakery.Resolve(interfaceType, configuration);
+
+		Debug.Assert(implementationType.Name.EndsWith(typeNo.no.ToString()), $"Created type {implementationType}'s name doesn't say it's number for TypeNo {typeNo}");
+
+		return true;
 	}
 
 	Type GetCanonicalLayoutStructType(Type interfaceType)
@@ -240,40 +302,6 @@ public class PeachTypeRegistry : IPropNoResolver
 		}
 	}
 
-	void Throw(Entry entry)
-	{
-		throw new Exception($"Implemenation type {entry.ImplementationType} was already set");
-	}
-
-	void SetEntry(Entry entry)
-	{
-		Debug.Assert(!entry.TypeNo.IsFundamental);
-
-		if (!typeNosByImplementationType.TryAdd(entry.ImplementationType, entry.TypeNo))
-		{
-			Throw(entry);
-		}
-
-		if (!typeNosByLayout.TryAdd(entry.Layout, entry.TypeNo))
-		{
-			Throw(entry);
-		}
-
-		while (peachTypesByNo.Count <= entry.TypeNo.no)
-		{
-			peachTypesByNo.Add(default);
-		}
-
-		var no = entry.TypeNo.no;
-
-		if (peachTypesByNo[no] is not null)
-		{
-			throw new Exception($"Type no {no} is already registered");
-		}
-
-		peachTypesByNo[no] = entry;
-	}
-
 	public Entry GetEntry(TypeNo typeNo)
 	{
 		Trace.Assert(!typeNo.IsFundamental);
@@ -282,7 +310,7 @@ public class PeachTypeRegistry : IPropNoResolver
 
 		try
 		{
-			return peachTypesByNo[typeNo.no] ?? Throw(typeNo);
+			return typesTypesByNo[typeNo.no] ?? Throw(typeNo);
 		}
 		catch (ArgumentOutOfRangeException)
 		{
@@ -333,61 +361,166 @@ public class PeachTypeRegistry : IPropNoResolver
 		}
 	}
 
-	TypeNo CreateTypeNo() => new TypeNo(nextTypeNo++);
-
-	#region PropNos
-
-	public void EnsurePropNos(Type interfaceType)
+	Entry AssignTypeNo(Type interfaceType, TypeNo? desiredTypeNo = null)
 	{
-		foreach (var property in interfaceType.GetProperties())
+		Debug.Assert(!(desiredTypeNo?.IsFundamental ?? false));
+
+		var typeNo = desiredTypeNo ?? new TypeNo(nextTypeNo++);
+
+		var no = typeNo.no;
+
+		while (typesTypesByNo.Count <= no)
 		{
-			EnsurePropNo(property);
+			typesTypesByNo.Add(default);
+		}
+
+		var exists = typesTypesByNo[no] is not null;
+
+		if (typeNosByInterfaceType.TryAdd(interfaceType, typeNo) || exists)
+		{
+			throw new Exception($"Type no {no} is already registered");
+		}
+
+		return typesTypesByNo[no] = new Entry(typeNo, interfaceType); ;
+	}
+
+	#region Nos
+
+	Entry EnsureEntry(Type interfaceType)
+	{
+		if (typeNosByInterfaceType.TryGetValue(interfaceType, out var typeNo))
+		{
+			return GetEntry(typeNo);
+		}
+		else
+		{
+			return AssignNos(interfaceType);
 		}
 	}
 
-	void EnsurePropNos(Type interfaceType, PeachTypeLayout layout)
+	Entry AssignNos(Type interfaceType)
 	{
+		foreach (var property in interfaceType.GetProperties())
+		{
+			AssignPropNo(property);
+		}
+
+		return AssignTypeNo(interfaceType);
+	}
+
+	void AssignNos(Type interfaceType, TypeNo typeNo, PeachTypeLayout layout)
+	{
+		AssignTypeNo(interfaceType, typeNo);
+
 		foreach (var property in interfaceType.GetProperties())
 		{
 			if (layout.Properties.TryGetValue(property, out var entry))
 			{
-				EnsurePropNo(property, entry.PropNo);
+				AssignPropNo(property, entry.PropNo);
 			}
+			else
+			{
+				throw new Exception($"Missing layout property for {property}");
 
-			EnsurePropNo(property);
+				//AssignPropNo(property);
+			}
 		}
 	}
 
-	PropNo EnsurePropNo(PropertyInfo property, PropNo? desiredPropNo = null)
+	PropNo AssignPropNo(PropertyInfo property, PropNo? desiredPropNo = null)
 	{
-		if (!propNosByPropertyInfo.TryGetValue(property, out var propNo))
+		if (propNosByPropertyInfo.TryGetValue(property, out var propNo))
 		{
-			propNo = propNosByPropertyInfo[property] = desiredPropNo ?? new PropNo(nextPropNo++);
+			throw new Exception($"PropNo for property {property} was already assigned");
 		}
 
-		return propNo;
+		return propNosByPropertyInfo[property] = desiredPropNo ?? new PropNo(nextPropNo++);
 	}
 
 	#endregion
 
 	#region Export / Import
 
-	public Type AddStoredType(ITypeDescription description)
+	Entry AssignNos(ITypeDescription description)
 	{
-		var configuration = PeachTypeLayout.Create(clrTypeResolver, description);
+		var typeNo = new TypeNo(description.No);
 
-		return AddAlternativeType(configuration, new TypeNo(description.No));
+		Trace.Assert(description.ClrName is not null);
+
+		var interfaceType = clrTypeResolver.GetClrType(description.ClrName);
+
+		if (description.Properties is TypeDescriptionEntry[] propertyEntries)
+		{
+			foreach (var propertyEntry in propertyEntries)
+			{
+				Trace.Assert(propertyEntry.ClrName is not null);
+
+				var property = interfaceType.GetNonNullProperty(propertyEntry.ClrName);
+
+				AssignPropNo(property, propertyEntry.PropertyNo);
+			}
+		}
+
+		return AssignTypeNo(interfaceType, typeNo);
+	}
+
+	//void RegisterUnimplementedType(ITypeDescription description)
+	//{
+	//	var typeNo = new TypeNo(description.No);
+
+	//	Trace.Assert(description.ClrName is not null);
+
+	//	var interfaceType = clrTypeResolver.GetClrType(description.ClrName);
+
+
+
+
+
+	//	if (description.Properties is TypeDescriptionEntry[] propertyEntries)
+	//	{
+	//		foreach (var propertyEntry in propertyEntries)
+	//		{
+	//			Trace.Assert(propertyEntry.ClrName is not null);
+
+	//			var property = interfaceType.GetNonNullProperty(propertyEntry.ClrName);
+
+	//			AssignPropNo(property, propertyEntry.PropertyNo);
+	//		}
+	//	}
+	//}
+
+	public void ImportAllTypeDescriptions(Object?[] targets)
+	{
+		Trace.Assert(targets is not null);
+
+		var descriptions = targets.OfType<ITypeDescription>();
+
+		// We need to register all types before we start creating implementations
+		// because of interface inheritance: All types need to be known before
+		// we start implementing.
+
+		foreach (var description in descriptions)
+		{
+			AssignNos(description);
+		}
+
+		foreach (var description in descriptions)
+		{
+			var configuration = PeachTypeLayout.Create(clrTypeResolver, description);
+
+			AddImplementation(configuration, new TypeNo(description.No));
+		}
 	}
 
 	public void WriteAllTypeDescriptions(Object?[] targets, ref Boolean didWrite)
 	{
-		var n = peachTypesByNo.Count;
+		var n = typesTypesByNo.Count;
 
-		Trace.Assert(n == targets.Length);
+		Trace.Assert(n == targets?.Length);
 
 		for (var i = 0; i < n; i++)
 		{
-			var entry = peachTypesByNo[i];
+			var entry = typesTypesByNo[i];
 
 			if (entry is null) continue;
 
