@@ -1,5 +1,4 @@
 ﻿using System.Reflection.Emit;
-using System.Reflection;
 
 namespace Moldinium.Baking;
 
@@ -81,14 +80,13 @@ public class GenericMethodGenerator : AbstractMethodGenerator
 
         var outerMethodImplementation = state.GetOuterImplementationInfo(method);
 
-
         var methodImplementationType = implementation.MakeImplementationType(returnType: method.ReturnType);
 
         var fieldBuilder = typeBuilder.DefineField($"backing_{method.Name}", methodImplementationType, FieldAttributes.Private);
 
         var methodImplementation = GetMethodImplementation(fieldBuilder, "", outerMethodImplementation);
 
-        return (fieldBuilder, methodImplementation);
+		return (fieldBuilder, methodImplementation);
     }
 }
 

@@ -2,19 +2,6 @@
 
 namespace AlphaBee;
 
-[AttributeUsage(AttributeTargets.Interface)]
-public class PeachLayoutAttribute : Attribute
-{
-	public Type LayoutType { get; }
-
-	public PeachLayoutAttribute(Type layoutType) => LayoutType = layoutType;
-}
-
-//public class ForPropertyAttribute : Attribute
-//{
-
-//}
-
 [PeachLayout(typeof(HiveRoot))]
 public interface IHiveRoot
 {

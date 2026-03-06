@@ -120,8 +120,13 @@ public class ComponentGenerators : IBakeryComponentGenerators
 }
 
 public record BakeryConfiguration(
-    IBakeryComponentGenerators Generators, IDefaultProvider DefaultProvider,
-    Boolean MakeAbstract = false, Boolean MakeValue = false, Boolean PrefixBackingFields = true)
+    IBakeryComponentGenerators Generators,
+    IDefaultProvider DefaultProvider,
+    ICustomMemberModifier? CustomMemberModifier = null,
+	Boolean MakeAbstract = false,
+    Boolean MakeValue = false,
+    Boolean PrefixBackingFields = true
+    )
 {
 	public static BakeryConfiguration Create(PropertyImplementationProvider propertyImplementationProvider, params Type[] implementations)
 		=> new BakeryConfiguration(ComponentGenerators.Create(propertyImplementationProvider, implementations), Defaults.GetDefaultDefaultProvider());

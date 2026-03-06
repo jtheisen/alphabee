@@ -141,7 +141,7 @@ public class Bakery : AbstractlyBakery
 
 		var processor = new BuildingBakingProcessor(
 			name, baseType, typeAttributes, interfaceMapping, defaultProvider, generators,
-            EnsureAccessToAssembly, moduleBuilder, configuration.PrefixBackingFields, typeConfiguration);
+            EnsureAccessToAssembly, moduleBuilder, configuration, typeConfiguration);
 
 		return processor.Create(interfaceMapping.Interfaces, publicMixins);
 	}

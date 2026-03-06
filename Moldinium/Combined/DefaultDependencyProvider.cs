@@ -62,7 +62,7 @@ public static class DependencyProvider
 
             var defaultProvider = Defaults.GetDefaultDefaultProvider(genericTypes);
 
-            var bakeryconfiguration = new BakeryConfiguration(componentGenerators, defaultProvider, config.BakeAbstract);
+            var bakeryconfiguration = new BakeryConfiguration(componentGenerators, defaultProvider, MakeAbstract: config.BakeAbstract);
 
             var bakery = new Bakery($"MoldiniumTypes.{mode}{moduleNameSuffix}", bakeryconfiguration);
 

@@ -4,13 +4,22 @@ using Moldinium.Common.Misc;
 
 namespace Moldinium.Baking;
 
+public interface ICustomMemberModifier
+{
+    void Handle(PropertyBuilder builder, PropertyInfo property) { }
+
+	void Handle(FieldBuilder builder, PropertyInfo property) { }
+}
+
 public interface IBuildingContext
 {
     TypeBuilder TypeBuilder { get; }
     ILGenerator ConstructorGenerator { get; }
     IDefaultProvider DefaultProvider { get; }
 
-    Boolean PrefixBackingFields { get; }
+	ICustomMemberModifier? CustomMemberModifier { get; }
+
+	Boolean PrefixBackingFields { get; }
 
     IntegerOrNullRetrieverForArgumentName? GetIntegerOrNullRetrieverForArgumentName(PropertyInfo property);
 
@@ -64,7 +73,7 @@ public class BuildingBakingProcessor : BakingProcessorWithComponentGenerators, I
     private readonly ImplementationMapping implementationMapping;
     private readonly IDefaultProvider defaultProvider;
     private readonly AccessEnsurer ensureAccess;
-	private readonly Boolean prefixBackingFields;
+	private readonly BakeryConfiguration configuration;
 	private readonly ITypeConfiguration? typeConfiguration;
 
 	private readonly TypeBuilder typeBuilder;
@@ -90,14 +99,14 @@ public class BuildingBakingProcessor : BakingProcessorWithComponentGenerators, I
     public BuildingBakingProcessor(
         String name, Type? baseType, TypeAttributes typeAttributes, ImplementationMapping implementationMapping,
         IDefaultProvider defaultProvider, IBakeryComponentGenerators generators, AccessEnsurer ensureAccess,
-        ModuleBuilder moduleBuilder, Boolean prefixBackingFields, ITypeConfiguration? typeConfiguration = null
+        ModuleBuilder moduleBuilder, BakeryConfiguration configuration, ITypeConfiguration? typeConfiguration = null
     )
         : base(generators)
     {
         this.implementationMapping = implementationMapping;
         this.defaultProvider = defaultProvider;
         this.ensureAccess = ensureAccess;
-		this.prefixBackingFields = prefixBackingFields;
+		this.configuration = configuration;
 		this.typeConfiguration = typeConfiguration;
 
 		typeBuilder = moduleBuilder.DefineType(name, typeAttributes, baseType);
@@ -111,7 +120,9 @@ public class BuildingBakingProcessor : BakingProcessorWithComponentGenerators, I
         constructorGenerator = constructorBuilder.GetILGenerator();
     }
 
-    public Boolean PrefixBackingFields => prefixBackingFields;
+    public Boolean PrefixBackingFields => configuration.PrefixBackingFields;
+
+	public ICustomMemberModifier? CustomMemberModifier => configuration.CustomMemberModifier;
 
 	public IntegerOrNullRetrieverForArgumentName? GetIntegerOrNullRetrieverForArgumentName(PropertyInfo property)
     {

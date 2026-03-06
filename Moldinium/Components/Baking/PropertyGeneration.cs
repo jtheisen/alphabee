@@ -64,6 +64,8 @@ public abstract class AbstractPropertyGenerator : AbstractGenerator
 
         var propertyBuilder = typeBuilder.DefineProperty(property.Name, property.Attributes, valueType, null);
 
+        state.CustomMemberModifier?.Handle(propertyBuilder, property);
+
         if (declaringType.IsInterface)
         {
             NullabilityHelper.SetNullableAttributes(
@@ -211,7 +213,9 @@ public class GenericPropertyGenerator : AbstractPropertyGenerator
 
 		var fieldBuilder = typeBuilder.DefineField(fieldName, propertyImplementationType, FieldAttributes.Private);
 
-        var propertyImplementation = new PropertyImplementation(
+        state.CustomMemberModifier?.Handle(fieldBuilder, property);
+
+		var propertyImplementation = new PropertyImplementation(
             GetMethodImplementation(fieldBuilder, "Get", outerGetImplementation),
             GetMethodImplementation(fieldBuilder, "Set", outerSetImplementation)
         );

@@ -36,17 +36,25 @@ public class PeachTypeRegistry : IPropNoResolver
 	public PeachTypeRegistry(IClrTypeResolver? clrTypeResolver = null)
 	{
 		peachBakery = CreateBakery<PeachPropertyImplementationProvider>("peaches");
-		layoutBakery = CreateBakery<LayoutPropertyImplementationProvider>("layouts", prefixBackingFields: false);
+		layoutBakery = CreateBakery<LayoutPropertyImplementationProvider>("layouts", c => c with {
+			PrefixBackingFields = false,
+			CustomMemberModifier = LayoutBakingCustomMemberModifier.Instance
+		});
 
 		this.clrTypeResolver = clrTypeResolver ?? new ClrTypeResolver();
 	}
 
-	static AbstractBakery CreateBakery<ProviderT>(String name, Boolean prefixBackingFields = true)
+	static AbstractBakery CreateBakery<ProviderT>(String name, Func<BakeryConfiguration, BakeryConfiguration>? modify = null)
 		where ProviderT : PropertyImplementationProvider, new()
 	{
 		var provider = new ProviderT();
 
-		var config = BakeryConfiguration.Create(provider) with { MakeValue = true, PrefixBackingFields = prefixBackingFields };
+		var config = BakeryConfiguration.Create(provider) with { MakeValue = true };
+
+		if (modify is not null)
+		{
+			config = modify(config);
+		}
 
 		var bakery = config.CreateBakery(name);
 
@@ -341,7 +349,7 @@ public class PeachTypeRegistry : IPropNoResolver
 	{
 		foreach (var property in interfaceType.GetProperties())
 		{
-			if (layout.Properties.dict.TryGetValue(property, out var entry))
+			if (layout.Properties.TryGetValue(property, out var entry))
 			{
 				EnsurePropNo(property, entry.PropNo);
 			}
@@ -403,7 +411,7 @@ public class PeachTypeRegistry : IPropNoResolver
 		target.ClrName = clrTypeResolver.GetFqTypeName(configuration.InterfaceType);
 		target.Size = configuration.Size;
 
-		var kvps = configuration.Properties.dict.ToArray();
+		var kvps = configuration.Properties.ToArray();
 
 		var n = kvps.Length;
 

@@ -1,27 +1,61 @@
-﻿using System.Diagnostics;
+﻿using System.Collections;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace AlphaBee;
 
-public struct ArrayList<T>
+public struct ArrayList<T> : IReadOnlyList<T>
 {
-	Int32 length;
+	Int32 length = 0;
 	T[] items;
+
+	public static Int32 DefaultCapacity => 64 / Unsafe.SizeOf<T>() + 1;
+
+	public ArrayList()
+		: this(DefaultCapacity)
+	{
+	}
 
 	public ArrayList(Int32 capacity)
 	{
 		items = new T[capacity];
 	}
 
+	public Int32 Capacity => items.Length;
+
+	public Int32 Count => length;
+
+	public void Clear()
+	{
+		length = 0;
+	}
+
 	public void Add(T item)
 	{
-		var i = length + 1;
+		var i = length;
 		EnsureIndex(i);
-		items[length] = item;
+		++length;
+		items[i] = item;
+	}
+
+	void ThrowOutOfRange(Int32 i)
+	{
+		throw new ArgumentOutOfRangeException($"{nameof(ArrayList<T>)} has no element #{i}");
+	}
+
+	void AssertInRange(Int32 i)
+	{
+		if (i < 0 || i >= length)
+		{
+			ThrowOutOfRange(i);
+		}
 	}
 
 	public ref T At(Int32 i)
 	{
-		Debug.Assert(i >= 0 && i < length);
+		AssertInRange(i);
+
+		Debug.Assert(items is not null);
 
 		return ref items[i];
 	}
@@ -30,7 +64,9 @@ public struct ArrayList<T>
 	{
 		get
 		{
-			Debug.Assert(i >= 0 && i < length);
+			AssertInRange(i);
+
+			Debug.Assert(items is not null);
 
 			return items[i];
 		}
@@ -44,11 +80,17 @@ public struct ArrayList<T>
 
 	void EnsureIndex(Int32 i)
 	{
-		while (i >= items.Length)
+		Debug.Assert(items is not null);
+
+		if (i >= items.Length)
 		{
-			var copy = new T[items.Length * 2];
-			items.CopyTo(copy, 0);
+			var copy = new T[(i + 1).CeilToPowerOfTwo()];
+			items.AsSpan()[..length].CopyTo(copy.AsSpan()[..length]);
 			items = copy;
 		}
 	}
+
+	public IEnumerator<T> GetEnumerator() => items.Take(length).GetEnumerator();
+
+	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

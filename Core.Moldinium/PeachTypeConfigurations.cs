@@ -1,11 +1,13 @@
 ﻿using AlphaBee.Layouts;
 using AlphaBee.Layouts.Structs;
 using Moldinium.Baking;
+using Moldinium.Tracking;
+using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
-using PeachTypeLayoutDict = System.Collections.Generic.Dictionary<
+using PeachTypeLayoutDict = System.Collections.Generic.IReadOnlyDictionary<
 	System.Reflection.PropertyInfo,
 	AlphaBee.PropertyEntry
 >;
@@ -30,6 +32,7 @@ public readonly struct PropertyEntry : IEquatable<PropertyEntry>
 	readonly PropNo propNo;
 	readonly LayoutEntry layout;
 
+	public LayoutEntry Layout => layout;
 	public PropNo PropNo => propNo; 
 	public Int32 Offset => layout.offset;
 	public Int32 Size => layout.size;
@@ -69,21 +72,40 @@ public interface IPeachTypeConfiguration : ITypeConfiguration
 }
 
 // Exists only because normal dictionaries can't be compared
-public struct PropertyNumbersDictionary : IEquatable<PropertyNumbersDictionary>
+public struct PropertyBakingInfosDictionary : IEquatable<PropertyBakingInfosDictionary>, PeachTypeLayoutDict
 {
-	public readonly PeachTypeLayoutDict dict;
+	readonly PeachTypeLayoutDict dict;
 
-	public static implicit operator PropertyNumbersDictionary(PeachTypeLayoutDict dict)
+	public static Dictionary<PropertyInfo, PropertyEntry> CreateEmptyArgumentDict() => new();
+
+	public static implicit operator PropertyBakingInfosDictionary(Dictionary<PropertyInfo, PropertyEntry> dict)
 	{
-		return new PropertyNumbersDictionary(dict);
+		return new PropertyBakingInfosDictionary(dict);
 	}
 
-	public PropertyNumbersDictionary(PeachTypeLayoutDict dict)
+	public PropertyBakingInfosDictionary(PeachTypeLayoutDict dict)
 	{
 		this.dict = dict;
 	}
 
-	public Boolean Equals(PropertyNumbersDictionary other)
+	public PropertyEntry this[PropertyInfo property] => dict[property];
+
+	public Boolean TryGetValue(PropertyInfo property, [MaybeNullWhen(false)] out PropertyEntry entry)
+	{
+		return dict.TryGetValue(property, out entry);
+	}
+
+	public PropertyEntry? GetPropertyEntryOrNull(PropertyInfo property)
+	{
+		return TryGetValue(property, out var entry) ? entry : null;
+	}
+
+	public LayoutEntry? GetLayoutEntryOrNull(PropertyInfo property)
+	{
+		return GetPropertyEntryOrNull(property)?.Layout;
+	}
+
+	public Boolean Equals(PropertyBakingInfosDictionary other)
 	{
 		if (dict.Count != other.dict.Count)
 		{
@@ -114,7 +136,7 @@ public struct PropertyNumbersDictionary : IEquatable<PropertyNumbersDictionary>
 
 	public override Boolean Equals([NotNullWhen(true)] Object? obj)
 	{
-		if (obj is PropertyNumbersDictionary other)
+		if (obj is PropertyBakingInfosDictionary other)
 		{
 			return Equals(other);
 		}
@@ -123,10 +145,25 @@ public struct PropertyNumbersDictionary : IEquatable<PropertyNumbersDictionary>
 			return false;
 		}
 	}
+
+	public Int32 Count => dict.Count;
+
+	public Boolean ContainsKey(PropertyInfo key) => dict.ContainsKey(key);
+
+	public IEnumerator<KeyValuePair<PropertyInfo, PropertyEntry>> GetEnumerator()
+	{
+		return dict.GetEnumerator();
+	}
+
+	public IEnumerable<PropertyInfo> Keys => dict.Keys;
+
+	public IEnumerable<PropertyEntry> Values => dict.Values;
+
+	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
 // Can compare, and represents only the configuration part that uniquily identifies the layout
-public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, Type InterfaceType)
+public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Size, Type InterfaceType)
 {
 	public static PeachTypeLayout CreateWithoutPropNos<PeachT, LayoutT>()
 		where PeachT : class
@@ -147,17 +184,24 @@ public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, 
 		return Create(peachType, layoutType, TrivialPropNoResolver.Instance);
 	}
 
+	static PropertyInfo? GetPropertyForField(FieldInfo fieldInfo)
+	{
+		return fieldInfo.GetCustomAttribute<ForPropertyAttribute>()?.Property;
+	}
+
 	public static PeachTypeLayout Create(Type peachType, Type layoutType, IPropNoResolver resolver)
 	{
 		var layoutFields = layoutType.GetLayoutFields();
 
-		var dict = new PeachTypeLayoutDict();
+		var dict = PropertyBakingInfosDictionary.CreateEmptyArgumentDict();
 
 		foreach (var field in layoutFields)
 		{
-			var property = peachType.GetProperty(field.FieldInfo.Name);
+			var fieldInfo = field.FieldInfo;
 
-			Trace.Assert(property is not null);
+			var property = GetPropertyForField(fieldInfo) ?? peachType.GetProperty(fieldInfo.Name);
+
+			Trace.Assert(property is not null, $"Could not get the property for the field {fieldInfo.Name} in layout struct");
 
 			var propNo = resolver.GetPropNo(property);
 
@@ -185,7 +229,7 @@ public record PeachTypeLayout(PropertyNumbersDictionary Properties, Int32 Size, 
 
 		var clrType = typeResolver.GetClrType(clrTypeName);
 
-		var dict = new PeachTypeLayoutDict();
+		var dict = PropertyBakingInfosDictionary.CreateEmptyArgumentDict();
 
 		for (var i = 0; i < n; i++)
 		{
@@ -247,7 +291,7 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 			return typeNo.no;
 		}
 
-		var entry = layout.Properties.dict[property];
+		var entry = layout.Properties[property];
 
 		switch (argumentName)
 		{

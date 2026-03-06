@@ -1,5 +1,6 @@
 ﻿namespace AlphaBee;
 
+
 public static class SpanExtensions
 {
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -265,11 +266,11 @@ public static class SpanExtensions
 		return log2;
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static Int32 Log2(this UInt32 value) => ((UInt64)value).Log2();
+	//[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	//public static Int32 Log2(this UInt32 value) => ((UInt64)value).Log2();
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static Int32 Log2(this Int32 value) => ((UInt64)value).Log2();
+	//[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	//public static Int32 Log2(this Int32 value) => ((UInt64)value).Log2();
 
 	public static Char ToBrailleChar(Byte value)
 	{

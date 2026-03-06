@@ -13,7 +13,7 @@ public class PeachTypeRegistryStorageTests
 		{
 			var hive = new Hive(storage);
 
-			var registry = hive.TypeRegistry;
+			var registry = hive.TypeRegistry; 
 
 			var context = new PeachContext(storage, registry);
 
