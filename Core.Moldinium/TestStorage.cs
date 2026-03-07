@@ -1,4 +1,5 @@
 ﻿using AlphaBee.Utilities;
+using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -8,37 +9,19 @@ public abstract class AbstractTestStorage
 {
 	public abstract Boolean IsEmpty { get; }
 
-	public abstract Span<T> GetSpan<T>(Int64 offset, Int32 length) where T : unmanaged;
+	public abstract T GetValue<T>(Int64 offset) where T : unmanaged;
 
-	public abstract Span<T> AllocateSpan<T>(out Int64 address, Int32 length) where T : unmanaged;
+	public abstract void SetValue<T>(Int64 offset, T value) where T : unmanaged;
 
-	public T GetValue<T>(Int64 offset) where T : unmanaged => GetSpan<T>(offset, 1)[0];
+	public ObjectHeader GetHeader(Int64 address) => GetValue<ObjectHeader>(address);
 
-	public void SetValue<T>(Int64 offset, T value) where T : unmanaged => GetSpan<T>(offset, 1)[0] = value;
+	public abstract ref T GetObject<T>(Int64 address) where T : unmanaged;
 
-	public ref T AllocateValue<T>(out Int64 address) where T : unmanaged => ref AllocateSpan<T>(out address, 1)[0];
+	public abstract Span<T> GetArrayObject<T>(Int64 address) where T : unmanaged;
 
-	public ref ObjectHeader GetObject(Int64 address, out Span<Byte> content)
-	{
-		var headerSize = Unsafe.SizeOf<ObjectHeader>();
+	public abstract ref T AllocateObject<T>(ObjectHeader header, out Int64 address) where T : unmanaged;
 
-		ref var header = ref GetSpan<ObjectHeader>(address, 1)[0];
-
-		content = GetSpan<Byte>(address + headerSize, header.size);
-
-		return ref header;
-	}
-
-	public void AllocateObject(ObjectHeader header, out Int64 address, out Span<Byte> content)
-	{
-		var headerSize = Unsafe.SizeOf<ObjectHeader>();
-
-		var span = AllocateSpan<Byte>(out address, headerSize + header.size);
-
-		span.InterpretAs<ObjectHeader>()[0] = header;
-
-		content = span[headerSize..];
-	}
+	public abstract void AllocateArrayObject<T>(ObjectHeader header, out Int64 address, out Span<T> content) where T : unmanaged;
 }
 
 public class TestStorage : AbstractTestStorage
@@ -60,25 +43,48 @@ public class TestStorage : AbstractTestStorage
 
 	public override Boolean IsEmpty => position == 0;
 
-	Span<T> GetSpanCore<T>(Int64 offset, Int32 length, Boolean extend = false) where T : unmanaged
+	public override T GetValue<T>(Int64 offset) => GetSpanCore<T>(offset, 1)[0];
+
+	public override void SetValue<T>(Int64 offset, T value) => GetSpanCore<T>(offset, 1)[0] = value;
+
+	ref T GetCore<T>(Int64 address) where T : unmanaged
 	{
-		Trace.Assert(offset < Int32.MaxValue);
+		return ref GetSpanCore<T>(address, 1)[0];
+	}
 
-		var offset32 = (Int32)offset;
+	Span<T> GetContentSpan<T>(Int64 address, ObjectHeader header) where T : unmanaged
+	{
+		Trace.Assert(1 << header.unitSizeLog2 == Unsafe.SizeOf<T>());
 
-		var max = offset + Unsafe.SizeOf<T>() * length;
+		return GetSpanCore<T>(address + ObjectHeader.Size, header.length);
+	}
 
-		if (!extend && max > position)
+	Span<T> GetSpanCore<T>(Int64 address, Int32 length) where T : unmanaged
+	{
+		Trace.Assert(address < Int32.MaxValue);
+
+		var offset32 = (Int32)address;
+
+		var max = address + Unsafe.SizeOf<T>() * length;
+
+		if (max > position)
 		{
 			throw new Exception("Accessing invalid address space");
 		}
 
-		while (max > data.Length)
+		return data.AsSpan()[offset32..].InterpretAs<T>()[..length];
+	}
+
+	Int64 EnsureSpace(Int32 size)
+	{
+		var address = position + size;
+
+		while (address > data.Length)
 		{
 			Double();
 		}
 
-		return data.AsSpan()[offset32..].InterpretAs<T>()[..length];
+		return position;
 	}
 
 	void Double()
@@ -88,17 +94,49 @@ public class TestStorage : AbstractTestStorage
 		data = copy;
 	}
 
-	public override Span<T> AllocateSpan<T>(out Int64 referenceAddress, Int32 length)
+	public override ref T GetObject<T>(Int64 address)
 	{
-		referenceAddress = position;
+		ref var header = ref GetCore<ObjectHeader>(address);
 
-		position += Unsafe.SizeOf<T>() * length;
+		Trace.Assert(!header.IsArray);
 
-		return GetSpanCore<T>(referenceAddress, length, extend: true);
+		var content = GetContentSpan<T>(address, header);
+
+		Trace.Assert(content.Length == 1);
+
+		return ref content[0];
 	}
 
-	public override Span<T> GetSpan<T>(Int64 referenceAddress, Int32 length)
+	public override Span<T> GetArrayObject<T>(Int64 address)
 	{
-		return GetSpanCore<T>(referenceAddress, length);
+		ref var header = ref GetCore<ObjectHeader>(address);
+
+		Trace.Assert(header.IsArray);
+
+		var content = GetContentSpan<T>(address, header);
+
+		return content;
+	}
+
+	public override ref T AllocateObject<T>(ObjectHeader header, out Int64 address)
+	{
+		Trace.Assert(!header.IsArray);
+
+		AllocateArrayObject<T>(header, out address, out var span);
+
+		return ref span[0];
+	}
+
+	public override void AllocateArrayObject<T>(ObjectHeader header, out Int64 address, out Span<T> content)
+	{
+		Trace.Assert(header.IsArray);
+
+		var size = header.EntireSize;
+
+		address = EnsureSpace(size);
+
+		SetValue(address, header);
+
+		content = GetContentSpan<T>(address, header);
 	}
 }

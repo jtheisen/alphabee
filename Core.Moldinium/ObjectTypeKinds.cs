@@ -104,7 +104,7 @@ public static class ObjectTypeKinds
 
 	public static IObjectTypeHandler GetHandler(in ObjectHeader header)
 	{
-		var typeByte = header.type.typeByte;
+		var typeByte = header.typeNo.typeByte;
 
 		Trace.Assert(!typeByte.IsZero);
 

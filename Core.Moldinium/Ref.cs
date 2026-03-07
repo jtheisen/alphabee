@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -14,6 +15,8 @@ public readonly struct TypeNo : IEquatable<TypeNo>
 
 	[FieldOffset(3)]
 	public readonly TypeByte typeByte;
+
+	public Boolean IsArray => typeByte.IsSpan;
 
 	public Boolean IsFundamental => !typeByte.IsZero;
 
@@ -142,34 +145,105 @@ public readonly struct TypeByte : IEquatable<TypeByte>
 	public override int GetHashCode() => value.GetHashCode();
 }
 
+public struct ObjectSize
+{
+	readonly UInt32 value;
+
+	public void Get(out Int32 length, out Int32 sizeLog2)
+	{
+		sizeLog2 = BitOperations.LeadingZeroCount(value);
+		length = (Int32)(value & (UInt32.MaxValue << (32 - sizeLog2)));
+	}
+
+	public ObjectSize(UInt32 value) => this.value = value;
+
+	public static ObjectSize Create(Int32 length, Int32 sizeLog2)
+	{
+		Trace.Assert(sizeLog2 >= 0 && sizeLog2 < 32);
+
+		var max = 1u << sizeLog2;
+
+		Trace.Assert(length < max);
+
+		return new ObjectSize(max | (UInt32)length);
+	}
+}
+
+[StructLayout(LayoutKind.Explicit, Size = 4)]
+public readonly struct ObjectExtent
+{
+	[FieldOffset(0)]
+	readonly Int16 unitSize;
+
+	[FieldOffset(2)]
+	readonly Int16 length;
+
+	public Int32 UnitSize => unitSize;
+
+	public Int32 Length => length;
+
+	public Int32 Size => UnitSize * length;
+
+	public ObjectExtent(Int16 length, Int16 unitSize)
+	{
+		this.length = length;
+		this.unitSize = unitSize;
+	}
+	
+	public static ObjectExtent CreateForStruct<T>(Int32 length = 1) where T : unmanaged
+	{
+		Trace.Assert(length < Int16.MaxValue, "Larger arrays are not yet supported");
+
+		var unitSize = Unsafe.SizeOf<T>();
+
+		return checked(new ObjectExtent((Int16)length, (SByte)unitSize));
+	}
+}
+
 [DebuggerDisplay("{ToString()}")]
-[StructLayout(LayoutKind.Explicit, Size = 16)]
+[StructLayout(LayoutKind.Explicit, Size = 8)]
 public readonly struct ObjectHeader
 {
 	public static Int32 Size => Unsafe.SizeOf<ObjectHeader>();
 
 	[FieldOffset(0)]
-	public readonly TypeNo type;
+	public readonly TypeNo typeNo;
 
 	[FieldOffset(4)]
-	public readonly Int32 unused;
+	public readonly ObjectExtent extent;
 
-	[FieldOffset(8)]
-	public readonly Int32 id;
+	// 3 unused bytes
 
-	[FieldOffset(12)]
-	public readonly Int32 size;
+	//[FieldOffset(8)]
+	//public readonly Int32 id;
 
-	public ObjectHeader(TypeNo type, Int32 size)
+	//[FieldOffset(12)]
+	//public readonly Int32 length;
+
+	public Boolean IsArray => typeNo.IsArray;
+
+	public Int32 EntireSize => Size + extent.Size;
+
+	public Int32 ContentLength => extent.Length;
+
+	public Int32 ContentSize => extent.Size;
+
+	public ObjectHeader(TypeNo typeNo, ObjectExtent extent)
 	{
-		this.type = type;
-		this.id = 0;
-		this.size = size;
+		this.typeNo = typeNo;
+		this.extent = extent;
+	}
+
+	public static ObjectHeader CreateForStruct<T>(TypeNo typeNo, Int32 length) where T : unmanaged
+	{
+		return new ObjectHeader(typeNo, ObjectExtent.CreateForStruct<T>(length));
 	}
 
 	public override String ToString()
 	{
-		return $"#{id}:{type}({size} bytes)";
+		var arrayTag = IsArray ? $"[{ContentLength}]" : null;
+
+		return $"obj:#{typeNo}{arrayTag}({Size} bytes)";
 	}
 }
 

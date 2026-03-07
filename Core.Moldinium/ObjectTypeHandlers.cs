@@ -41,9 +41,7 @@ public struct Ucs2StringTypeHandler : IObjectTypeHandler
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{
-		ref var header = ref storage.GetObject(address, out var content);
-
-		var chars = storage.GetSpan<Char>(address + ObjectHeader.Size, header.size / 2);
+		var chars = storage.GetArrayObject<Char>(address);
 
 		return new String(chars);
 	}
@@ -52,11 +50,9 @@ public struct Ucs2StringTypeHandler : IObjectTypeHandler
 	{
 		var value = (String)untyped;
 
-		var header = new ObjectHeader(TypeNo, value.Length * 2);
+		var header = ObjectHeader.CreateForStruct<Char>(TypeNo, value.Length);
 
-		storage.AllocateObject(header, out address, out var target);
-
-		var chars = target.InterpretAs<Char>();
+		storage.AllocateArrayObject<Char>(header, out address, out var chars);
 
 		value.CopyTo(chars);
 	}
@@ -71,59 +67,22 @@ public struct StructArrayTypeHandler<T> : IObjectTypeHandler
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{
-		ref var header = ref storage.GetObject(address, out var content);
+		var items = storage.GetArrayObject<T>(address);
 
-		var bytes = storage.GetSpan<Byte>(address + ObjectHeader.Size, header.size);
-
-		return bytes.ToArray();
+		return items.ToArray();
 	}
 
 	public void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address)
 	{
-		var value = (Byte[])untyped;
+		var value = (T[])untyped;
 
-		var header = new ObjectHeader(TypeNo, value.Length);
+		var header = ObjectHeader.CreateForStruct<T>(TypeNo, value.Length);
 
-		storage.AllocateObject(header, out address, out var target);
+		storage.AllocateArrayObject<T>(header, out address, out var items);
 
-		value.CopyTo(target);
+		value.CopyTo(items);
 	}
 }
-
-//public static class LazyObjectList
-//{
-//	public static Object Create(Type type, Int64[] addresses, AbstractPeachContext context)
-//	{
-//		return typeof(LazyObjectList<>).MakeGenericType(type).CreateInstance<Object>(addresses, context);
-//	}
-//}
-
-//public class LazyObjectList<T> : IReadOnlyList<T?>
-//	where T : class
-//{
-//	private readonly Int64[] addresses;
-//	private readonly AbstractPeachContext context;
-
-//	public LazyObjectList(Int64[] addresses, AbstractPeachContext context)
-//	{
-//		this.addresses = addresses;
-//		this.context = context;
-//	}
-
-//	public T? this[Int32 index] => context.GetObject(addresses[index]) as T;
-
-//	public Int32 Count => addresses.Length;
-
-//	public IEnumerator<T?> GetEnumerator()
-//	{
-//		for (var i = 0; i < Count; ++i)
-//		{
-//			yield return this[i];
-//		}
-//	}
-
-//	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-//}
 
 public struct ObjectArrayTypeHandler : IObjectTypeHandler
 {
@@ -133,17 +92,17 @@ public struct ObjectArrayTypeHandler : IObjectTypeHandler
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{
-		ref var header = ref storage.GetObject(address, out var content);
+		var addresses = storage.GetArrayObject<Int64>(address);
 
-		var n = header.size / 8;
-
-		var addresses = storage.GetSpan<Int64>(address + ObjectHeader.Size, n);
+		var n = addresses.Length;
 
 		var array = new Object?[n];
 
 		for (var i = 0; i < n; ++i)
 		{
-			array[i] = context.GetObject(address + ObjectHeader.Size + i * 8);
+			var itemAddress = addresses[i];
+
+			array[i] = context.GetObject(itemAddress);
 		}
 
 		return array;
@@ -151,9 +110,9 @@ public struct ObjectArrayTypeHandler : IObjectTypeHandler
 
 	public void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address)
 	{
-		var array = (Object[])untyped;
+		var items = (Object[])untyped;
 
-		var n = array.Length;
+		var n = items.Length;
 
 		var header = new ObjectHeader(TypeNo, n * 8);
 
@@ -161,7 +120,7 @@ public struct ObjectArrayTypeHandler : IObjectTypeHandler
 
 		for (var i = 0; i < n; ++i)
 		{
-			var item = array[i];
+			var item = items[i];
 
 			context.SetObject(address + ObjectHeader.Size + i * 8, item);
 		}

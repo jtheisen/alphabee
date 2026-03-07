@@ -10,9 +10,11 @@ public abstract class AbstractPeachContext
 
 	public abstract void SetValue<T>(Int64 offset, T value) where T : unmanaged;
 
-	public abstract Object? GetObject(Int64 offset);
+	public abstract Object? GetObjectFromAddress(Int64 address);
 
-	public abstract void SetObject(Int64 offset, Object? value);
+	public abstract Object? GetObject(Int64 referenceAddress);
+
+	public abstract void SetObject(Int64 referenceAddress, Object? value);
 
 	public T CreateObject<T>(Action<T>? init = null)
 		where T : class
@@ -45,30 +47,35 @@ public class PeachContext : AbstractPeachContext
 
 	public override void SetValue<T>(Int64 address, T value) => storage.SetValue(address, value);
 
-	public override Object? GetObject(Int64 referenceAddress)
+	public override Object? GetObjectFromAddress(Int64 address)
 	{
-		var address = storage.GetValue<Int64>(referenceAddress);
-
 		if (address == 0) return null;
 
 		Debug.Assert(address % ObjectHeader.Size == 0);
 
-		ref var header = ref storage.GetObject(address, out var content);
+		var header = storage.GetHeader(address);
 
-		if (header.type.IsFundamental)
+		if (header.typeNo.IsFundamental)
 		{
-			var handler = ObjectTypeKinds.GetHandler(in header);
+			var handler = ObjectTypeKinds.GetHandler(header);
 
 			return handler.Get(storage, this, address);
 		}
 		else
 		{
-			var peach = CreatePeach(header.type);
+			var peach = CreatePeach(header.typeNo);
 
 			peach.Init(this, address);
 
 			return peach;
 		}
+	}
+
+	public override Object? GetObject(Int64 referenceAddress)
+	{
+		var address = storage.GetValue<Int64>(referenceAddress);
+
+		return GetObjectFromAddress(address);
 	}
 
 	public override void SetObject(Int64 referenceAddress, Object? value)
