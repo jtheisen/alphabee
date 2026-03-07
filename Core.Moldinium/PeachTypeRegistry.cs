@@ -11,10 +11,26 @@ namespace AlphaBee;
 
 public class PeachTypeRegistry : IPropNoResolver
 {
-	Int32 nextTypeNo = 1, nextPropNo = 1;
+	Int32 nextTypeNo = 1, nextPropNo = 1, firstNewTypeNo = 0;
+
+	Stage stage = Stage.Initial;
 
 	AbstractBakery peachBakery, layoutBakery;
 
+	public enum Stage
+	{
+		Bootstrapping,
+		Declaring,
+		Importing,
+		Ready,
+
+		Initial = Bootstrapping
+	}
+
+	public class DuplicateImplementationException(String message) : Exception(message) { }
+	public class MultipleImplementationsException(String message) : Exception(message) { }
+
+	[DebuggerDisplay("{ToString()}")]
 	public class Entry
 	{
 		public Entry(TypeNo TypeNo, Type InterfaceType)
@@ -30,6 +46,7 @@ public class PeachTypeRegistry : IPropNoResolver
 		public Boolean AreBaseInterfacesEnsured { get; private set; }
 		public PeachTypeConfiguration? Configuration { get; private set; }
 		public Type? ImplementationType { get; private set; }
+		public Boolean IsCanonical { get; private set; }
 
 		public Boolean GetImplementation([MaybeNullWhen(false)] out PeachTypeConfiguration configuration, [MaybeNullWhen(false)] out Type implementationType)
 		{
@@ -75,6 +92,30 @@ public class PeachTypeRegistry : IPropNoResolver
 
 			list.Add((implementationType, configuration));
 		}
+
+		public void SetAsCanonical(PeachTypeRegistry self)
+		{
+			if (self.firstNewTypeNo == 0)
+			{
+				self.firstNewTypeNo = TypeNo.no;
+			}
+
+			if (!GetImplementation(out var configuration, out var implementationType))
+			{
+				throw new Exception($"Type {this} isn't implemented and can't be set as canonical");
+			}
+
+			self.canonicalInfoByInterfaceType.TryAdd(InterfaceType, (TypeNo, implementationType));
+
+			IsCanonical = true;
+		}
+
+		public override String ToString()
+		{
+			var implementationSuffix = GetImplementation(out _, out var implementationType) ? $" {implementationType}" : null;
+
+			return $"[{TypeNo} {InterfaceType}{implementationSuffix}]";
+		}
 	}
 
 	private readonly IClrTypeResolver clrTypeResolver;
@@ -93,7 +134,12 @@ public class PeachTypeRegistry : IPropNoResolver
 
 	private readonly Dictionary<Type, List<PeachTypeInfo>> infosByInterfaceType = new();
 
-	public PeachTypeRegistry(IClrTypeResolver? clrTypeResolver = null)
+	public PeachTypeRegistry(Stage initialStage)
+		: this(null, initialStage)
+	{
+	}
+
+	public PeachTypeRegistry(IClrTypeResolver? clrTypeResolver = null, Stage initialStage = Stage.Initial)
 	{
 		peachBakery = CreateBakery<PeachPropertyImplementationProvider>("peaches");
 		layoutBakery = CreateBakery<LayoutPropertyImplementationProvider>("layouts", c => c with {
@@ -102,6 +148,11 @@ public class PeachTypeRegistry : IPropNoResolver
 		});
 
 		this.clrTypeResolver = clrTypeResolver ?? new ClrTypeResolver();
+
+		while (stage < initialStage)
+		{
+			SetStage(stage + 1);
+		}
 	}
 
 	static AbstractBakery CreateBakery<ProviderT>(String name, Func<BakeryConfiguration, BakeryConfiguration>? modify = null)
@@ -188,38 +239,110 @@ public class PeachTypeRegistry : IPropNoResolver
 		return infosByInterfaceType[interfaceType];
 	}
 
-	internal Type AddImplementation(PeachTypeLayout configuration, TypeNo? typeNoOrNull, Boolean allowNewImplementation = false)
+	void AssertStage(Stage expectedStage)
 	{
-		if (!EnsureImplementationType(configuration, out var typeNo, out var implementationType, typeNoOrNull))
+		Debug.Assert(stage == expectedStage, $"The stage is required to be {expectedStage} but was {stage}");
+
+		switch (stage)
 		{
-			Trace.Assert(allowNewImplementation, "Duplicate type registration");
+			case Stage.Declaring:
+				Trace.Assert(firstNewTypeNo == 0);
+				break;
+			case Stage.Importing:
+				Trace.Assert(firstNewTypeNo == 0);
+				break;
+			case Stage.Ready:
+				break;
+			default:
+				break;
 		}
+	}
+
+	public void SetStage(Stage newStage)
+	{
+		Trace.Assert(stage + 1 == newStage);
+
+		stage = newStage;
+	}
+
+	public Type AssignImplementationForTesting(PeachTypeLayout layout)
+	{
+		AssertStage(Stage.Importing);
+
+		if (!typeNosByInterfaceType.TryGetValue(layout.InterfaceType, out var typeNo))
+		{
+			throw new Exception($"Can't make implementation for unknown type {layout.InterfaceType}");
+		}
+
+		var entry = GetEntry(typeNo);
+
+		if (entry.GetImplementation(out var configuration, out _) && configuration.Layout != layout)
+		{
+			throw new MultipleImplementationsException($"Multiple implementations for the same interface type are currently not supported");
+		}
+
+		MakeImplementation(entry, layout, out _, out var implementationType);
 
 		return implementationType;
 	}
 
+	public void BootstrapImplementation<InterfaceT>()
+	{
+		CreateCanonicalType(typeof(InterfaceT), out _, out _);
+	}
+
 	public Type EnsureCanonicalImplementation(Type interfaceType)
 	{
+		AssertStage(Stage.Ready);
+
 		EnsureCanonicalImplementation(interfaceType, out _, out var implementationType);
 
 		return implementationType;
 	}
 
-	public void EnsureCanonicalImplementation(Type interfaceType, out TypeNo typeNo, out Type implementationType)
+	Boolean GetCanonicalImplementationOrAssertStateReady(Type interfaceType, [MaybeNullWhen(false)] out TypeNo typeNo, [MaybeNullWhen(false)] out Type implementationType)
 	{
 		if (canonicalInfoByInterfaceType.TryGetValue(interfaceType, out var info))
 		{
+			// This path is also used during bootstrapping when the registry isn't creating new types yet
+
 			typeNo = info.typeNo;
 			implementationType = info.implementationType;
+
+			return true;
+		}
+		else
+		{
+			typeNo = default;
+			implementationType = default;
+
+			if (stage == Stage.Bootstrapping)
+			{
+				throw new Exception($"The type {interfaceType} was not registered for bootstrapping");
+			}
+
+			AssertStage(Stage.Ready);
+
+			return false;
+		}
+	}
+
+	public void EnsureCanonicalImplementation(Type interfaceType, out TypeNo typeNo, out Type implementationType)
+	{
+		if (GetCanonicalImplementationOrAssertStateReady(interfaceType, out typeNo, out implementationType!))
+		{
+			return;
 		}
 		else if (infosByInterfaceType.TryGetValue(interfaceType, out var list) && list.Count > 0)
 		{
 			var first = list[0];
 
-			typeNo = typeNosByImplementationType[first.implementationType];
 			implementationType = first.implementationType;
+			typeNo = typeNosByImplementationType[implementationType];
 
-			SetAsCanonical(interfaceType, typeNo);
+			var entry = GetEntry(typeNo);
+
+			entry.SetAsCanonical(this);
 		}
 		else
 		{
@@ -238,7 +361,11 @@ public class PeachTypeRegistry : IPropNoResolver
 
 		Trace.Assert(!infosByInterfaceType.ContainsKey(interfaceType), $"Type {interfaceType} already has an implementation");
 
-		EnsureEntry(interfaceType);
+		var entry = EnsureEntry(interfaceType);
+
+		typeNo = entry.TypeNo;
+
+		entry.EnsureBaseInterfaces(this);
 
 		var layoutType = GetCanonicalLayoutStructType(interfaceType);
 
@@ -246,48 +373,31 @@ public class PeachTypeRegistry : IPropNoResolver
 
 		Trace.Assert(!typeNosByLayout.ContainsKey(layout), $"Type {interfaceType} gets a layout that is already known, even though the respective implementation is not");
 
-		EnsureImplementationType(layout, out typeNo, out implementationType);
+		MakeImplementation(entry, layout, out _, out implementationType);
 
-		SetAsCanonical(interfaceType, typeNo);
+		entry.SetAsCanonical(this);
 	}
 
-	Boolean EnsureImplementationType(PeachTypeLayout typeLayout, out TypeNo typeNo, out Type implementationType, TypeNo? desiredTypeNo = null)
+	void MakeImplementation(Entry entry, PeachTypeLayout typeLayout, out PeachTypeConfiguration configuration, out Type implementationType)
 	{
 		var interfaceType = typeLayout.InterfaceType;
 
 		Trace.Assert(interfaceType.IsInterface);
 
-		Entry entry;
+		var typeNo = entry.TypeNo;
 
-		if (typeNosByLayout.TryGetValue(typeLayout, out typeNo))
+		if (typeNosByLayout.ContainsKey(typeLayout))
 		{
-			Trace.Assert(desiredTypeNo?.Equals(typeNo) ?? true, $"Trying to ensure type {desiredTypeNo}, the same layout already exists under {typeNo}");
-
-			entry = GetEntry(typeNo);
-
-			Trace.Assert(entry.InterfaceType == interfaceType);
-
-			if (entry.ImplementationType is not null)
-			{
-				implementationType = entry.ImplementationType;
-
-				return false;
-			}
-		}
-		else
-		{
-			entry = EnsureEntry(interfaceType);
-
-			typeNo = entry.TypeNo;
+			throw new DuplicateImplementationException($"An implementation with the same layout already exists");
 		}
 
-		var configuration = typeLayout.ToConfiguration(typeNo);
+		configuration = typeLayout.ToConfiguration(typeNo);
 
 		implementationType = peachBakery.Resolve(interfaceType, configuration);
 
 		Debug.Assert(implementationType.Name.EndsWith(typeNo.no.ToString()), $"Created type {implementationType}'s name doesn't say it's number for TypeNo {typeNo}");
 
-		return true;
+		entry.SetImplementation(this, configuration, implementationType);
 	}
 
 	Type GetCanonicalLayoutStructType(Type interfaceType)
@@ -302,8 +412,25 @@ public class PeachTypeRegistry : IPropNoResolver
 		}
 	}
 
-	public Entry GetEntry(TypeNo typeNo)
+	public void GetImplementation(TypeNo typeNo, out Type implementationType, out Int32 size)
 	{
+		var entry = GetEntry(typeNo);
+
+		if (!entry.GetImplementation(out var configuration, out implementationType!))
+		{
+			throw new Exception($"No implementation found for {typeNo}");
+		}
+
+		size = configuration.Size;
+	}
+
+	Entry GetEntry(TypeNo typeNo)
+	{
+		static Entry Throw(TypeNo type)
+		{
+			throw new ArgumentException($"Type {type} is unknown");
+		}
+
 		Trace.Assert(!typeNo.IsFundamental);
 
 		Trace.Assert(typeNo.no > 0);
@@ -318,18 +445,10 @@ public class PeachTypeRegistry : IPropNoResolver
 		}
 	}
 
-	void SetAsCanonical(Type interfaceType, TypeNo typeNo)
-	{
-		var entry = GetEntry(typeNo);
-
-		if (!canonicalInfoByInterfaceType.TryAdd(interfaceType, (typeNo, entry.ImplementationType)))
-		{
-			throw new InvalidOperationException($"Interface ${interfaceType} already has a canonical TypeNo");
-		}
-	}
-
 	public CanonicalInfo LookupCanonical(Type type)
 	{
+		AssertStage(Stage.Ready);
+
 		try
 		{
 			return canonicalInfoByInterfaceType[type];
@@ -340,13 +459,10 @@ public class PeachTypeRegistry : IPropNoResolver
 		}
 	}
 
-	static Entry Throw(TypeNo type)
-	{
-		throw new ArgumentException($"Type {type} is unknown");
-	}
-
 	public void LookupClrType(Type type, out TypeNo typeNo, out Type clrType)
 	{
+		AssertStage(Stage.Ready);
+
 		if (ObjectTypeKinds.GetHandlerOrNull(type) is IObjectTypeHandler handler)
 		{
 			typeNo = handler.TypeNo;
@@ -376,7 +492,7 @@ public class PeachTypeRegistry : IPropNoResolver
 
 		var exists = typesTypesByNo[no] is not null;
 
-		if (typeNosByInterfaceType.TryAdd(interfaceType, typeNo) || exists)
+		if (!typeNosByInterfaceType.TryAdd(interfaceType, typeNo) || exists)
 		{
 			throw new Exception($"Type no {no} is already registered");
 		}
@@ -385,6 +501,11 @@ public class PeachTypeRegistry : IPropNoResolver
 	}
 
 	#region Nos
+
+	public void EnsureTypeNosForTesting(Type interfaceType)
+	{
+		EnsureEntry(interfaceType).EnsureBaseInterfaces(this);
+	}
 
 	Entry EnsureEntry(Type interfaceType)
 	{
@@ -408,25 +529,6 @@ public class PeachTypeRegistry : IPropNoResolver
 		return AssignTypeNo(interfaceType);
 	}
 
-	void AssignNos(Type interfaceType, TypeNo typeNo, PeachTypeLayout layout)
-	{
-		AssignTypeNo(interfaceType, typeNo);
-
-		foreach (var property in interfaceType.GetProperties())
-		{
-			if (layout.Properties.TryGetValue(property, out var entry))
-			{
-				AssignPropNo(property, entry.PropNo);
-			}
-			else
-			{
-				throw new Exception($"Missing layout property for {property}");
-
-				//AssignPropNo(property);
-			}
-		}
-	}
-
 	PropNo AssignPropNo(PropertyInfo property, PropNo? desiredPropNo = null)
 	{
 		if (propNosByPropertyInfo.TryGetValue(property, out var propNo))
@@ -443,6 +545,8 @@ public class PeachTypeRegistry : IPropNoResolver
 
 	Entry AssignNos(ITypeDescription description)
 	{
+		AssertStage(Stage.Declaring);
+
 		var typeNo = new TypeNo(description.No);
 
 		Trace.Assert(description.ClrName is not null);
@@ -464,33 +568,21 @@ public class PeachTypeRegistry : IPropNoResolver
 		return AssignTypeNo(interfaceType, typeNo);
 	}
 
-	//void RegisterUnimplementedType(ITypeDescription description)
-	//{
-	//	var typeNo = new TypeNo(description.No);
+	public void ReadyEmpty()
+	{
+		AssertStage(Stage.Bootstrapping);
 
-	//	Trace.Assert(description.ClrName is not null);
-
-	//	var interfaceType = clrTypeResolver.GetClrType(description.ClrName);
-
-
-
-
-
-	//	if (description.Properties is TypeDescriptionEntry[] propertyEntries)
-	//	{
-	//		foreach (var propertyEntry in propertyEntries)
-	//		{
-	//			Trace.Assert(propertyEntry.ClrName is not null);
-
-	//			var property = interfaceType.GetNonNullProperty(propertyEntry.ClrName);
-
-	//			AssignPropNo(property, propertyEntry.PropertyNo);
-	//		}
-	//	}
-	//}
+		SetStage(Stage.Declaring);
+		SetStage(Stage.Importing);
+		SetStage(Stage.Ready);
+	}
 
 	public void ImportAllTypeDescriptions(Object?[] targets)
 	{
+		AssertStage(Stage.Bootstrapping);
+
+		SetStage(Stage.Declaring);
+
 		Trace.Assert(targets is not null);
 
 		var descriptions = targets.OfType<ITypeDescription>();
@@ -504,16 +596,22 @@ public class PeachTypeRegistry : IPropNoResolver
 			AssignNos(description);
 		}
 
+		SetStage(Stage.Importing);
+
 		foreach (var description in descriptions)
 		{
 			var configuration = PeachTypeLayout.Create(clrTypeResolver, description);
 
-			AddImplementation(configuration, new TypeNo(description.No));
+			AssignImplementationForTesting(configuration);
 		}
+
+		SetStage(Stage.Ready);
 	}
 
-	public void WriteAllTypeDescriptions(Object?[] targets, ref Boolean didWrite)
+	public void ExportAllTypeDescriptions(Object?[] targets, ref Boolean didWrite)
 	{
+		AssertStage(Stage.Ready);
+
 		var n = typesTypesByNo.Count;
 
 		Trace.Assert(n == targets?.Length);
@@ -532,13 +630,19 @@ public class PeachTypeRegistry : IPropNoResolver
 			{
 				didWrite = true;
 
-				WriteTypeDescription(target, entry.Layout, i);
+				var layout = entry.Layout;
+
+				Trace.Assert(layout is not null);
+
+				WriteTypeDescription(target, layout, i);
 			}
 		}
 	}
 
 	public void WriteTypeDescription(ITypeDescription target, PeachTypeLayout configuration, Int32 no)
 	{
+		AssertStage(Stage.Ready);
+
 		target.No = no;
 
 		target.ClrName = clrTypeResolver.GetFqTypeName(configuration.InterfaceType);

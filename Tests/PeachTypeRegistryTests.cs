@@ -46,11 +46,18 @@ public class PeachTypeRegistryTests
 	public void Setup()
 	{
 		registry = new PeachTypeRegistry();
+
+		registry.EnsureTypeNosForTesting(typeof(IFoo));
+		registry.EnsureTypeNosForTesting(typeof(IBar));
+
+		registry.SetStage(PeachTypeRegistry.Stage.Importing);
 	}
 
 	[TestMethod]
 	public void TestFundamentals()
 	{
+		registry.SetStage(PeachTypeRegistry.Stage.Ready);
+
 		registry.LookupClrType(typeof(Byte[]), out var byteArrayRef, out var byteArrayType);
 
 		Assert.AreEqual(TypeCode.Byte, byteArrayRef.typeByte.Code);
@@ -58,37 +65,43 @@ public class PeachTypeRegistryTests
 	}
 
 	[TestMethod]
+	public void TestLayoutEqualities()
+	{
+		Assert.AreEqual(MakeLayout<IFoo, SFoo1>(), MakeLayout<IFoo, SFoo1b>());
+		Assert.AreNotEqual(MakeLayout<IFoo, SFoo1>(), MakeLayout<IFoo, SFoo2>());
+	}
+
+	[TestMethod]
 	public void TestAddingCanonicalsAfterAlternates()
 	{
 		var foo1Type = AddAlternativeLayout<IFoo, SFoo1>();
-		var foo2Type = AddAlternativeLayout<IFoo, SFoo2>();
-		var foo1bType = AddAlternativeLayout<IFoo, SFoo1b>();
+		Assert.ThrowsException<PeachTypeRegistry.MultipleImplementationsException>(AddAlternativeLayout<IFoo, SFoo2>);
+		Assert.ThrowsException<PeachTypeRegistry.DuplicateImplementationException>(AddAlternativeLayout<IFoo, SFoo1b>);
 
-		Assert.AreEqual(foo1Type, foo1bType);
-		Assert.AreNotEqual(foo1Type, foo2Type);
+		registry.SetStage(PeachTypeRegistry.Stage.Ready);
 
 		registry.EnsureCanonicalImplementation(typeof(IFoo), out var fooRef, out var fooType);
 		registry.EnsureCanonicalImplementation(typeof(IBar), out var barRef, out var barType);
 
 		Assert.AreEqual(foo1Type, fooType);
-		Assert.AreNotEqual(foo2Type, fooType);
 
 		Assert.AreEqual(1, foo1Type.CreateInstance<IPeach>()?.ImplementationTypeNo.no);
-		Assert.AreEqual(2, foo2Type.CreateInstance<IPeach>()?.ImplementationTypeNo.no);
-		Assert.AreEqual(1, foo1bType.CreateInstance<IPeach>()?.ImplementationTypeNo.no);
 
 		Assert.AreEqual(1, fooRef.no);
-		Assert.AreEqual(3, barRef.no);
+		Assert.AreEqual(2, barRef.no);
 
 		registry.Validate();
 	}
 
+	PeachTypeLayout MakeLayout<InterfaceT, LayoutT>()
+	{
+		return PeachTypeLayout.Create(typeof(InterfaceT), typeof(LayoutT), registry);
+	}
+
 	Type AddAlternativeLayout<InterfaceT, LayoutT>()
 	{
-		registry.EnsureEntry(typeof(InterfaceT));
+		var layoutType = MakeLayout<InterfaceT, LayoutT>();
 
-		var layoutType = PeachTypeLayout.Create(typeof(InterfaceT), typeof(LayoutT), registry);
-
-		return registry.AddImplementation(layoutType, null, allowNewImplementation: true);
+		return registry.AssignImplementationForTesting(layoutType);
 	}
 }

@@ -15,7 +15,7 @@ public class AutoLayoutBakingTests
 		public Int32 Foo { get; }
 	}
 
-	public interface IDerived
+	public interface IDerived : IBase
 	{
 		public Int32 Bar { get; }
 	}
@@ -25,7 +25,7 @@ public class AutoLayoutBakingTests
 	[DataRow(typeof(IDerived))]
 	public void TestBaking(Type type)
 	{
-		var typeRegistry = new PeachTypeRegistry();
+		var typeRegistry = new PeachTypeRegistry(PeachTypeRegistry.Stage.Ready);
 
 		typeRegistry.EnsureCanonicalImplementation(type, out _, out var implementationType);
 
@@ -37,7 +37,7 @@ public class AutoLayoutBakingTests
 	[TestMethod]
 	public void TestBaseProperties()
 	{
-		var typeRegistry = new PeachTypeRegistry();
+		var typeRegistry = new PeachTypeRegistry(PeachTypeRegistry.Stage.Ready);
 
 		typeRegistry.EnsureCanonicalImplementation(typeof(IDerived), out _, out var implementationType);
 

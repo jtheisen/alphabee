@@ -22,13 +22,22 @@ public class Hive
 
 		context = new PeachContext(storage, typeRegistry);
 
+		BootstrapTypes();
+
 		root = EnsureHiveRoot();
+	}
+
+	void BootstrapTypes()
+	{
+		typeRegistry.BootstrapImplementation<IHiveRoot>();
 	}
 
 	IHiveRoot EnsureHiveRoot()
 	{
 		if (storage.IsEmpty)
 		{
+			typeRegistry.ReadyEmpty();
+
 			return context.CreateObject<IHiveRoot>();
 		}
 		else
@@ -46,16 +55,11 @@ public class Hive
 
 	void LoadTypes()
 	{
-		var descriptions = root.TypeDescriptions?.Cast<ITypeDescription>();
+		var descriptions = root.TypeDescriptions;
 
 		Trace.Assert(descriptions is not null);
 
-		foreach (var description in descriptions)
-		{
-			Trace.Assert(description is not null);
-
-			typeRegistry.AddStoredType(description);
-		}
+		typeRegistry.ImportAllTypeDescriptions(descriptions);
 	}
 
 	void StoreTypes()
@@ -65,8 +69,8 @@ public class Hive
 		root.TypeDescriptions?.CopyTo(descriptions, 0);
 
 		var didWrite = false;
-
-		typeRegistry.WriteAllTypeDescriptions(descriptions, ref didWrite);
+ 
+		typeRegistry.ExportAllTypeDescriptions(descriptions, ref didWrite);
 
 		if (didWrite)
 		{

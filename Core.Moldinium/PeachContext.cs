@@ -1,4 +1,5 @@
 ﻿using AlphaBee.Utilities;
+using System.Diagnostics;
 using System.Net;
 
 namespace AlphaBee;
@@ -50,6 +51,8 @@ public class PeachContext : AbstractPeachContext
 
 		if (address == 0) return null;
 
+		Debug.Assert(address % ObjectHeader.Size == 0);
+
 		ref var header = ref storage.GetObject(address, out var content);
 
 		if (header.type.IsFundamental)
@@ -100,23 +103,23 @@ public class PeachContext : AbstractPeachContext
 
 	public override Object CreateObject(TypeNo typeNo)
 	{
-		var entry = typeRegistry.GetEntry(typeNo);
+		typeRegistry.GetImplementation(typeNo, out var implementationType, out var size);
 
-		var header = new ObjectHeader(typeNo, entry.Layout.Size);
+		var header = new ObjectHeader(typeNo, size);
 
 		storage.AllocateObject(header, out var address, out var content);
 
-		var peach = entry.ImplementationType.CreateInstance<IPeachMixin>();
+		var peach = implementationType.CreateInstance<IPeachMixin>();
 
 		peach.Init(this, address);
 
 		return peach;
 	}
 
-	IPeachMixin CreatePeach(TypeNo type)
+	IPeachMixin CreatePeach(TypeNo typeNo)
 	{
-		var entry = typeRegistry.GetEntry(type);
+		typeRegistry.GetImplementation(typeNo, out var implementationType, out _);
 
-		return entry.ImplementationType.CreateInstance<IPeachMixin>();
+		return implementationType.CreateInstance<IPeachMixin>();
 	}
 }

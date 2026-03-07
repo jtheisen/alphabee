@@ -40,7 +40,7 @@ public class PeachTypeBaking
 	[TestInitialize]
 	public void Setup()
 	{
-		var typeRegistry = new PeachTypeRegistry();
+		var typeRegistry = new PeachTypeRegistry(PeachTypeRegistry.Stage.Ready);
 
 		typeRegistry.EnsureCanonicalImplementation(typeof(ITypeDescription));
 		typeRegistry.EnsureCanonicalImplementation(typeof(IFoo));
