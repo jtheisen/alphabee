@@ -73,7 +73,7 @@ struct Layout<T> : ILayout
 
 	static IEnumerable<FieldEntry> GetLayout()
 	{
-		var fields = typeof(T).GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+		var fields = typeof(T).GetFields(BindingFlags.Public | BindingFlags.Instance);
 
 		var entries = fields.Select(f => new FieldEntry { FieldInfo = f }).ToArray();
 

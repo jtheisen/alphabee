@@ -17,13 +17,23 @@ public class PeachTypeRegistryStorageTests
 
 			var context = new PeachContext(storage, registry);
 
-			new BinaryTreeSampleBuilder(context).Create();
+			var tree = new BinaryTreeSampleBuilder(context).Create();
+
+			hive.SetRoot(tree);
 		}
 
 		{
 			var hive = new Hive(storage);
 			
 			var registry = hive.TypeRegistry;
+
+			var context = new PeachContext(storage, registry);
+
+			var oldTree = hive.FindRoot<BinaryTree>();
+
+			var newTree = new BinaryTreeSampleBuilder(context).Create();
+
+			Assert.IsTrue(newTree.Equals(oldTree));
 		}
 	}
 }

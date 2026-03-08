@@ -37,6 +37,8 @@ public interface ITypeDescription
 	String? ClrName { get; set; }
 
 	TypeDescriptionEntry[]? Properties { get; set; }
+
+	Object? RootInstance { get; set; }
 }
 
 [StructLayout(LayoutKind.Explicit)]

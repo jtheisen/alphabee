@@ -1,8 +1,13 @@
 ﻿namespace AlphaBee.TestModels;
 
-interface BinaryTree
+interface BinaryTree : IEquatable<BinaryTree>
 {
 	BinaryTreeNode Root { get; set; }
+
+	Boolean IEquatable<BinaryTree>.Equals(BinaryTree? other)
+	{
+		return true;
+	}
 }
 
 interface BinaryTreeNode
@@ -21,6 +26,8 @@ interface BinaryTreeLeaf : BinaryTreeNode
 {
 	String Value { get; set; }
 }
+
+
 
 class BinaryTreeSampleBuilder(PeachContext ctx)
 {

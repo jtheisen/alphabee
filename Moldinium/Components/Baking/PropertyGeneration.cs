@@ -211,7 +211,9 @@ public class GenericPropertyGenerator : AbstractPropertyGenerator
 
         var fieldName = state.PrefixBackingFields ? $"backing_{property.Name}" : property.Name;
 
-		var fieldBuilder = typeBuilder.DefineField(fieldName, propertyImplementationType, FieldAttributes.Private);
+        var fieldAttributes = state.PrefixBackingFields ? FieldAttributes.Private : FieldAttributes.Public;
+
+		var fieldBuilder = typeBuilder.DefineField(fieldName, propertyImplementationType, fieldAttributes);
 
         state.CustomMemberModifier?.Handle(fieldBuilder, property);
 

@@ -12,6 +12,8 @@ public class PeachTypeBaking
 
 		IFoo? Foo { get; set; }
 
+		Object? Untyped { get; set; }
+
 		Object?[]? Items { get; set; }
 	}
 
@@ -20,6 +22,8 @@ public class PeachTypeBaking
 		public Int64 String;
 
 		public Int64 Foo;
+
+		public Int64 Untyped;
 
 		public Int64 Items;
 	}
@@ -48,6 +52,24 @@ public class PeachTypeBaking
 		var storage = new TestStorage();
 
 		context = new PeachContext(storage, typeRegistry);
+	}
+
+	[TestMethod]
+	public void TestUntyped()
+	{
+		var foo = context.New<IFoo>();
+
+		Assert.IsNull(foo.Untyped);
+
+		var foo2 = context.New<IFoo>();
+
+		foo2.String = "foo";
+
+		foo.Untyped = foo2;
+
+		var foo2b = foo.Untyped;
+
+		Assert.AreEqual("foo", (foo2b as IFoo)?.String);
 	}
 
 	[TestMethod]
