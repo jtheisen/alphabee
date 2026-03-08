@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Net.Mime;
 
 namespace AlphaBee;
 
@@ -24,7 +25,24 @@ public class Hive
 
 		BootstrapTypes();
 
-		root = EnsureHiveRoot();
+		if (storage.IsEmpty)
+		{
+			typeRegistry.ReadyEmpty();
+
+			root = context.New<IHiveRoot>();
+
+			Trace.Assert((root as IPeach)?.Address == AbstractTestStorage.FundamentalAlignment);
+		}
+		else
+		{
+			var firstObject = context.GetObject(AbstractTestStorage.FundamentalAlignment);
+
+			root = (firstObject as IHiveRoot)!;
+
+			Trace.Assert(root is not null, "Failed to get hive root");
+
+			LoadTypes();
+		}
 	}
 
 	void BootstrapTypes()
@@ -32,34 +50,14 @@ public class Hive
 		typeRegistry.BootstrapImplementation<IHiveRoot>();
 	}
 
-	IHiveRoot EnsureHiveRoot()
-	{
-		if (storage.IsEmpty)
-		{
-			typeRegistry.ReadyEmpty();
-
-			return context.CreateObject<IHiveRoot>();
-		}
-		else
-		{
-
-			var hiveRoot = context.GetObject(0) as IHiveRoot;
-
-			Trace.Assert(hiveRoot is not null, "Failed to get hive root");
-
-			LoadTypes();
-
-			return hiveRoot;
-		}
-	}
-
 	void LoadTypes()
 	{
 		var descriptions = root.TypeDescriptions;
 
-		Trace.Assert(descriptions is not null);
-
-		typeRegistry.ImportAllTypeDescriptions(descriptions);
+		if (descriptions is not null)
+		{
+			typeRegistry.ImportAllTypeDescriptions(descriptions);
+		}
 	}
 
 	void StoreTypes()

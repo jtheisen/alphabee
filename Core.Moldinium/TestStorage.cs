@@ -1,13 +1,15 @@
-﻿using AlphaBee.Utilities;
-using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace AlphaBee;
 
 public abstract class AbstractTestStorage
 {
+	public const Int32 FundamentalAlignment = 8;
+
 	public abstract Boolean IsEmpty { get; }
+
+	public abstract Int64 Position { get; }
 
 	public abstract T GetValue<T>(Int64 offset) where T : unmanaged;
 
@@ -19,6 +21,8 @@ public abstract class AbstractTestStorage
 
 	public abstract Span<T> GetArrayObject<T>(Int64 address) where T : unmanaged;
 
+	public abstract void AllocateObject(ObjectHeader header, out Int64 address);
+
 	public abstract ref T AllocateObject<T>(ObjectHeader header, out Int64 address) where T : unmanaged;
 
 	public abstract void AllocateArrayObject<T>(ObjectHeader header, out Int64 address, out Span<T> content) where T : unmanaged;
@@ -26,7 +30,7 @@ public abstract class AbstractTestStorage
 
 public class TestStorage : AbstractTestStorage
 {
-	private readonly PeachTypeRegistry typeRegistry;
+	private Int64 reserved;
 
 	private Int64 position = 0;
 
@@ -34,14 +38,16 @@ public class TestStorage : AbstractTestStorage
 
 	public Byte[] Data => data;
 
-	public TestStorage(PeachTypeRegistry? typeRegistry = null, Int32 reserved = 0)
+	public TestStorage(Int32 reserved = FundamentalAlignment)
 	{
-		this.typeRegistry = typeRegistry ?? new PeachTypeRegistry();
+		this.reserved = reserved;
 		position = reserved;
 		data = new Byte[Math.Max(reserved, 4)];
 	}
 
-	public override Boolean IsEmpty => position == 0;
+	public override Boolean IsEmpty => position == reserved;
+
+	public override Int64 Position => position;
 
 	public override T GetValue<T>(Int64 offset) => GetSpanCore<T>(offset, 1)[0];
 
@@ -54,9 +60,9 @@ public class TestStorage : AbstractTestStorage
 
 	Span<T> GetContentSpan<T>(Int64 address, ObjectHeader header) where T : unmanaged
 	{
-		Trace.Assert(1 << header.unitSizeLog2 == Unsafe.SizeOf<T>());
+		Trace.Assert(header.UnitSize == Unsafe.SizeOf<T>());
 
-		return GetSpanCore<T>(address + ObjectHeader.Size, header.length);
+		return GetSpanCore<T>(address + ObjectHeader.Size, header.ContentLength);
 	}
 
 	Span<T> GetSpanCore<T>(Int64 address, Int32 length) where T : unmanaged
@@ -77,14 +83,16 @@ public class TestStorage : AbstractTestStorage
 
 	Int64 EnsureSpace(Int32 size)
 	{
-		var address = position + size;
+		var address = position;
 
-		while (address > data.Length)
+		position += size.CeilToPowerOfTwoAlignment(FundamentalAlignment);
+
+		while (position > data.Length)
 		{
 			Double();
 		}
 
-		return position;
+		return address;
 	}
 
 	void Double()
@@ -118,11 +126,20 @@ public class TestStorage : AbstractTestStorage
 		return content;
 	}
 
+	public override void AllocateObject(ObjectHeader header, out Int64 address)
+	{
+		var size = header.EntireSize;
+
+		address = EnsureSpace(size);
+
+		SetValue(address, header);
+	}
+
 	public override ref T AllocateObject<T>(ObjectHeader header, out Int64 address)
 	{
 		Trace.Assert(!header.IsArray);
 
-		AllocateArrayObject<T>(header, out address, out var span);
+		AllocateArrayObjectInternal<T>(header, out address, out var span);
 
 		return ref span[0];
 	}
@@ -131,11 +148,12 @@ public class TestStorage : AbstractTestStorage
 	{
 		Trace.Assert(header.IsArray);
 
-		var size = header.EntireSize;
+		AllocateArrayObjectInternal(header, out address, out content);
+	}
 
-		address = EnsureSpace(size);
-
-		SetValue(address, header);
+	void AllocateArrayObjectInternal<T>(ObjectHeader header, out Int64 address, out Span<T> content) where T : unmanaged
+	{
+		AllocateObject(header, out address);
 
 		content = GetContentSpan<T>(address, header);
 	}

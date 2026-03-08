@@ -32,6 +32,8 @@ public readonly struct TypeNo : IEquatable<TypeNo>
 		Debug.Assert(typeByte.IsZero);
 	}
 
+	public static implicit operator TypeNo(TypeByte typeByte) => new TypeNo(typeByte);
+
 	public static implicit operator TypeNo(Int32 no) => new TypeNo(no);
 
 	public override String ToString()
@@ -224,6 +226,10 @@ public readonly struct ObjectHeader
 
 	public Int32 EntireSize => Size + extent.Size;
 
+	//public Int32 PaddedEntireSize => EntireSize.Log2Ceil;
+
+	public Int32 UnitSize => extent.UnitSize;
+
 	public Int32 ContentLength => extent.Length;
 
 	public Int32 ContentSize => extent.Size;
@@ -234,6 +240,11 @@ public readonly struct ObjectHeader
 		this.extent = extent;
 	}
 
+	public static ObjectHeader CreateWithSize(TypeNo typeNo, Int32 size)
+	{
+		return new ObjectHeader(typeNo, new ObjectExtent(1, checked((Int16)size)));
+	}
+
 	public static ObjectHeader CreateForStruct<T>(TypeNo typeNo, Int32 length) where T : unmanaged
 	{
 		return new ObjectHeader(typeNo, ObjectExtent.CreateForStruct<T>(length));
@@ -242,8 +253,8 @@ public readonly struct ObjectHeader
 	public override String ToString()
 	{
 		var arrayTag = IsArray ? $"[{ContentLength}]" : null;
-
-		return $"obj:#{typeNo}{arrayTag}({Size} bytes)";
+ 
+		return $"obj:#{typeNo}{arrayTag}({Size} bytes total)";
 	}
 }
 

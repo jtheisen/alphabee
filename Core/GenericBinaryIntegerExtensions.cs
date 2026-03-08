@@ -27,4 +27,28 @@ public static class GenericBinaryIntegerExtensions
 
 		return T.One << value.Log2Ceil();
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static T CeilToPowerOfTwoAlignment<T>(this T value, T alignment)
+		where T : IBinaryInteger<T>, IShiftOperators<T, Int32, T>, ISignedNumber<T>
+	{
+		Debug.Assert(T.PopCount(alignment) == T.One);
+
+		var mask = alignment - T.One;
+
+		var result = (value + mask) & ~mask;
+
+		return result;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static T CeilToAlignment<T>(this T value, T alignment)
+		where T : IBinaryInteger<T>, IShiftOperators<T, Int32, T>
+	{
+		var m = (alignment + (-value) % alignment) % alignment;
+
+		var result = value + m;
+
+		return result;
+	}
 }

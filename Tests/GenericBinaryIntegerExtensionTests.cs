@@ -46,4 +46,33 @@ public class GenericBinaryIntegerExtensionTests
 	{
 		Assert.AreEqual(expected, value.CeilToPowerOfTwo());
 	}
+
+	[DataTestMethod]
+	[DataRow(0, 0, 8)]
+	[DataRow(8, 1, 8)]
+	[DataRow(8, 7, 8)]
+	[DataRow(8, 8, 8)]
+	[DataRow(16, 9, 16)]
+	[DataRow(16, 15, 16)]
+	[DataRow(16, 16, 16)]
+	public void TestCeilToPowerOfTwoAlignment(Int32 expected, Int32 value, Int32 alignment)
+	{
+		Assert.AreEqual(expected, value.CeilToPowerOfTwoAlignment(alignment));
+
+		Assert.AreEqual(expected, value.CeilToAlignment(alignment));
+	}
+
+	[DataTestMethod]
+	[DataRow(0, 0, 5)]
+	[DataRow(5, 1, 5)]
+	[DataRow(5, 4, 5)]
+	[DataRow(5, 5, 5)]
+	[DataRow(10, 6, 5)]
+	[DataRow(10, 9, 5)]
+	[DataRow(10, 10, 5)]
+	[DataRow(15, 11, 5)]
+	public void TestCeilToAlignment(Int32 expected, Int32 value, Int32 alignment)
+	{
+		Assert.AreEqual(expected, value.CeilToAlignment(alignment));
+	}
 }

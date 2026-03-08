@@ -26,7 +26,7 @@ class BinaryTreeSampleBuilder(PeachContext ctx)
 {
 	public BinaryTree Create(Int32 depth = 5)
 	{
-		return ctx.CreateObject<BinaryTree>(t =>
+		return ctx.New<BinaryTree>(t =>
 		{
 			t.Root = CreateBranch(depth);
 		});
@@ -36,7 +36,7 @@ class BinaryTreeSampleBuilder(PeachContext ctx)
 	{
 		if (depth >= 0)
 		{
-			return ctx.CreateObject<BinaryTreeBranch>(b =>
+			return ctx.New<BinaryTreeBranch>(b =>
 			{
 				b.Left = CreateBranch(depth - 1);
 				b.Right = CreateBranch(depth - 2);
@@ -44,7 +44,7 @@ class BinaryTreeSampleBuilder(PeachContext ctx)
 		}
 		else
 		{
-			return ctx.CreateObject<BinaryTreeLeaf>(l => l.Value = "");
+			return ctx.New<BinaryTreeLeaf>(l => l.Value = "");
 		}
 	}
 }

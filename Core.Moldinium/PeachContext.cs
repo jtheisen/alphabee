@@ -6,29 +6,29 @@ namespace AlphaBee;
 
 public abstract class AbstractPeachContext
 {
-	public abstract T GetValue<T>(Int64 offset) where T : unmanaged;
+	public abstract T GetValue<T>(Int64 address) where T : unmanaged;
 
-	public abstract void SetValue<T>(Int64 offset, T value) where T : unmanaged;
+	public abstract void SetValue<T>(Int64 address, T value) where T : unmanaged;
 
-	public abstract Object? GetObjectFromAddress(Int64 address);
+	public abstract Object? GetObject(Int64 address);
 
-	public abstract Object? GetObject(Int64 referenceAddress);
+	public abstract Object? GetObjectFromReferenceAddress(Int64 referenceAddress);
 
-	public abstract void SetObject(Int64 referenceAddress, Object? value);
+	public abstract void SetObjectToReferenceAddress(Int64 referenceAddress, Object? value);
 
-	public T CreateObject<T>(Action<T>? init = null)
+	public T New<T>(Action<T>? init = null)
 		where T : class
 	{
-		var target = (T)CreateObject(typeof(T));
+		var target = (T)New(typeof(T));
 
 		init?.Invoke(target);
 
 		return target;
 	}
 
-	public abstract Object CreateObject(Type interfaceType);
+	public abstract Object New(Type interfaceType);
 
-	public abstract Object CreateObject(TypeNo typeNo);
+	public abstract Object New(TypeNo typeNo);
 
 }
 
@@ -47,7 +47,7 @@ public class PeachContext : AbstractPeachContext
 
 	public override void SetValue<T>(Int64 address, T value) => storage.SetValue(address, value);
 
-	public override Object? GetObjectFromAddress(Int64 address)
+	public override Object? GetObject(Int64 address)
 	{
 		if (address == 0) return null;
 
@@ -57,7 +57,7 @@ public class PeachContext : AbstractPeachContext
 
 		if (header.typeNo.IsFundamental)
 		{
-			var handler = ObjectTypeKinds.GetHandler(header);
+			var handler = ObjectTypeKinds.GetHandler(header.typeNo.typeByte);
 
 			return handler.Get(storage, this, address);
 		}
@@ -71,14 +71,14 @@ public class PeachContext : AbstractPeachContext
 		}
 	}
 
-	public override Object? GetObject(Int64 referenceAddress)
+	public override Object? GetObjectFromReferenceAddress(Int64 referenceAddress)
 	{
 		var address = storage.GetValue<Int64>(referenceAddress);
 
-		return GetObjectFromAddress(address);
+		return GetObject(address);
 	}
 
-	public override void SetObject(Int64 referenceAddress, Object? value)
+	public override void SetObjectToReferenceAddress(Int64 referenceAddress, Object? value)
 	{
 		if (value is null)
 		{
@@ -101,20 +101,20 @@ public class PeachContext : AbstractPeachContext
 		}
 	}
 
-	public override Object CreateObject(Type interfaceType)
+	public override Object New(Type interfaceType)
 	{
 		typeRegistry.EnsureCanonicalImplementation(interfaceType, out var typeNo, out _);
 
-		return CreateObject(typeNo);
+		return New(typeNo);
 	}
 
-	public override Object CreateObject(TypeNo typeNo)
+	public override Object New(TypeNo typeNo)
 	{
 		typeRegistry.GetImplementation(typeNo, out var implementationType, out var size);
 
-		var header = new ObjectHeader(typeNo, size);
+		var header = ObjectHeader.CreateWithSize(typeNo, size);
 
-		storage.AllocateObject(header, out var address, out var content);
+		storage.AllocateObject(header, out var address);
 
 		var peach = implementationType.CreateInstance<IPeachMixin>();
 

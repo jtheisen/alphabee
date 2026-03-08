@@ -61,12 +61,12 @@ public struct InternalPeachMixin : IInternalPeachMixin
 	{
 		var address = GetFieldAddress(offset);
 
-		return (T?)context.GetObject(address);
+		return (T?)context.GetObjectFromReferenceAddress(address);
 	}
 
 	public void SetObject<T>(Int32 offset, T? value) where T : class
 	{
-		context.SetObject(GetFieldAddress(offset), value);
+		context.SetObjectToReferenceAddress(GetFieldAddress(offset), value);
 	}
 }
 

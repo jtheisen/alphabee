@@ -45,7 +45,7 @@ public class PeachTypeBaking
 		typeRegistry.EnsureCanonicalImplementation(typeof(ITypeDescription));
 		typeRegistry.EnsureCanonicalImplementation(typeof(IFoo));
 
-		var storage = new TestStorage(typeRegistry);
+		var storage = new TestStorage();
 
 		context = new PeachContext(storage, typeRegistry);
 	}
@@ -53,7 +53,7 @@ public class PeachTypeBaking
 	[TestMethod]
 	public void TestScalar()
 	{
-		var foo = context.CreateObject<IFoo>();
+		var foo = context.New<IFoo>();
 
 		Assert.IsNull(foo.String);
 
@@ -61,7 +61,7 @@ public class PeachTypeBaking
 
 		Assert.AreEqual("foo", foo.String);
 
-		var nested = foo.Foo = context.CreateObject<IFoo>();
+		var nested = foo.Foo = context.New<IFoo>();
 
 		Assert.IsNull(foo.Foo.Foo);
 
@@ -70,7 +70,7 @@ public class PeachTypeBaking
 		Assert.AreEqual("bar", foo.Foo.String);
 		Assert.AreEqual("foo", foo.String);
 
-		var other = context.CreateObject<IFoo>();
+		var other = context.New<IFoo>();
 		other.String = "baz";
 
 		foo.Foo = other;
@@ -82,10 +82,10 @@ public class PeachTypeBaking
 	[TestMethod]
 	public void TestCollection()
 	{
-		var foo = context.CreateObject<IFoo>();
+		var foo = context.New<IFoo>();
 
 		var foos = Enumerable.Range(1, 3)
-			.Select(i => context.CreateObject<IFoo>(f => f.String = $"{i}"))
+			.Select(i => context.New<IFoo>(f => f.String = $"{i}"))
 			.Cast<Object?>()
 			.ToArray();
 

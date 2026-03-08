@@ -45,7 +45,7 @@ public class PeachTypeRegistryTests
 	[TestInitialize]
 	public void Setup()
 	{
-		registry = new PeachTypeRegistry();
+		registry = new PeachTypeRegistry(PeachTypeRegistry.Stage.Declaring);
 
 		registry.EnsureTypeNosForTesting(typeof(IFoo));
 		registry.EnsureTypeNosForTesting(typeof(IBar));

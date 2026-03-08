@@ -37,7 +37,7 @@ public struct Ucs2StringTypeHandler : IObjectTypeHandler
 {
 	public Type? Type => typeof(String);
 
-	public TypeNo TypeNo => new TypeNo(new TypeByte(TypeCode.String));
+	public TypeNo TypeNo => new TypeNo(new TypeByte(TypeCode.String, isSpan: true));
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{
@@ -114,15 +114,19 @@ public struct ObjectArrayTypeHandler : IObjectTypeHandler
 
 		var n = items.Length;
 
-		var header = new ObjectHeader(TypeNo, n * 8);
+		var header = ObjectHeader.CreateForStruct<Int64>(TypeNo, n);
 
-		storage.AllocateObject(header, out address, out _);
+		storage.AllocateArrayObject<Int64>(header, out address, out var addresses);
 
 		for (var i = 0; i < n; ++i)
 		{
 			var item = items[i];
 
-			context.SetObject(address + ObjectHeader.Size + i * 8, item);
+			context.SetObjectToReferenceAddress(address + ObjectHeader.Size + i * 8, item);
 		}
+
+		var regot = context.GetObject(address);
+
+
 	}
 }

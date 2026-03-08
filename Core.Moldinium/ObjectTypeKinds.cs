@@ -50,7 +50,7 @@ public static class ObjectTypeKinds
 		{
 			// A TypeCode.String means a Char span that is treated as a String
 
-			return isSpan || isNullable ? null : typeof(Ucs2StringTypeHandler);
+			return !isSpan || isNullable ? null : typeof(Ucs2StringTypeHandler);
 		}
 		else if (code == TypeCode.Object)
 		{
@@ -102,10 +102,8 @@ public static class ObjectTypeKinds
 		return writer.ToString();
 	}
 
-	public static IObjectTypeHandler GetHandler(in ObjectHeader header)
+	public static IObjectTypeHandler GetHandler(TypeByte typeByte)
 	{
-		var typeByte = header.typeNo.typeByte;
-
 		Trace.Assert(!typeByte.IsZero);
 
 		return handlersByByte[typeByte.value] ?? throw new Exception($"No handler exists for TypeByte '{typeByte}'"); ;
