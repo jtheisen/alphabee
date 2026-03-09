@@ -233,15 +233,18 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 
 		for (var i = 0; i < n; i++)
 		{
-			ref var entry = ref properties[i];
+			if (properties[i] is not IPropertyDescription propertyDescription)
+			{
+				throw new Exception($"Property #{i} of type description for {clrTypeName} is null or has the wrong type");
+			}
 
-			Trace.Assert(entry.ClrName is not null);
+			Trace.Assert(propertyDescription.ClrName is not null);
 
-			var property = typeResolver.GetClrProperty(entry.ClrName);
+			var property = typeResolver.GetClrProperty(propertyDescription.ClrName);
 
-			var propNo = entry.PropertyNo;
+			var propNo = propertyDescription.PropertyNo;
 
-			var layoutEntry = new LayoutEntry(entry.Offset, entry.Size);
+			var layoutEntry = new LayoutEntry(propertyDescription.Offset, propertyDescription.Size);
 
 			dict.Add(property, new PropertyEntry(propNo, layoutEntry));
 		}

@@ -1,15 +1,21 @@
-﻿using AlphaBee.Utilities;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace AlphaBee;
 
-public static class ObjectTypeKinds
+public static class ObjectTypeKindsInstance
 {
-	static readonly IObjectTypeHandler?[] handlersByByte;
+	public static ObjectTypeKindsStruct ObjectTypeKinds = new ObjectTypeKindsStruct();
+}
 
-	static readonly Dictionary<Type, IObjectTypeHandler> handlersByType = new();
+public struct ObjectTypeKindsStruct
+{
+	readonly IObjectTypeHandler?[] handlersByByte;
 
-	static ObjectTypeKinds()
+	readonly Dictionary<Type, IObjectTypeHandler> handlersByType = new();
+
+	readonly IObjectTypeHandler objectArrayTypeHandler = new ObjectArrayTypeHandler();
+
+	public ObjectTypeKindsStruct()
 	{
 		var typeCodes = Enum.GetValues<TypeCode>();
 
@@ -38,7 +44,7 @@ public static class ObjectTypeKinds
 		}
 	}
 
-	static IObjectTypeHandler? FindHandler(TypeByte typeByte)
+	IObjectTypeHandler? FindHandler(TypeByte typeByte)
 	{
 		var code = typeByte.Code;
 
@@ -75,7 +81,7 @@ public static class ObjectTypeKinds
 
 			if (isSpan)
 			{
-				return Get<ObjectArrayTypeHandler>();
+				return objectArrayTypeHandler;
 			}
 			else
 			{
@@ -104,7 +110,7 @@ public static class ObjectTypeKinds
 		}
 	}
 
-	public static String ReportTypes()
+	public String ReportTypes()
 	{
 		var writer = new StringWriter();
 
@@ -116,19 +122,26 @@ public static class ObjectTypeKinds
 		return writer.ToString();
 	}
 
-	public static IObjectTypeHandler GetHandler(TypeByte typeByte)
+	public IObjectTypeHandler GetHandler(TypeByte typeByte)
 	{
 		Trace.Assert(!typeByte.IsZero);
 
 		return handlersByByte[typeByte.value] ?? throw new Exception($"No handler exists for TypeByte '{typeByte}'"); ;
 	}
 
-	public static IObjectTypeHandler? GetHandlerOrNull(Type type)
+	public IObjectTypeHandler? GetHandlerOrNull(Type type)
 	{
-		return handlersByType.GetValueOrDefault(type);
+		if (type.IsArray && type.GetElementType() is Type elementType && !elementType.IsValueType)
+		{
+			return objectArrayTypeHandler;
+		}
+		else
+		{
+			return handlersByType.GetValueOrDefault(type);
+		}
 	}
 
-	public static IObjectTypeHandler GetHandler(Type type)
+	public IObjectTypeHandler GetHandler(Type type)
 	{
 		return GetHandlerOrNull(type) ?? throw new Exception($"No handler exists for type '{type.Name}'");
 	}

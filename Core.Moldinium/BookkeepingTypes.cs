@@ -50,7 +50,7 @@ public interface ITypeDescription
 
 	String? ClrName { get; set; }
 
-	IPropertyDescription[]? Properties { get; set; }
+	Object?[]? Properties { get; set; }
 
 	Object? RootInstance { get; set; }
 }

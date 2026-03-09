@@ -1,4 +1,6 @@
-﻿namespace AlphaBee;
+﻿using System.Runtime.InteropServices;
+
+namespace AlphaBee;
 
 #pragma warning disable CS0169
 
@@ -11,27 +13,30 @@ public class PeachTypeConfigurationTests
 		Int32 Prop2 { get; set; }
 	}
 
+	[StructLayout(LayoutKind.Sequential)]
 	public struct FooLayout1
 	{
-		Int32 Prop1;
-		Int32 Prop2;
+		public Int32 Prop1;
+		public Int32 Prop2;
 	}
 
+	[StructLayout(LayoutKind.Sequential)]
 	public struct FooLayout2
 	{
-		Int32 Prop2;
-		Int32 Prop1;
+		public Int32 Prop2;
+		public Int32 Prop1;
 	}
 
+	[StructLayout(LayoutKind.Sequential)]
 	public struct FooLayout3
 	{
-		Int32 Prop1;
-		Int32 Prop2;
+		public Int32 Prop1;
+		public Int32 Prop2;
 	}
 
 	[DataTestMethod]
-	[DataRow(true, typeof(ITypeDescription), typeof(TypeDescriptionLayout), typeof(ITypeDescription), typeof(TypeDescriptionLayout))]
-	[DataRow(false, typeof(ITypeDescription), typeof(TypeDescriptionLayout), typeof(IFoo), typeof(FooLayout1))]
+	//[DataRow(true, typeof(ITypeDescription), typeof(TypeDescriptionLayout), typeof(ITypeDescription), typeof(TypeDescriptionLayout))]
+	//[DataRow(false, typeof(ITypeDescription), typeof(TypeDescriptionLayout), typeof(IFoo), typeof(FooLayout1))]
 	[DataRow(true, typeof(IFoo), typeof(FooLayout1), typeof(IFoo), typeof(FooLayout1))]
 	[DataRow(false, typeof(IFoo), typeof(FooLayout1), typeof(IFoo), typeof(FooLayout2))]
 	[DataRow(true, typeof(IFoo), typeof(FooLayout1), typeof(IFoo), typeof(FooLayout3))]

@@ -102,6 +102,6 @@ public class PeachTypeRegistryTests
 	{
 		var layoutType = MakeLayout<InterfaceT, LayoutT>();
 
-		return registry.AssignImplementationForTesting(layoutType);
+		return registry.AssignImplementation(layoutType);
 	}
 }

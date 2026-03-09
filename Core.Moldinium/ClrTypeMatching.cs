@@ -39,11 +39,11 @@ public class ClrTypeResolver : IClrTypeResolver
 			if (type is not null) return type;
 		}
 
-		var assemblyNames = String.Join(", ", assemblies.Select(a => a.FullName));
+		var assemblyNames = String.Join(", ", assemblies.Select(a => a.GetName().Name));
 
-		var currentAssemblyName = Assembly.GetExecutingAssembly().FullName;
+		var currentAssemblyName = Assembly.GetExecutingAssembly().GetName().Name;
 
-		throw new Exception($"Could not find type {fqTypeName} in the base libs, the currently executing assembly ({currentAssemblyName}), or any of the following assemblies: {assemblyNames}");
+		throw new Exception($"Could not find type {fqTypeName} in the base libs, the currently executing assembly ({currentAssemblyName}), or any of the following assemblies: [{assemblyNames}]");
 	}
 }
 

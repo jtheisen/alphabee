@@ -1,4 +1,5 @@
 ﻿using AlphaBee.TestModels;
+using System.Reflection;
 
 namespace AlphaBee;
 
@@ -8,10 +9,12 @@ public class PeachTypeRegistryStorageTests
 	[TestMethod]
 	public void TestWithStorage()
 	{
+		var clrTypeResolver = new ClrTypeResolver(typeof(PeachTypeRegistryStorageTests).Assembly);
+
 		var storage = new TestStorage();
 
 		{
-			var hive = new Hive(storage);
+			var hive = new Hive(storage, clrTypeResolver);
 
 			var registry = hive.TypeRegistry; 
 
@@ -23,7 +26,7 @@ public class PeachTypeRegistryStorageTests
 		}
 
 		{
-			var hive = new Hive(storage);
+			var hive = new Hive(storage, clrTypeResolver);
 			
 			var registry = hive.TypeRegistry;
 

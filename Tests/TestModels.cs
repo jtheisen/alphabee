@@ -1,6 +1,6 @@
 ﻿namespace AlphaBee.TestModels;
 
-interface BinaryTree : IEquatable<BinaryTree>
+public interface BinaryTree : IEquatable<BinaryTree>
 {
 	BinaryTreeNode Root { get; set; }
 
@@ -10,26 +10,26 @@ interface BinaryTree : IEquatable<BinaryTree>
 	}
 }
 
-interface BinaryTreeNode
+public interface BinaryTreeNode
 {
 	BinaryTreeNode Parent { get; set; }
 }
 
-interface BinaryTreeBranch : BinaryTreeNode
+public interface BinaryTreeBranch : BinaryTreeNode
 {
 	BinaryTreeNode Left { get; set; }
 
 	BinaryTreeNode Right { get; set; }
 }
 
-interface BinaryTreeLeaf : BinaryTreeNode
+public interface BinaryTreeLeaf : BinaryTreeNode
 {
 	String Value { get; set; }
 }
 
 
 
-class BinaryTreeSampleBuilder(PeachContext ctx)
+public class BinaryTreeSampleBuilder(PeachContext ctx)
 {
 	public BinaryTree Create(Int32 depth = 5)
 	{

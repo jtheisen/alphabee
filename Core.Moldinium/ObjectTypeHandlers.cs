@@ -88,7 +88,16 @@ public struct UnimplementedSupportedStructTypeHandler : IObjectTypeHandler
 	public UnimplementedSupportedStructTypeHandler(TypeByte typeByte)
 	{
 		TypeNo = new TypeNo(typeByte);
-		Type = typeByte.Code.FindType();
+		var type = typeByte.Code.FindType();
+		if (typeByte.IsNullable)
+		{
+			type = type.MakeNullableType();
+		}
+		if (typeByte.IsSpan)
+		{
+			type = type.MakeArrayType();
+		}
+		Type = type;
 	}
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 offset)
@@ -106,7 +115,7 @@ public struct Ucs2StringTypeHandler : ISingletonObjectTypeHandler<Ucs2StringType
 {
 	public Type? Type => typeof(String);
 
-	public TypeNo TypeNo => new TypeNo(new TypeByte(TypeCode.String, isSpan: true));
+	public TypeNo TypeNo => new TypeNo(new TypeByte(TypeCode.String, isSpan: true, isNullable: true));
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{

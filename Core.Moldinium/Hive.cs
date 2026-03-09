@@ -7,7 +7,7 @@ public class Hive
 {
 	private readonly AbstractTestStorage storage;
 
-	private readonly PeachTypeRegistry typeRegistry = new();
+	private readonly PeachTypeRegistry typeRegistry;
 
 	private readonly PeachContext context;
 
@@ -19,9 +19,11 @@ public class Hive
 
 	public PeachTypeRegistry TypeRegistry => typeRegistry;
 
-	public Hive(AbstractTestStorage storage)
+	public Hive(AbstractTestStorage storage, IClrTypeResolver clrTypeResolver)
 	{
 		this.storage = storage;
+
+		typeRegistry = new PeachTypeRegistry(clrTypeResolver);
 
 		context = new PeachContext(storage, typeRegistry);
 
@@ -52,7 +54,7 @@ public class Hive
 	public T FindRoot<T>()
 		where T : class
 	{
-		var (typeNo, _) = typeRegistry.LookupCanonical(typeof(T));
+		typeRegistry.LookupCanonical(typeof(T), out var typeNo, out _, implementIfMissing: true);
 
 		var description = GetDescription(typeNo);
 
@@ -77,7 +79,7 @@ public class Hive
 	{
 		EnsureTypesStored();
 
-		var (typeNo, _) = typeRegistry.LookupCanonical(typeof(T));
+		typeRegistry.LookupCanonical(typeof(T), out var typeNo, out _);
 
 		var description = GetDescription(typeNo);
 

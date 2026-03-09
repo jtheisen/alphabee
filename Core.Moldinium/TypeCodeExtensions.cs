@@ -1,13 +1,26 @@
-﻿using System.Diagnostics;
-using System.Runtime.CompilerServices;
-
-namespace AlphaBee;
+﻿namespace AlphaBee;
 
 public static class TypeCodeExtensions
 {
-	public const TypeCode FirstExtraTypeCode = (TypeCode)20;
+	public const Int32 FirstExtraTypeCodeInt = 20;
+	public const TypeCode FirstExtraTypeCode = (TypeCode)FirstExtraTypeCodeInt;
 
-	public const TypeCode TypeDescriptionEntry = (TypeCode)21;
+	static Type[] extraTypes = new Type[32 - FirstExtraTypeCodeInt];
+
+	static TypeCodeExtensions()
+	{
+		PrepareExtraTypes([ typeof(TypeNo), typeof(PropNo) ]);
+	}
+
+	static void PrepareExtraTypes(Type[] types)
+	{
+		Trace.Assert(types.Length < extraTypes.Length);
+
+		for (var i = 0; i < types.Length; ++i)
+		{
+			extraTypes[i] = types[i];
+		}
+	}
 
 	public static Boolean IsSupportedStruct(this TypeCode code)
 	{
@@ -33,8 +46,9 @@ public static class TypeCodeExtensions
 			case TypeCode.Double:
 			case TypeCode.Decimal:
 			case TypeCode.DateTime:
-			case TypeDescriptionEntry:
 				return true;
+			case >= FirstExtraTypeCode:
+				return extraTypes[code - FirstExtraTypeCode] is not null;
 			default:
 				return false;
 		}
@@ -42,28 +56,38 @@ public static class TypeCodeExtensions
 
 	public static TypeCode GetTypeCode(this Type type)
 	{
-		if (type == typeof(PropertyDescriptionLayout))
+		var typeCode = Type.GetTypeCode(type);
+
+		if (typeCode != TypeCode.Object || type == typeof(Object))
 		{
-			return TypeDescriptionEntry;
+			return typeCode;
 		}
-		else
+
+		var i = Array.IndexOf(extraTypes, type);
+
+		if (i >= 0)
 		{
-			return Type.GetTypeCode(type);
+			return FirstExtraTypeCode + i;
 		}
+
+		throw new ArgumentException($"There is no TypeCode for type {type}");
 	}
 
 	public static Type FindType(this TypeCode code)
 	{
 		Trace.Assert(code.IsSupportedStruct(), $"Can't get a Type for {code}");
 
-		if (code >= FirstExtraTypeCode)
+		var i = code - FirstExtraTypeCode;
+
+		if (i >= 0)
 		{
-			switch (code)
+			if (extraTypes[i] is Type type)
 			{
-				case TypeDescriptionEntry:
-					return typeof(PropertyDescriptionLayout);
-				default:
-					throw new Exception($"Unknown special type code {(Int32)code}");
+				return type;
+			}
+			else
+			{
+				throw new Exception($"Unknown special type code {code}");
 			}
 		}
 		else

@@ -10,7 +10,9 @@ public class FundamentalTypeBaking
 	[TestMethod]
 	public void TestObjectTypeKinds()
 	{
-		Console.WriteLine(ObjectTypeKinds.ReportTypes());
+		var kinds = new ObjectTypeKindsStruct();
+
+		Console.WriteLine(kinds.ReportTypes());
 	}
 
 	public interface IFoo

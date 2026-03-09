@@ -68,6 +68,14 @@ public static class Extensions
 
 		return attr == null || !attr.IsJITOptimizerDisabled;
 	}
+
+	public static Type MakeNullableType(this Type t)
+	{
+		Debug.Assert(t.IsValueType);
+		Debug.Assert(Nullable.GetUnderlyingType(t) is null);
+
+		return typeof(Nullable<>).MakeGenericType(t);
+	}
 }
 
 
