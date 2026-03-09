@@ -42,7 +42,7 @@ public static class TypeCodeExtensions
 
 	public static TypeCode GetTypeCode(this Type type)
 	{
-		if (type == typeof(TypeDescriptionEntry))
+		if (type == typeof(PropertyDescriptionLayout))
 		{
 			return TypeDescriptionEntry;
 		}
@@ -61,7 +61,7 @@ public static class TypeCodeExtensions
 			switch (code)
 			{
 				case TypeDescriptionEntry:
-					return typeof(TypeDescriptionEntry);
+					return typeof(PropertyDescriptionLayout);
 				default:
 					throw new Exception($"Unknown special type code {(Int32)code}");
 			}

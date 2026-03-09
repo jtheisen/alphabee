@@ -16,7 +16,9 @@ public abstract class AbstractPeachContext
 
 	public abstract void SetObjectToReferenceAddress(Int64 referenceAddress, Object? value);
 
-	public T New<T>(Action<T>? init = null)
+	public T New<T>() where T : class => New<T>(null);
+
+	public T New<T>(Action<T>? init)
 		where T : class
 	{
 		var target = (T)New(typeof(T));

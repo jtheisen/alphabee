@@ -404,6 +404,8 @@ public class PeachTypeRegistry : IPropNoResolver
 	{
 		if (interfaceType.GetCustomAttribute<PeachLayoutAttribute>()?.LayoutType is Type layoutType)
 		{
+			Trace.Assert(layoutType.IsValueType, $"The explicitly given layout type for {interfaceType} is expected to be a struct");
+
 			return layoutType;
 		}
 		else
@@ -553,7 +555,7 @@ public class PeachTypeRegistry : IPropNoResolver
 
 		var interfaceType = clrTypeResolver.GetClrType(description.ClrName);
 
-		if (description.Properties is TypeDescriptionEntry[] propertyEntries)
+		if (description.Properties is IPropertyDescription[] propertyEntries)
 		{
 			foreach (var propertyEntry in propertyEntries)
 			{
@@ -608,7 +610,12 @@ public class PeachTypeRegistry : IPropNoResolver
 		SetStage(Stage.Ready);
 	}
 
-	public void ExportAllTypeDescriptions(Object?[] targets, ref Boolean didWrite)
+	public record BookkeepingTypeFactory(
+		Func<ITypeDescription> CreateTypeDecription,
+		Func<IPropertyDescription> CreatePropertyDecription
+	);
+
+	public void ExportAllTypeDescriptions(BookkeepingTypeFactory factory, Object?[] targets, ref Boolean didWrite)
 	{
 		AssertStage(Stage.Ready);
 
@@ -622,7 +629,7 @@ public class PeachTypeRegistry : IPropNoResolver
 
 			if (entry is null) continue;
 
-			var target = targets[i] as ITypeDescription;
+			var target = targets[i] as ITypeDescription ?? factory.CreateTypeDecription();
 
 			Trace.Assert(target is not null);
 
@@ -634,12 +641,12 @@ public class PeachTypeRegistry : IPropNoResolver
 
 				Trace.Assert(layout is not null);
 
-				WriteTypeDescription(target, layout, i);
+				WriteTypeDescription(factory, target, layout, i);
 			}
 		}
 	}
 
-	public void WriteTypeDescription(ITypeDescription target, PeachTypeLayout configuration, Int32 no)
+	public void WriteTypeDescription(BookkeepingTypeFactory factory, ITypeDescription target, PeachTypeLayout configuration, Int32 no)
 	{
 		AssertStage(Stage.Ready);
 
@@ -652,7 +659,7 @@ public class PeachTypeRegistry : IPropNoResolver
 
 		var n = kvps.Length;
 
-		var descriptionEntries = new TypeDescriptionEntry[n];
+		var descriptionEntries = new IPropertyDescription[n];
 
 		for (var i = 0; i < n; ++i)
 		{
@@ -662,14 +669,12 @@ public class PeachTypeRegistry : IPropNoResolver
 
 			LookupClrType(type, out var typeNo, out var clrType);
 
-			descriptionEntries[i] = new TypeDescriptionEntry
-			{
-				ClrName = clrTypeResolver.GetFqTypeName(clrType),
-				PropertyNo = GetPropNo(property).no,
-				Offset = entry.Offset,
-				Size = entry.Size,
-				TypeNo = typeNo
-			};
+			var p = descriptionEntries[i] = factory.CreatePropertyDecription();
+			p.ClrName = clrTypeResolver.GetFqTypeName(clrType);
+			p.PropertyNo = GetPropNo(property).no;
+			p.Offset = entry.Offset;
+			p.Size = entry.Size;
+			p.TypeNo = typeNo;
 		}
 
 		target.Properties = descriptionEntries;

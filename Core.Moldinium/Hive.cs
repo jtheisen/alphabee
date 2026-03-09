@@ -95,6 +95,8 @@ public class Hive
 
 	void BootstrapTypes()
 	{
+		typeRegistry.BootstrapImplementation<IPropertyDescription>();
+		typeRegistry.BootstrapImplementation<ITypeDescription>();
 		typeRegistry.BootstrapImplementation<IHiveRoot>();
 	}
 
@@ -110,7 +112,7 @@ public class Hive
 
 	void EnsureTypesStored()
 	{
-		if (storedTypesCount > typeRegistry.Count)
+		if (storedTypesCount < typeRegistry.Count)
 		{
 			StoreTypes();
 		}
@@ -123,8 +125,11 @@ public class Hive
 		root.TypeDescriptions?.CopyTo(descriptions, 0);
 
 		var didWrite = false;
- 
-		typeRegistry.ExportAllTypeDescriptions(descriptions, ref didWrite);
+
+		var factory = new PeachTypeRegistry.BookkeepingTypeFactory(
+			context.New<ITypeDescription>, context.New<IPropertyDescription>);
+
+		typeRegistry.ExportAllTypeDescriptions(factory, descriptions, ref didWrite);
 
 		if (didWrite)
 		{

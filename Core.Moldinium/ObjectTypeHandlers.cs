@@ -14,13 +14,82 @@ public interface IObjectTypeHandler
 	Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address);
 
 	void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address);
+
+	static virtual IObjectTypeHandler GetHandler(TypeByte typeByte) => throw new NotImplementedException();
 }
 
-public struct UnimplementedTypeHandler : IObjectTypeHandler
+public interface IHandlerGetter
 {
-	public Type? Type => null;
+	IObjectTypeHandler GetHandler(TypeByte typeByte);
 
-	public TypeNo TypeNo => throw new NotImplementedException();
+	static IObjectTypeHandler Get(Type type, TypeByte typeByte)
+	{
+		return typeof(HandlerProvider<>)
+			.MakeGenericType(type)
+			.CreateInstance<IHandlerGetter>()
+			.GetHandler(typeByte);
+	}
+}
+
+public struct HandlerProvider<HandlerT> : IHandlerGetter
+	where HandlerT : IObjectTypeHandler
+{
+	public IObjectTypeHandler GetHandler(TypeByte typeByte)
+	{
+		return HandlerT.GetHandler(typeByte);
+	}
+}
+
+public interface ISingletonObjectTypeHandler<T> : IObjectTypeHandler
+	where T : IObjectTypeHandler, new()
+{
+	private static IObjectTypeHandler? instance;
+
+	static IObjectTypeHandler IObjectTypeHandler.GetHandler(TypeByte _)
+	{
+		return instance ?? (instance = new T());
+	}
+}
+
+public struct UnimplementedMiscTypeHandler : IObjectTypeHandler
+{
+	public Type? Type { get; }
+
+	public TypeNo TypeNo { get; }
+
+	public UnimplementedMiscTypeHandler(TypeByte typeByte, Type type)
+	{
+		TypeNo = new TypeNo(typeByte);
+		Type = type;
+	}
+
+	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
+	{
+		throw new NotImplementedException();
+	}
+
+	public void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address)
+	{
+		throw new NotImplementedException();
+	}
+}
+
+public struct UnimplementedSupportedStructTypeHandler : IObjectTypeHandler
+{
+	public Type? Type { get; }
+
+	public TypeNo TypeNo { get; }
+
+	static IObjectTypeHandler IObjectTypeHandler.GetHandler(TypeByte typeByte)
+	{
+		return new UnimplementedSupportedStructTypeHandler(typeByte);
+	}
+
+	public UnimplementedSupportedStructTypeHandler(TypeByte typeByte)
+	{
+		TypeNo = new TypeNo(typeByte);
+		Type = typeByte.Code.FindType();
+	}
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 offset)
 	{
@@ -33,7 +102,7 @@ public struct UnimplementedTypeHandler : IObjectTypeHandler
 	}
 }
 
-public struct Ucs2StringTypeHandler : IObjectTypeHandler
+public struct Ucs2StringTypeHandler : ISingletonObjectTypeHandler<Ucs2StringTypeHandler>
 {
 	public Type? Type => typeof(String);
 
@@ -58,7 +127,7 @@ public struct Ucs2StringTypeHandler : IObjectTypeHandler
 	}
 }
 
-public struct StructArrayTypeHandler<T> : IObjectTypeHandler
+public struct StructArrayTypeHandler<T> : ISingletonObjectTypeHandler<StructArrayTypeHandler<T>>
 	where T : unmanaged
 {
 	public Type? Type => typeof(T).MakeArrayType();
@@ -84,7 +153,7 @@ public struct StructArrayTypeHandler<T> : IObjectTypeHandler
 	}
 }
 
-public struct ObjectArrayTypeHandler : IObjectTypeHandler
+public struct ObjectArrayTypeHandler : ISingletonObjectTypeHandler<ObjectArrayTypeHandler>
 {
 	public Type? Type => typeof(Object?[]);
 

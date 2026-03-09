@@ -19,7 +19,7 @@ public static class ObjectTypeKinds
 		{
 			var typeByte = new TypeByte(i);
 
-			var handler = handlersByByte[i] = GetHandlerType(typeByte)?.CreateInstance<IObjectTypeHandler>();
+			var handler = handlersByByte[i] = FindHandler(typeByte);
 
 			if (handler is not null)
 			{
@@ -38,7 +38,7 @@ public static class ObjectTypeKinds
 		}
 	}
 
-	static Type? GetHandlerType(TypeByte typeByte)
+	static IObjectTypeHandler? FindHandler(TypeByte typeByte)
 	{
 		var code = typeByte.Code;
 
@@ -46,11 +46,26 @@ public static class ObjectTypeKinds
 
 		var isNullable = typeByte.IsNullable;
 
+		IObjectTypeHandler Get<HandlerT>()
+			where HandlerT : IObjectTypeHandler
+		{
+			return HandlerT.GetHandler(typeByte);
+		}
+
 		if (code == TypeCode.String)
 		{
 			// A TypeCode.String means a Char span that is treated as a String
 
-			return !isSpan || isNullable ? null : typeof(Ucs2StringTypeHandler);
+			if (!isNullable) return null;
+
+			if (isSpan)
+			{
+				return Get<Ucs2StringTypeHandler>();
+			}
+			else
+			{
+				return null;
+			}
 		}
 		else if (code == TypeCode.Object)
 		{
@@ -60,29 +75,28 @@ public static class ObjectTypeKinds
 
 			if (isSpan)
 			{
-				return typeof(ObjectArrayTypeHandler);
+				return Get<ObjectArrayTypeHandler>();
 			}
-
-			// FIXME: implement this
-			return null;
+			else
+			{
+				return new UnimplementedMiscTypeHandler(typeByte, typeof(Object));
+			}
 		}
 		else if (code.IsSupportedStruct())
 		{
-			// FIXME: this could be supported
-			if (!isSpan) return null;
-
 			var type = code.FindType();
 
-			if (isNullable)
+			if (!isNullable && isSpan)
+			{
+				return IHandlerGetter.Get(typeof(StructArrayTypeHandler<>).MakeGenericType(type), typeByte);
+			}
+			else
 			{
 				// FIXME: we can implement this
-				return null;
 
-				// FIXME: unsafe, because the layout of Nullable<> could change
-				//type = typeof(Nullable<>).MakeGenericType(type);
+				return Get<UnimplementedSupportedStructTypeHandler>();
+				// unsafe, because the layout of Nullable<> could change: typeof(Nullable<>).MakeGenericType(type);
 			}
-
-			return isSpan ? typeof(StructArrayTypeHandler<>).MakeGenericType(type) : null;
 		}
 		else
 		{

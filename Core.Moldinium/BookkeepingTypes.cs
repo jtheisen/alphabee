@@ -13,18 +13,32 @@ public struct HiveRoot
 	public Int64 TypeDescriptions;
 }
 
-[StructLayout(LayoutKind.Sequential)]
-public struct TypeDescriptionEntry
+[PeachLayout(typeof(PropertyDescriptionLayout))]
+public interface IPropertyDescription
 {
 	public Int32 PropertyNo { get; set; }
 
-	public TypeNo? TypeNo { get; init; }
+	public TypeNo TypeNo { get; set; }
 
-	public Int32 Offset { get; init; }
+	public Int32 Offset { get; set; }
 
-	public Int32 Size { get; init; }
+	public Int32 Size { get; set; }
 
-	public String? ClrName { get; init; }
+	public String? ClrName { get; set; }
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct PropertyDescriptionLayout
+{
+	public Int32 PropertyNo;
+
+	public TypeNo TypeNo;
+
+	public Int32 Offset;
+
+	public Int32 Size;
+
+	public Int64 ClrName;
 }
 
 [PeachLayout(typeof(TypeDescriptionLayout))]
@@ -36,7 +50,7 @@ public interface ITypeDescription
 
 	String? ClrName { get; set; }
 
-	TypeDescriptionEntry[]? Properties { get; set; }
+	IPropertyDescription[]? Properties { get; set; }
 
 	Object? RootInstance { get; set; }
 }
@@ -55,4 +69,7 @@ public struct TypeDescriptionLayout
 
 	[FieldOffset(16)]
 	public Int64 Properties;
+
+	[FieldOffset(24)]
+	public Int64 RootInstance;
 }
