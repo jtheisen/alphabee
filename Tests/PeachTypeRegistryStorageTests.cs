@@ -1,4 +1,5 @@
 ﻿using AlphaBee.TestModels;
+using Newtonsoft.Json;
 using System.Reflection;
 
 namespace AlphaBee;
@@ -13,6 +14,8 @@ public class PeachTypeRegistryStorageTests
 
 		var storage = new TestStorage();
 
+		String serializedTree1, serializedTree2;
+
 		{
 			var hive = new Hive(storage, clrTypeResolver);
 
@@ -21,6 +24,8 @@ public class PeachTypeRegistryStorageTests
 			var context = new PeachContext(storage, registry);
 
 			var tree = new BinaryTreeSampleBuilder(context).Create();
+
+			serializedTree1 = JsonConvert.SerializeObject(tree);
 
 			hive.SetRoot(tree);
 		}
@@ -32,11 +37,11 @@ public class PeachTypeRegistryStorageTests
 
 			var context = new PeachContext(storage, registry);
 
-			var oldTree = hive.FindRoot<BinaryTree>();
+			var tree = hive.FindRoot<BinaryTree>();
 
-			var newTree = new BinaryTreeSampleBuilder(context).Create();
+			serializedTree2 = JsonConvert.SerializeObject(tree);
 
-			Assert.IsTrue(newTree.Equals(oldTree));
+			Assert.AreEqual(serializedTree1, serializedTree2);
 		}
 	}
 }

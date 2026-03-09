@@ -1,13 +1,8 @@
 ﻿namespace AlphaBee.TestModels;
 
-public interface BinaryTree : IEquatable<BinaryTree>
+public interface BinaryTree
 {
 	BinaryTreeNode Root { get; set; }
-
-	Boolean IEquatable<BinaryTree>.Equals(BinaryTree? other)
-	{
-		return true;
-	}
 }
 
 public interface BinaryTreeNode
