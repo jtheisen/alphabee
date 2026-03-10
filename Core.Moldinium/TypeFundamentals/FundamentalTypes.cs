@@ -1,13 +1,11 @@
-﻿using System.Diagnostics;
+﻿namespace AlphaBee;
 
-namespace AlphaBee;
-
-public static class ObjectTypeKindsInstance
+public static class FundamentalTypesInstance
 {
-	public static ObjectTypeKindsStruct ObjectTypeKinds = new ObjectTypeKindsStruct();
+	public static FundamentalTypesStruct ObjectTypeKinds = new FundamentalTypesStruct();
 }
 
-public struct ObjectTypeKindsStruct
+public struct FundamentalTypesStruct
 {
 	readonly IObjectTypeHandler?[] handlersByByte;
 
@@ -15,7 +13,7 @@ public struct ObjectTypeKindsStruct
 
 	readonly IObjectTypeHandler objectArrayTypeHandler = new ObjectArrayTypeHandler();
 
-	public ObjectTypeKindsStruct()
+	public FundamentalTypesStruct()
 	{
 		var typeCodes = Enum.GetValues<TypeCode>();
 
@@ -92,9 +90,16 @@ public struct ObjectTypeKindsStruct
 		{
 			var type = code.FindType();
 
-			if (!isNullable && isSpan)
+			if (isSpan)
 			{
-				return IHandlerGetter.Get(typeof(StructArrayTypeHandler<>).MakeGenericType(type), typeByte);
+				if (isNullable)
+				{
+					return IHandlerGetter.Get(typeof(NullableStructArrayTypeHandler<>).MakeGenericType(type), typeByte);
+				}
+				else
+				{
+					return IHandlerGetter.Get(typeof(StructArrayTypeHandler<>).MakeGenericType(type), typeByte);
+				}
 			}
 			else
 			{

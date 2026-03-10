@@ -27,6 +27,30 @@ public struct LayoutStructPropertyImplementation<
 	public void Set(Value value) => throw new NotImplementedException();
 }
 
+
+public interface ILayoutNullableStructPropertyImplementation<
+	[TypeKind(ImplementationTypeArgumentKind.Value)] Value
+> : IPropertyImplementation
+	where Value : unmanaged
+{
+	Value? Get();
+
+	void Set(Value value);
+}
+
+public struct LayoutNullableStructPropertyImplementation<
+	[TypeKind(ImplementationTypeArgumentKind.Value)] Value
+> : ILayoutNullableStructPropertyImplementation<Value>
+	where Value : unmanaged
+{
+	NullableStruct<Value> value;
+
+	public Value? Get() => throw new NotImplementedException();
+
+	public void Set(Value value) => throw new NotImplementedException();
+}
+
+
 public interface ILayoutClassPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value
 > : IPropertyImplementation
@@ -49,6 +73,7 @@ public struct LayoutClassPropertyImplementation<
 	public void Set(Value value) => throw new NotImplementedException();
 }
 
+
 public class LayoutPropertyImplementationProvider : PropertyImplementationProvider
 {
 	static PropertyImplementationWithFlags Get(Type type) => new(type, PropertyImplementationFlags.BackingFieldPublicAndUnprefixed);
@@ -61,6 +86,10 @@ public class LayoutPropertyImplementationProvider : PropertyImplementationProvid
 		{
 			return Get(typeof(LayoutClassPropertyImplementation<>));
 		}
+		else if (Nullable.GetUnderlyingType(type) is not null)
+		{
+			return Get(typeof(LayoutNullableStructPropertyImplementation<>));
+		}
 		else
 		{
 			return Get(typeof(LayoutStructPropertyImplementation<>));
@@ -71,5 +100,6 @@ public class LayoutPropertyImplementationProvider : PropertyImplementationProvid
 	{
 		yield return Get(typeof(LayoutClassPropertyImplementation<>));
 		yield return Get(typeof(LayoutStructPropertyImplementation<>));
+		yield return Get(typeof(LayoutNullableStructPropertyImplementation<>));
 	}
 }

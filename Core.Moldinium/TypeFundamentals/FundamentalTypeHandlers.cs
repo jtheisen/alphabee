@@ -1,9 +1,4 @@
-﻿using AlphaBee.Utilities;
-using System.Collections;
-using System.Collections.Immutable;
-using System.Net;
-
-namespace AlphaBee;
+﻿namespace AlphaBee;
 
 public interface IObjectTypeHandler
 {
@@ -159,6 +154,36 @@ public struct StructArrayTypeHandler<T> : ISingletonObjectTypeHandler<StructArra
 		storage.AllocateArrayObject<T>(header, out address, out var items);
 
 		value.CopyTo(items);
+	}
+}
+
+public struct NullableStructArrayTypeHandler<T> : ISingletonObjectTypeHandler<NullableStructArrayTypeHandler<T>>
+	where T : unmanaged
+{
+	public Type? Type => typeof(T?).MakeArrayType();
+
+	public TypeNo TypeNo => new TypeNo(new TypeByte(typeof(T).GetTypeCode(), isSpan: true, isNullable: true));
+
+	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
+	{
+		var items = storage.GetArrayObject<NullableStruct<T>>(address);
+
+		var result = new T?[items.Length];
+
+		items.CopyTo(result);
+
+		return result;
+	}
+
+	public void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address)
+	{
+		var value = (T?[])untyped;
+
+		var header = ObjectHeader.CreateForStruct<NullableStruct<T>>(TypeNo, value.Length);
+
+		storage.AllocateArrayObject<NullableStruct<T>>(header, out address, out var items);
+
+		items.CopyFrom(value.AsSpan());
 	}
 }
 

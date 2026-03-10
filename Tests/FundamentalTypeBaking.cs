@@ -10,7 +10,7 @@ public class FundamentalTypeBaking
 	[TestMethod]
 	public void TestObjectTypeKinds()
 	{
-		var kinds = new ObjectTypeKindsStruct();
+		var kinds = new FundamentalTypesStruct();
 
 		Console.WriteLine(kinds.ReportTypes());
 	}
@@ -22,6 +22,8 @@ public class FundamentalTypeBaking
 		Int32 Integer32 { get; set; }
 		Int64 Integer64 { get; set; }
 
+		Int32? NullableInteger32 { get; set; }
+
 		String String { get; set; }
 		Byte[] Bytes { get; set; }
 	}
@@ -32,6 +34,8 @@ public class FundamentalTypeBaking
 		public Int16 Integer16;
 		public Int32 Integer32;
 		public Int64 Integer64;
+
+		public NullableStruct<Int32> NullableInteger32;
 
 		public Int64 String;
 		public Int64 Bytes;
