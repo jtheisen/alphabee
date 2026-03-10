@@ -3,11 +3,16 @@ using System.Reflection;
 
 namespace AlphaBee;
 
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Interface)]
+public class ImplementExplicitlyAttribute : Attribute;
+
+[ImplementExplicitly]
 public interface IPeach : IPeachMixin
 {
 	TypeNo ImplementationTypeNo { get; }
 }
 
+[ImplementExplicitly]
 public interface IPeachMixin
 {
 	AbstractPeachContext Context { get; }
@@ -130,32 +135,52 @@ public struct PeachyTypeNoPropertyImplementation : IPeachyTypeNoPropertyImplemen
 
 public class PeachPropertyImplementationProvider : PropertyImplementationProvider
 {
-	PropertyImplementationWithFlags ImplClassesPublic => new(typeof(PeachyClassPropertyImplementation<>), PropertyImplementationFlags.None);
-	PropertyImplementationWithFlags ImplStructsPublic => new (typeof(PeachyStructPropertyImplementation<>), PropertyImplementationFlags.None);
-	PropertyImplementationWithFlags ImplStructsExplicit => new(typeof(PeachyTypeNoPropertyImplementation), PropertyImplementationFlags.ImplementationExplicit);
+	static PropertyImplementationWithFlags ImplTypeNo => new(typeof(PeachyTypeNoPropertyImplementation), PropertyImplementationFlags.ImplementationExplicit);
+
+	static PropertyImplementationWithFlags Get(Boolean asStruct, Boolean implementExplicity)
+	{
+		var flags = implementExplicity ? PropertyImplementationFlags.ImplementationExplicit : PropertyImplementationFlags.None;
+
+		var implementationType = asStruct ? typeof(PeachyStructPropertyImplementation<>) : typeof(PeachyClassPropertyImplementation<>);
+
+		return new(implementationType, flags);
+	}
+
+	static Boolean ShouldImplementExplicitly(PropertyInfo property)
+	{
+		var attribute =
+			property.GetCustomAttribute<ImplementExplicitlyAttribute>() ??
+			property.DeclaringType?.GetCustomAttribute<ImplementExplicitlyAttribute>();
+
+		return attribute is not null;
+	}
 
 	public override PropertyImplementationWithFlags Get(PropertyInfo property)
 	{
-		var type = property.PropertyType;
+		var propertyType = property.PropertyType;
 
-		if (!type.IsValueType)
+		var explicitly = ShouldImplementExplicitly(property);
+
+		if (!propertyType.IsValueType)
 		{
-			return ImplClassesPublic;
+			return Get(false, explicitly);
 		}
-		else if (type == typeof(TypeNo) && property.Name == nameof(IPeach.ImplementationTypeNo))
+		else if (propertyType == typeof(TypeNo) && property.Name == nameof(IPeach.ImplementationTypeNo))
 		{
-			return ImplStructsExplicit;
+			return ImplTypeNo;
 		}
 		else
 		{
-			return ImplStructsPublic;
+			return Get(true, explicitly);
 		}
 	}
 
 	public override IEnumerable<PropertyImplementationWithFlags> GetAll()
 	{
-		yield return ImplClassesPublic;
-		yield return ImplStructsPublic;
-		yield return ImplStructsExplicit;
+		yield return Get(false, false);
+		yield return Get(false, true);
+		yield return Get(true, false);
+		yield return Get(true, true);
+		yield return ImplTypeNo;
 	}
 }
