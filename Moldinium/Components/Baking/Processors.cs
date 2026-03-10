@@ -19,8 +19,6 @@ public interface IBuildingContext
 
 	ICustomMemberModifier? CustomMemberModifier { get; }
 
-	Boolean PrefixBackingFields { get; }
-
     IntegerOrNullRetrieverForArgumentName? GetIntegerOrNullRetrieverForArgumentName(PropertyInfo property);
 
 	NullableFlag GetNullableFlagForInterface(Type interfaceType);
@@ -119,8 +117,6 @@ public class BuildingBakingProcessor : BakingProcessorWithComponentGenerators, I
 
         constructorGenerator = constructorBuilder.GetILGenerator();
     }
-
-    public Boolean PrefixBackingFields => configuration.PrefixBackingFields;
 
 	public ICustomMemberModifier? CustomMemberModifier => configuration.CustomMemberModifier;
 

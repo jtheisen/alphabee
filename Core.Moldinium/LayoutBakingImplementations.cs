@@ -51,23 +51,25 @@ public struct LayoutClassPropertyImplementation<
 
 public class LayoutPropertyImplementationProvider : PropertyImplementationProvider
 {
-	public override Type Get(PropertyInfo property)
+	static PropertyImplementationWithFlags Get(Type type) => new(type, PropertyImplementationFlags.BackingFieldPublicAndUnprefixed);
+
+	public override PropertyImplementationWithFlags Get(PropertyInfo property)
 	{
 		var type = property.PropertyType;
 
 		if (!type.IsValueType)
 		{
-			return typeof(LayoutClassPropertyImplementation<>);
+			return Get(typeof(LayoutClassPropertyImplementation<>));
 		}
 		else
 		{
-			return typeof(LayoutStructPropertyImplementation<>);
+			return Get(typeof(LayoutStructPropertyImplementation<>));
 		}
 	}
 
-	public override IEnumerable<Type> GetAll()
+	public override IEnumerable<PropertyImplementationWithFlags> GetAll()
 	{
-		yield return typeof(LayoutClassPropertyImplementation<>);
-		yield return typeof(LayoutStructPropertyImplementation<>);
+		yield return Get(typeof(LayoutClassPropertyImplementation<>));
+		yield return Get(typeof(LayoutStructPropertyImplementation<>));
 	}
 }

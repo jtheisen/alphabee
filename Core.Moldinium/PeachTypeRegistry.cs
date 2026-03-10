@@ -143,7 +143,6 @@ public class PeachTypeRegistry : IPropNoResolver
 	{
 		peachBakery = CreateBakery<PeachPropertyImplementationProvider>("peaches");
 		layoutBakery = CreateBakery<LayoutPropertyImplementationProvider>("layouts", c => c with {
-			PrefixBackingFields = false,
 			CustomMemberModifier = LayoutBakingCustomMemberModifier.Instance
 		});
 

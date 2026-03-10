@@ -37,7 +37,9 @@ public struct SimplePropertyImplementation<T> : ISimplePropertyImplementation<T>
 
 public abstract class AbstractPropertyGenerator : AbstractGenerator
 {
-    public virtual void GenerateProperty(IBuildingContext state, PropertyInfo property)
+    public virtual PropertyImplementationFlags Flags => default;
+
+	public virtual void GenerateProperty(IBuildingContext state, PropertyInfo property)
     {
         var typeBuilder = state.TypeBuilder;
 
@@ -62,17 +64,22 @@ public abstract class AbstractPropertyGenerator : AbstractGenerator
 
         var (fieldBuilder, (getImplementation, setImplementation)) = propertyImplementation.Value;
 
-        var propertyBuilder = typeBuilder.DefineProperty(property.Name, property.Attributes, valueType, null);
+        PropertyBuilder? propertyBuilder = null;
 
-        state.CustomMemberModifier?.Handle(propertyBuilder, property);
-
-        if (declaringType.IsInterface)
+        if (!Flags.HasFlag(PropertyImplementationFlags.ImplementationExplicit))
         {
-            NullabilityHelper.SetNullableAttributes(
-                propertyBuilder.SetCustomAttribute,
-                property.GetCustomAttributesData(),
-                state.GetNullableFlagForInterface(declaringType)
-            );
+            propertyBuilder = typeBuilder.DefineProperty(property.Name, property.Attributes, valueType, null);
+
+            state.CustomMemberModifier?.Handle(propertyBuilder, property);
+
+            if (declaringType.IsInterface)
+            {
+                NullabilityHelper.SetNullableAttributes(
+                    propertyBuilder.SetCustomAttribute,
+                    property.GetCustomAttributesData(),
+                    state.GetNullableFlagForInterface(declaringType)
+                );
+            }
         }
 
         var getIntegerOrNullForArgumentName = state.GetIntegerOrNullRetrieverForArgumentName(property);
@@ -125,7 +132,7 @@ public abstract class AbstractPropertyGenerator : AbstractGenerator
                 toRemove: MethodAttributes.Abstract
             );
 
-            propertyBuilder.SetGetMethod(getMethodBuilder);
+            propertyBuilder?.SetGetMethod(getMethodBuilder);
         }
 
         if (setMethod is not null)
@@ -137,7 +144,7 @@ public abstract class AbstractPropertyGenerator : AbstractGenerator
                 toRemove: MethodAttributes.Abstract
             );
 
-            propertyBuilder.SetSetMethod(setMethodBuilder);
+            propertyBuilder?.SetSetMethod(setMethodBuilder);
         }
     }
 
@@ -147,17 +154,20 @@ public abstract class AbstractPropertyGenerator : AbstractGenerator
 public class GenericPropertyGenerator : AbstractPropertyGenerator
 {
     private readonly CheckedImplementation? implementation, wrapper;
+	private readonly PropertyImplementationFlags flags;
 
-    public GenericPropertyGenerator(CheckedImplementation? implementation, CheckedImplementation? wrapper)
+	public GenericPropertyGenerator(CheckedImplementation? implementation, CheckedImplementation? wrapper, PropertyImplementationFlags flags)
     {
         this.implementation = implementation;
         this.wrapper = wrapper;
-
-        implementation?.AssertWrapperOrNot(false);
+		this.flags = flags;
+		implementation?.AssertWrapperOrNot(false);
         wrapper?.AssertWrapperOrNot(true);
     }
 
-    public override IEnumerable<Type?> GetMixinTypes()
+    public override PropertyImplementationFlags Flags => flags;
+
+	public override IEnumerable<Type?> GetMixinTypes()
     {
         yield return implementation?.MixinType;
         yield return wrapper?.MixinType;
@@ -171,7 +181,7 @@ public class GenericPropertyGenerator : AbstractPropertyGenerator
 
     protected override (FieldBuilder?, PropertyImplementation)? GetPropertyImplementation(IBuildingContext state, PropertyInfo property, Boolean wrap)
     {
-        var outerGetImplementation = state.GetOuterImplementationInfo(property.GetGetMethod());
+		var outerGetImplementation = state.GetOuterImplementationInfo(property.GetGetMethod());
         var outerSetImplementation = state.GetOuterImplementationInfo(property.GetSetMethod());
 
         if (outerGetImplementation.Exists && outerSetImplementation.Exists)
@@ -209,9 +219,11 @@ public class GenericPropertyGenerator : AbstractPropertyGenerator
 
         var propertyImplementationType = implementation.MakeImplementationType(propertyOrHandlerType: property.PropertyType);
 
-        var fieldName = state.PrefixBackingFields ? $"backing_{property.Name}" : property.Name;
+        var backingFieldsUnprefixedAndPublic = Flags.HasFlag(PropertyImplementationFlags.BackingFieldPublicAndUnprefixed);
 
-        var fieldAttributes = state.PrefixBackingFields ? FieldAttributes.Private : FieldAttributes.Public;
+		var fieldName = backingFieldsUnprefixedAndPublic ? property.Name : $"backing_{property.Name}";
+
+        var fieldAttributes = backingFieldsUnprefixedAndPublic ? FieldAttributes.Public : FieldAttributes.Private;
 
 		var fieldBuilder = typeBuilder.DefineField(fieldName, propertyImplementationType, fieldAttributes);
 
@@ -239,7 +251,7 @@ public class UnimplementedPropertyGenerator : AbstractPropertyGenerator
 
 public static class PropertyGenerator
 {
-    public static AbstractPropertyGenerator Create(Type? propertyImplementationType, Type? propertyWrapperType)
+    public static AbstractPropertyGenerator Create(Type? propertyImplementationType, Type? propertyWrapperType, PropertyImplementationFlags flags)
     {
         var ignoredInterfaces = new[] {
             typeof(IPropertyImplementation),
@@ -251,7 +263,7 @@ public static class PropertyGenerator
         var checkedWrapper
             = propertyWrapperType?.Apply(t => new CheckedImplementation(t, ignoredInterfaces));
 
-        var instance = new GenericPropertyGenerator(checkedImplementation, checkedWrapper);
+        var instance = new GenericPropertyGenerator(checkedImplementation, checkedWrapper, flags);
 
         return instance;
     }

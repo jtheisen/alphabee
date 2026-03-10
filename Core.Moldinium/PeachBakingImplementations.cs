@@ -130,28 +130,32 @@ public struct PeachyTypeNoPropertyImplementation : IPeachyTypeNoPropertyImplemen
 
 public class PeachPropertyImplementationProvider : PropertyImplementationProvider
 {
-	public override Type Get(PropertyInfo property)
+	PropertyImplementationWithFlags ImplClassesPublic => new(typeof(PeachyClassPropertyImplementation<>), PropertyImplementationFlags.None);
+	PropertyImplementationWithFlags ImplStructsPublic => new (typeof(PeachyStructPropertyImplementation<>), PropertyImplementationFlags.None);
+	PropertyImplementationWithFlags ImplStructsExplicit => new(typeof(PeachyTypeNoPropertyImplementation), PropertyImplementationFlags.ImplementationExplicit);
+
+	public override PropertyImplementationWithFlags Get(PropertyInfo property)
 	{
 		var type = property.PropertyType;
 
 		if (!type.IsValueType)
 		{
-			return typeof(PeachyClassPropertyImplementation<>);
+			return ImplClassesPublic;
 		}
 		else if (type == typeof(TypeNo) && property.Name == nameof(IPeach.ImplementationTypeNo))
 		{
-			return typeof(PeachyTypeNoPropertyImplementation);
+			return ImplStructsExplicit;
 		}
 		else
 		{
-			return typeof(PeachyStructPropertyImplementation<>);
+			return ImplStructsPublic;
 		}
 	}
 
-	public override IEnumerable<Type> GetAll()
+	public override IEnumerable<PropertyImplementationWithFlags> GetAll()
 	{
-		yield return typeof(PeachyClassPropertyImplementation<>);
-		yield return typeof(PeachyStructPropertyImplementation<>);
-		yield return typeof(PeachyTypeNoPropertyImplementation);
+		yield return ImplClassesPublic;
+		yield return ImplStructsPublic;
+		yield return ImplStructsExplicit;
 	}
 }

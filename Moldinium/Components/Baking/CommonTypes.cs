@@ -42,27 +42,37 @@ public interface IEventWrapperImplementation : IImplementation { }
 
 public struct VoidDummy { }
 
+[Flags]
+public enum PropertyImplementationFlags
+{
+    None = 0,
+    ImplementationExplicit = 1,
+    BackingFieldPublicAndUnprefixed = 2
+}
+
+public record struct PropertyImplementationWithFlags(Type implementationType, PropertyImplementationFlags flags);
+
 public abstract class PropertyImplementationProvider
 {
-    public abstract Type Get(PropertyInfo property);
+    public abstract PropertyImplementationWithFlags Get(PropertyInfo property);
 
-	public abstract IEnumerable<Type> GetAll();
+	public abstract IEnumerable<PropertyImplementationWithFlags> GetAll();
 }
 
 public class SingletonPropertyImplementationProvider : PropertyImplementationProvider
 {
-	private readonly Type implementationType;
+    PropertyImplementationWithFlags result;
 
-	public SingletonPropertyImplementationProvider(Type implementationType)
+	public SingletonPropertyImplementationProvider(Type implementationType, PropertyImplementationFlags flags = default)
 	{
-		this.implementationType = implementationType;
+        result = new(implementationType, flags);
 	}
 
-	public override Type Get(PropertyInfo property) => implementationType;
+	public override PropertyImplementationWithFlags Get(PropertyInfo property) => result;
 
-	public override IEnumerable<Type> GetAll()
+	public override IEnumerable<PropertyImplementationWithFlags> GetAll()
 	{
-        yield return implementationType;
+        yield return result;
 	}
 }
 

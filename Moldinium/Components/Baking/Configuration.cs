@@ -23,7 +23,7 @@ public class ComponentGenerators : IBakeryComponentGenerators
 	private readonly AbstractMethodGenerator? methodWrapperGenerator;
 	private readonly AbstractEventGenerator eventGenerator;
 
-    private readonly Dictionary<Type, AbstractPropertyGenerator> propertyGenerators = new();
+    private readonly Dictionary<PropertyImplementationWithFlags, AbstractPropertyGenerator> propertyGenerators = new();
 
     public ComponentGenerators(
 		PropertyImplementationProvider propertyImplementationProvider,
@@ -36,9 +36,11 @@ public class ComponentGenerators : IBakeryComponentGenerators
 		methodWrapperGenerator = MethodGenerator.Create(methodWrapperType ?? typeof(TrivialMethodWrapper));
 		eventGenerator = EventGenerator.Create(eventImplementationType ?? typeof(GenericEventImplementation<>), typeof(TrivialEventWrapper));
 
-        foreach (var type in propertyImplementationProvider.GetAll())
+        foreach (var implementation in propertyImplementationProvider.GetAll())
         {
-			propertyGenerators[type] = PropertyGenerator.Create(type, propertyWrapperType);
+            var (propertyImplementationType, flags) = implementation;
+
+			propertyGenerators[implementation] = PropertyGenerator.Create(propertyImplementationType, propertyWrapperType, implementation.flags);
 		}
     }
 
@@ -46,11 +48,11 @@ public class ComponentGenerators : IBakeryComponentGenerators
 
     public AbstractPropertyGenerator? GetPropertyGenerator(PropertyInfo property)
     {
-		var type = propertyImplementationProvider.Get(property);
+		var implementationWithFlags = propertyImplementationProvider.Get(property);
 
-        if (!propertyGenerators.TryGetValue(type, out var generator))
+        if (!propertyGenerators.TryGetValue(implementationWithFlags, out var generator))
         {
-            throw new Exception($"Implementation type {type} was not listed by the provider");
+            throw new Exception($"Implementation type {implementationWithFlags.implementationType} was not listed by the provider");
 		}
 
         return generator;
@@ -86,7 +88,7 @@ public class ComponentGenerators : IBakeryComponentGenerators
 
             foreach (var implementation in dynamicImplementations)
             {
-                CheckedImplementation.PreCheck(implementation);
+                CheckedImplementation.PreCheck(implementation.implementationType);
             }
         }
         else
@@ -124,8 +126,7 @@ public record BakeryConfiguration(
     IDefaultProvider DefaultProvider,
     ICustomMemberModifier? CustomMemberModifier = null,
 	Boolean MakeAbstract = false,
-    Boolean MakeValue = false,
-    Boolean PrefixBackingFields = true
+    Boolean MakeValue = false
     )
 {
 	public static BakeryConfiguration Create(PropertyImplementationProvider propertyImplementationProvider, params Type[] implementations)
