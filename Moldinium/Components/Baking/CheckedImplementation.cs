@@ -114,20 +114,35 @@ public class CheckedImplementation
 
         typeArgumentsToKindMapping = new Dictionary<Type, ImplementationTypeArgumentKind>();
 
-        typeArgumentsInfos = typeParameters.Select((p, i) =>
+        var hadImplementationValueArgument = false;
+
+		typeArgumentsInfos = typeParameters.Select((p, i) =>
         {
-            var a = p.GetCustomAttribute<TypeKindAttribute>();
+			var a = p.GetCustomAttribute<TypeKindAttribute>();
 
             if (a is null) throw new Exception($"Expected implementation interface {p} type paramter {p} to have a {nameof(TypeKindAttribute)}");
 
             var arg = typeArguments[i];
 
-            switch (a.Kind)
+			void AssertGenericParameter()
+			{
+				if (!arg.IsGenericParameter) throw new Exception($"Implementation type {implementationType} must be itself be generic in type parameter {p} of interface {implementationInterfaceTypeDefinition}");
+			}
+
+			switch (a.Kind)
             {
-                case ImplementationTypeArgumentKind.Value:
-                case ImplementationTypeArgumentKind.Handler:
-                    if (!arg.IsGenericParameter) throw new Exception($"Implementation type {implementationType} must be itself be generic in type parameter {p} of interface {implementationInterfaceTypeDefinition}");
+                case ImplementationTypeArgumentKind.ImplementationValueArgument:
+                    hadImplementationValueArgument = true;
                     break;
+				case ImplementationTypeArgumentKind.Value:
+                    if (!hadImplementationValueArgument)
+                    {
+                        AssertGenericParameter();
+                    }
+                    break;
+				case ImplementationTypeArgumentKind.Handler:
+                    AssertGenericParameter();
+					break;
                 default:
                     break;
             }
@@ -168,6 +183,7 @@ public class CheckedImplementation
 
             switch (kind)
             {
+                case ImplementationTypeArgumentKind.ImplementationValueArgument:
                 case ImplementationTypeArgumentKind.Value:
                 case ImplementationTypeArgumentKind.Handler:
                     arguments.Add(proeprtyOrHandlerType ?? Throw());

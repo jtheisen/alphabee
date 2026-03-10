@@ -140,21 +140,36 @@ public struct PeachyStructPropertyImplementation<
 }
 
 
+//public interface IPeachySpanPropertyImplementation<
+//	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
+//	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
+//> : IPropertyImplementation
+//	where Value : struct, allows ref struct
+//	where Mixin : IPeachMixin
+//{
+//	Value Get(ref Mixin mixin, Int32 offset);
+//}
+
+//public struct PeachySpanPropertyImplementation<Value> : IPeachySpanPropertyImplementation<Span<Value>, InternalPeachMixin>
+//	where Value : struct
+//{
+//	public Span<Value> Get(ref InternalPeachMixin mixin, Int32 offset) => mixin.GetSpan<Value>(offset);
+//}
+
+
 public interface IPeachyNullableStructPropertyImplementation<
+	[TypeKind(ImplementationTypeArgumentKind.ImplementationValueArgument)] ImplementationArgument,
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
 	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
 > : IPropertyImplementation
-	where Value : unmanaged
 	where Mixin : IPeachMixin
 {
-	Value? Get(ref Mixin mixin, Int32 offset);
+	Value Get(ref Mixin mixin, Int32 offset);
 
-	void Set(ref Mixin mixin, Int32 offset, Value? value);
+	void Set(ref Mixin mixin, Int32 offset, Value value);
 }
 
-public struct PeachyNullableStructPropertyImplementation<
-	[TypeKind(ImplementationTypeArgumentKind.Value)] Value
-> : IPeachyNullableStructPropertyImplementation<Value, InternalPeachMixin>
+public struct PeachyNullableStructPropertyImplementation<Value> : IPeachyNullableStructPropertyImplementation<Value, Value?, InternalPeachMixin>
 	where Value : unmanaged
 {
 	public Value? Get(ref InternalPeachMixin mixin, Int32 offset) => mixin.GetNullableValue<Value>(offset);

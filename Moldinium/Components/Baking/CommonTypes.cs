@@ -4,6 +4,7 @@ namespace Moldinium.Baking;
 
 public enum ImplementationTypeArgumentKind
 {
+    ImplementationValueArgument,
     Value,
     Return,
     Handler,
