@@ -1,6 +1,9 @@
 ﻿using Moldinium.Baking;
+using Newtonsoft.Json.Linq;
 using System.Collections;
 using System.Diagnostics;
+using System.Numerics;
+using static AlphaBee.FundamentalTypeBaking;
 
 namespace AlphaBee;
 
@@ -8,7 +11,7 @@ namespace AlphaBee;
 public class FundamentalTypeBaking
 {
 	[TestMethod]
-	public void TestObjectTypeKinds()
+	public void TestFundamentalTypeStruct()
 	{
 		var kinds = new FundamentalTypesStruct();
 
@@ -22,10 +25,22 @@ public class FundamentalTypeBaking
 		Int32 Integer32 { get; set; }
 		Int64 Integer64 { get; set; }
 
+		Byte UInteger8 { get; set; }
+		UInt16 UInteger16 { get; set; }
+		UInt32 UInteger32 { get; set; }
+		UInt64 UInteger64 { get; set; }
+
+		SByte? NullableInteger8 { get; set; }
+		Int16? NullableInteger16 { get; set; }
 		Int32? NullableInteger32 { get; set; }
+		Int64? NullableInteger64 { get; set; }
 
 		String String { get; set; }
 		Byte[] Bytes { get; set; }
+
+		Boolean?[] NullableBooleanArray { get; set; }
+		Int32?[] NullableInteger32Array { get; set; }
+		Byte?[] NullableByteArray { get; set; }
 	}
 
 	public struct SFoo
@@ -35,10 +50,22 @@ public class FundamentalTypeBaking
 		public Int32 Integer32;
 		public Int64 Integer64;
 
+		public Byte UInteger8;
+		public UInt16 UInteger16;
+		public UInt32 UInteger32;
+		public UInt64 UInteger64;
+
+		public NullableStruct<SByte> NullableInteger8;
+		public NullableStruct<Int16> NullableInteger16;
 		public NullableStruct<Int32> NullableInteger32;
+		public NullableStruct<Int64> NullableInteger64;
 
 		public Int64 String;
 		public Int64 Bytes;
+
+		public Int64 NullableBooleanArray;
+		public Int64 NullableInteger32Array;
+		public Int64 NullableByteArray;
 	}
 
 	public struct SFooWithHeader
@@ -126,6 +153,20 @@ public class FundamentalTypeBaking
 		}
 	}
 
+	public static bool ImplementsIBinaryNumber(Type type)
+	{
+		var iBinaryNumber = typeof(IBinaryNumber<>);
+		return type.GetInterfaces()
+			.Any(i => i.IsGenericType
+				&& i.GetGenericTypeDefinition() == iBinaryNumber);
+	}
+
+	struct GetTestValueFromType<N> : IValueFromType<Object>
+		where N : IBinaryNumber<N>
+	{
+		Object IValueFromType<Object>.Value => N.CreateChecked(42);
+	}
+
 	static Object GetTestValue(Type type)
 	{
 		if (Nullable.GetUnderlyingType(type) is Type underlyingType)
@@ -133,29 +174,30 @@ public class FundamentalTypeBaking
 			return GetTestValue(underlyingType);
 		}
 
-		if (type == typeof(SByte))
+		if (ImplementsIBinaryNumber(type))
 		{
-			return (SByte)42;
+			return ValueFromType.Get<Object>(typeof(GetTestValueFromType<>), type);
 		}
-		else if (type == typeof(Int16))
+
+		if (type == typeof(Byte[]))
 		{
-			return (Int16)42;
+			return new Byte[] { 1, 2, 3 };
 		}
-		else if (type == typeof(Int32))
+		else if (type == typeof(Byte?[]))
 		{
-			return 42;
-		}
-		else if (type == typeof(Int64))
-		{
-			return (Int64)42;
+			return new Byte?[] { 1, null, 3 };
 		}
 		else if (type == typeof(String))
 		{
 			return "foo";
 		}
-		else if (type == typeof(Byte[]))
+		else if (type == typeof(Int32?[]))
 		{
-			return new Byte[] { 1, 2, 3 };
+			return new Int32?[] { 1, null, 3 };
+		}
+		else if (type == typeof(Boolean?[]))
+		{
+			return new Boolean?[] { true, null, false };
 		}
 		else
 		{

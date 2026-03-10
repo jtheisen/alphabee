@@ -6,6 +6,7 @@ public static class TypeCodeExtensions
 	public const TypeCode FirstExtraTypeCode = (TypeCode)FirstExtraTypeCodeInt;
 
 	static Type[] extraTypes = new Type[32 - FirstExtraTypeCodeInt];
+	static TypeCode extraTypeCodesEnd;
 
 	static TypeCodeExtensions()
 	{
@@ -19,6 +20,28 @@ public static class TypeCodeExtensions
 		for (var i = 0; i < types.Length; ++i)
 		{
 			extraTypes[i] = types[i];
+		}
+
+		extraTypeCodesEnd = FirstExtraTypeCode + types.Length;
+	}
+
+	public static String ToStringExtended(this TypeCode code)
+	{
+		if (code == TypeCode.String)
+		{
+			return "S-Char";
+		}
+		else if (code < FirstExtraTypeCode)
+		{
+			return code.ToString();
+		}
+		else if (code < extraTypeCodesEnd)
+		{
+			return FindType(code).Name;
+		}
+		else
+		{
+			return code.ToString();
 		}
 	}
 

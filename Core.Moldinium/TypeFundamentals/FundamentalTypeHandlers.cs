@@ -1,6 +1,6 @@
 ﻿namespace AlphaBee;
 
-public interface IObjectTypeHandler
+public interface ITypeHandler
 {
 	Type? Type { get; }
 
@@ -10,14 +10,18 @@ public interface IObjectTypeHandler
 
 	void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address);
 
-	static virtual IObjectTypeHandler GetHandler(TypeByte typeByte) => throw new NotImplementedException();
+	static virtual ITypeHandler GetHandler(TypeByte typeByte) => throw new NotImplementedException();
+
+	String HandlerName => GetType().Name.StripSuffix("`1").StripSuffix(nameof(ITypeHandler).StripPrefix("I"));
+
+	String HandlerMessage => HandlerName;
 }
 
 public interface IHandlerGetter
 {
-	IObjectTypeHandler GetHandler(TypeByte typeByte);
+	ITypeHandler GetHandler(TypeByte typeByte);
 
-	static IObjectTypeHandler Get(Type type, TypeByte typeByte)
+	static ITypeHandler Get(Type type, TypeByte typeByte)
 	{
 		return typeof(HandlerProvider<>)
 			.MakeGenericType(type)
@@ -27,35 +31,39 @@ public interface IHandlerGetter
 }
 
 public struct HandlerProvider<HandlerT> : IHandlerGetter
-	where HandlerT : IObjectTypeHandler
+	where HandlerT : ITypeHandler
 {
-	public IObjectTypeHandler GetHandler(TypeByte typeByte)
+	public ITypeHandler GetHandler(TypeByte typeByte)
 	{
 		return HandlerT.GetHandler(typeByte);
 	}
 }
 
-public interface ISingletonObjectTypeHandler<T> : IObjectTypeHandler
-	where T : IObjectTypeHandler, new()
+public interface ISingletonObjectTypeHandler<T> : ITypeHandler
+	where T : ITypeHandler, new()
 {
-	private static IObjectTypeHandler? instance;
+	private static ITypeHandler? instance;
 
-	static IObjectTypeHandler IObjectTypeHandler.GetHandler(TypeByte _)
+	static ITypeHandler ITypeHandler.GetHandler(TypeByte _)
 	{
 		return instance ?? (instance = new T());
 	}
 }
 
-public struct UnimplementedMiscTypeHandler : IObjectTypeHandler
+public struct UnimplementedMiscTypeHandler : ITypeHandler
 {
-	public Type? Type { get; }
+	private readonly String? message;
+
+	public Type? Type => null;
 
 	public TypeNo TypeNo { get; }
 
-	public UnimplementedMiscTypeHandler(TypeByte typeByte, Type type)
+	public String HandlerMessage => message ?? (this as ITypeHandler).HandlerName;
+
+	public UnimplementedMiscTypeHandler(TypeByte typeByte, String? message = null)
 	{
 		TypeNo = new TypeNo(typeByte);
-		Type = type;
+		this.message = message;
 	}
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
@@ -69,13 +77,13 @@ public struct UnimplementedMiscTypeHandler : IObjectTypeHandler
 	}
 }
 
-public struct UnimplementedSupportedStructTypeHandler : IObjectTypeHandler
+public struct UnimplementedSupportedStructTypeHandler : ITypeHandler
 {
 	public Type? Type { get; }
 
 	public TypeNo TypeNo { get; }
 
-	static IObjectTypeHandler IObjectTypeHandler.GetHandler(TypeByte typeByte)
+	static ITypeHandler ITypeHandler.GetHandler(TypeByte typeByte)
 	{
 		return new UnimplementedSupportedStructTypeHandler(typeByte);
 	}

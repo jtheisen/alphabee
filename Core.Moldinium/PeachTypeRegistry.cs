@@ -466,7 +466,7 @@ public class PeachTypeRegistry : IPropNoResolver
 	{
 		AssertStage(Stage.Ready);
 
-		if (ObjectTypeKinds.GetHandlerOrNull(type) is IObjectTypeHandler handler)
+		if (ObjectTypeKinds.GetHandlerOrNull(type) is ITypeHandler handler)
 		{
 			typeNo = handler.TypeNo;
 			clrType = type;

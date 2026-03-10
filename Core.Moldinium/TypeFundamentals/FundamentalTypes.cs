@@ -7,17 +7,17 @@ public static class FundamentalTypesInstance
 
 public struct FundamentalTypesStruct
 {
-	readonly IObjectTypeHandler?[] handlersByByte;
+	readonly ITypeHandler?[] handlersByByte;
 
-	readonly Dictionary<Type, IObjectTypeHandler> handlersByType = new();
+	readonly Dictionary<Type, ITypeHandler> handlersByType = new();
 
-	readonly IObjectTypeHandler objectArrayTypeHandler = new ObjectArrayTypeHandler();
+	readonly ITypeHandler objectArrayTypeHandler = new ObjectArrayTypeHandler();
 
 	public FundamentalTypesStruct()
 	{
 		var typeCodes = Enum.GetValues<TypeCode>();
 
-		handlersByByte = new IObjectTypeHandler[128];
+		handlersByByte = new ITypeHandler[128];
 
 		for (Byte i = 0; i < 128; ++i)
 		{
@@ -42,7 +42,7 @@ public struct FundamentalTypesStruct
 		}
 	}
 
-	IObjectTypeHandler? FindHandler(TypeByte typeByte)
+	ITypeHandler? FindHandler(TypeByte typeByte)
 	{
 		var code = typeByte.Code;
 
@@ -50,8 +50,8 @@ public struct FundamentalTypesStruct
 
 		var isNullable = typeByte.IsNullable;
 
-		IObjectTypeHandler Get<HandlerT>()
-			where HandlerT : IObjectTypeHandler
+		ITypeHandler Get<HandlerT>()
+			where HandlerT : ITypeHandler
 		{
 			return HandlerT.GetHandler(typeByte);
 		}
@@ -68,7 +68,7 @@ public struct FundamentalTypesStruct
 			}
 			else
 			{
-				return null;
+				return new UnimplementedMiscTypeHandler(typeByte, "TypeCode.String is a flavor of the Char[] array");
 			}
 		}
 		else if (code == TypeCode.Object)
@@ -83,7 +83,7 @@ public struct FundamentalTypesStruct
 			}
 			else
 			{
-				return new UnimplementedMiscTypeHandler(typeByte, typeof(Object));
+				return new UnimplementedMiscTypeHandler(typeByte);
 			}
 		}
 		else if (code.IsSupportedStruct())
@@ -121,20 +121,20 @@ public struct FundamentalTypesStruct
 
 		for (Byte i = 0; i < 128; ++i)
 		{
-			writer.WriteLine($"{new TypeByte(i)} - {handlersByByte[i]?.Type?.Name ?? "n/a"}");
+			writer.WriteLine($"{new TypeByte(i)} - {handlersByByte[i]?.HandlerMessage ?? "n/a"}");
 		}
 
 		return writer.ToString();
 	}
 
-	public IObjectTypeHandler GetHandler(TypeByte typeByte)
+	public ITypeHandler GetHandler(TypeByte typeByte)
 	{
 		Trace.Assert(!typeByte.IsZero);
 
 		return handlersByByte[typeByte.value] ?? throw new Exception($"No handler exists for TypeByte '{typeByte}'"); ;
 	}
 
-	public IObjectTypeHandler? GetHandlerOrNull(Type type)
+	public ITypeHandler? GetHandlerOrNull(Type type)
 	{
 		if (type.IsArray && type.GetElementType() is Type elementType && !elementType.IsValueType)
 		{
@@ -146,7 +146,7 @@ public struct FundamentalTypesStruct
 		}
 	}
 
-	public IObjectTypeHandler GetHandler(Type type)
+	public ITypeHandler GetHandler(Type type)
 	{
 		return GetHandlerOrNull(type) ?? throw new Exception($"No handler exists for type '{type.Name}'");
 	}

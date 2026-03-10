@@ -125,7 +125,7 @@ public readonly struct TypeByte : IEquatable<TypeByte>
 	public override String ToString()
 	{
 		var b = new StringBuilder();
-		b.Append(Code.ToString());
+		b.Append(Code.ToStringExtended());
 		if (IsNullable)
 		{
 			b.Append("?");

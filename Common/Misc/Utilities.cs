@@ -140,4 +140,41 @@ public static partial class Extensions
 		return (T)(Activator.CreateInstance(type, args)
             ?? throw new ArgumentException("Could not create instances from type"));
 	}
+
+	public static String StripPrefix(this String str, String prefix)
+	{
+		if (str.StartsWith(prefix, StringComparison.InvariantCultureIgnoreCase))
+		{
+			return str.Substring(prefix.Length, str.Length - prefix.Length);
+		}
+		else
+		{
+			return str;
+		}
+	}
+
+	public static String StripSuffix(this String str, String suffix)
+    {
+        if (str.EndsWith(suffix, StringComparison.InvariantCultureIgnoreCase))
+        {
+            return str.Substring(0, str.Length - suffix.Length);
+        }
+        else
+        {
+            return str;
+        }
+    }
+}
+
+public static class ValueFromType
+{
+    public static ResultT Get<ResultT>(Type getterType, Type type) => getterType
+        .MakeGenericType(type)
+        .CreateInstance<IValueFromType<ResultT>>()
+        .Value;
+}
+
+public interface IValueFromType<ResultT>
+{
+	ResultT Value { get; }
 }
