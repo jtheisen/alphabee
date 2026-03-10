@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace AlphaBee;
 
@@ -7,6 +8,26 @@ public static class NullableStruct
 	public static Type MakeNullableType(Type baseType)
 	{
 		return typeof(NullableStruct<>).MakeGenericType(baseType);
+	}
+
+	public static Type? GetUnderlyingType(Type type)
+	{
+		if (type.GetGenericTypeDefinition() != typeof(NullableStruct<>))
+		{
+			return null;
+		}
+
+		var args = type.GetGenericArguments();
+
+		return args[0];
+	}
+
+	public static void FixToClrNullableIfAppropriate(ref Object? value)
+	{
+		if (value is INullableStruct nullable)
+		{
+			value = nullable.Get();
+		}
 	}
 
 	public static void CopyFrom<T>(this Span<NullableStruct<T>> target, Span<T?> source)
@@ -32,8 +53,13 @@ public static class NullableStruct
 	}
 }
 
+public interface INullableStruct
+{
+	Object? Get();
+}
+
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct NullableStruct<T>
+public readonly struct NullableStruct<T> : INullableStruct
 	where T : unmanaged
 {
 	readonly T value;
@@ -57,4 +83,6 @@ public readonly struct NullableStruct<T>
 			hasValue = true;
 		}
 	}
+
+	Object? INullableStruct.Get() => (T?)this;
 }

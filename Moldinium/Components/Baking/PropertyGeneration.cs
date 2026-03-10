@@ -217,7 +217,10 @@ public class GenericPropertyGenerator : AbstractPropertyGenerator
             throw new Exception($"Property {property} needs to be {(wrap ? "wrapped" : "implemented")}, but there is no corresponding property implementation type");
         }
 
-        var propertyImplementationType = implementation.MakeImplementationType(propertyOrHandlerType: property.PropertyType);
+        var propertyImplementationType = implementation.MakeImplementationType(
+            propertyOrHandlerType: property.PropertyType,
+            makeGenericWithBaseType: Flags.HasFlag(PropertyImplementationFlags.MakeGenericWithBaseType)
+		);
 
         var backingFieldsUnprefixedAndPublic = Flags.HasFlag(PropertyImplementationFlags.BackingFieldPublicAndUnprefixed);
 

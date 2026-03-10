@@ -47,7 +47,8 @@ public enum PropertyImplementationFlags
 {
     None = 0,
     ImplementationExplicit = 1,
-    BackingFieldPublicAndUnprefixed = 2
+    BackingFieldPublicAndUnprefixed = 2,
+    MakeGenericWithBaseType = 4
 }
 
 public record struct PropertyImplementationWithFlags(Type implementationType, PropertyImplementationFlags flags);

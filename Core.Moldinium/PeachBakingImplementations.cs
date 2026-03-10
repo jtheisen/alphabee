@@ -149,7 +149,7 @@ public interface IPeachyNullableStructPropertyImplementation<
 {
 	Value? Get(ref Mixin mixin, Int32 offset);
 
-	void Set(ref Mixin mixin, Int32 offset, Value value);
+	void Set(ref Mixin mixin, Int32 offset, Value? value);
 }
 
 public struct PeachyNullableStructPropertyImplementation<
@@ -157,9 +157,9 @@ public struct PeachyNullableStructPropertyImplementation<
 > : IPeachyNullableStructPropertyImplementation<Value, InternalPeachMixin>
 	where Value : unmanaged
 {
-	public Value? Get(ref InternalPeachMixin mixin, Int32 offset) => mixin.GetValue<Value>(offset);
+	public Value? Get(ref InternalPeachMixin mixin, Int32 offset) => mixin.GetNullableValue<Value>(offset);
 
-	public void Set(ref InternalPeachMixin mixin, Int32 offset, Value value) => mixin.SetValue(offset, value);
+	public void Set(ref InternalPeachMixin mixin, Int32 offset, Value? value) => mixin.SetNullableValue(offset, value);
 }
 
 
@@ -192,7 +192,7 @@ public class PeachPropertyImplementationProvider : PropertyImplementationProvide
 		}
 		else if (isNullable)
 		{
-			return new(typeof(PeachyNullableStructPropertyImplementation<>), flags);
+			return new(typeof(PeachyNullableStructPropertyImplementation<>), flags | PropertyImplementationFlags.MakeGenericWithBaseType);
 		}
 		else
 		{

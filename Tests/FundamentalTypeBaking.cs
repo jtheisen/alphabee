@@ -112,7 +112,11 @@ public class FundamentalTypeBaking
 
 	static Object? GetDefaultValue(Type type)
 	{
-		if (type.IsValueType)
+		if (Nullable.GetUnderlyingType(type) is not null)
+		{
+			return null;
+		}
+		else if (type.IsValueType)
 		{
 			return Activator.CreateInstance(type)!;
 		}
@@ -124,6 +128,11 @@ public class FundamentalTypeBaking
 
 	static Object GetTestValue(Type type)
 	{
+		if (Nullable.GetUnderlyingType(type) is Type underlyingType)
+		{
+			return GetTestValue(underlyingType);
+		}
+
 		if (type == typeof(SByte))
 		{
 			return (SByte)42;
@@ -185,11 +194,20 @@ public class FundamentalTypeBaking
 			var property = peach.GetType().GetProperty(name)!;
 			var field = target.GetType().GetField(name)!;
 
+			Object? GetFieldValue(SFoo target)
+			{
+				var result = field.GetValue(target);
+
+				NullableStruct.FixToClrNullableIfAppropriate(ref result);
+
+				return result;
+			}
+
 			AssertEqual(defaultValue, property.GetValue(peach));
 
 			if (isStruct)
 			{
-				Assert.AreEqual(defaultValue, field.GetValue(target));
+				Assert.AreEqual(defaultValue, GetFieldValue(target));
 			}
 
 			property.SetValue(peach, value);
@@ -198,7 +216,7 @@ public class FundamentalTypeBaking
 
 			if (isStruct)
 			{
-				Assert.AreEqual(value, field.GetValue(target));
+				Assert.AreEqual(value, GetFieldValue(target));
 			}
 		}
 	}

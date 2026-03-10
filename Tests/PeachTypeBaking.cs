@@ -8,6 +8,8 @@ public class PeachTypeBaking
 	[PeachLayout(typeof(SFoo))]
 	public interface IFoo
 	{
+		Int32? NullableInt32 { get; set; }
+
 		String? String { get; set; }
 
 		IFoo? Foo { get; set; }
@@ -19,6 +21,8 @@ public class PeachTypeBaking
 
 	public struct SFoo
 	{
+		public NullableStruct<Int32> NullableInt32;
+
 		public Int64 String;
 
 		public Int64 Foo;
