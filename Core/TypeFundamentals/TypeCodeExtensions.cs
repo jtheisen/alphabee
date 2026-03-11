@@ -10,7 +10,7 @@ public static class TypeCodeExtensions
 
 	static TypeCodeExtensions()
 	{
-		PrepareExtraTypes([ typeof(TypeNo), typeof(PropNo) ]);
+		PrepareExtraTypes([ typeof(ObjectHeader), typeof(PropNo) ]);
 	}
 
 	static void PrepareExtraTypes(Type[] types)

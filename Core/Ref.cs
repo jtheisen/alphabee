@@ -168,7 +168,7 @@ public struct ObjectSize
 }
 
 [StructLayout(LayoutKind.Explicit, Size = 4)]
-public readonly struct ObjectExtent
+public readonly struct ObjectExtent : IEquatable<ObjectExtent>
 {
 	[FieldOffset(0)]
 	readonly Int16 unitSize;
@@ -188,7 +188,7 @@ public readonly struct ObjectExtent
 		unitSize = this.unitSize;
 	}
 
-	public ObjectExtent(Int32 length, Int32 unitSize)
+	public ObjectExtent(Int32 length, Int32 unitSize = 1)
 	{
 		checked
 		{
@@ -216,45 +216,30 @@ public readonly struct ObjectExtent
 
 		return new ObjectExtent(length, unitSize);
 	}
+
+	public Boolean Equals(ObjectExtent other)
+	{
+		return unitSize == other.unitSize && length == other.length;
+	}
 }
 
 [DebuggerDisplay("{ToString()}")]
-[StructLayout(LayoutKind.Explicit, Size = 8)]
-public readonly struct ObjectHeader
+[StructLayout(LayoutKind.Sequential, Size = 8)]
+public readonly record struct ObjectHeader(TypeNo TypeNo, ObjectExtent Extent)
 {
 	public static Int32 Size => Unsafe.SizeOf<ObjectHeader>();
 
-	[FieldOffset(0)]
-	public readonly TypeNo typeNo;
+	public Boolean IsArray => TypeNo.IsArray;
 
-	[FieldOffset(4)]
-	public readonly ObjectExtent extent;
-
-	// 3 unused bytes
-
-	//[FieldOffset(8)]
-	//public readonly Int32 id;
-
-	//[FieldOffset(12)]
-	//public readonly Int32 length;
-
-	public Boolean IsArray => typeNo.IsArray;
-
-	public Int32 EntireSize => Size + extent.Size;
+	public Int32 EntireSize => Size + Extent.Size;
 
 	//public Int32 PaddedEntireSize => EntireSize.Log2Ceil;
 
-	public Int32 UnitSize => extent.UnitSize;
+	public Int32 UnitSize => Extent.UnitSize;
 
-	public Int32 ContentLength => extent.Length;
+	public Int32 ContentLength => Extent.Length;
 
-	public Int32 ContentSize => extent.Size;
-
-	public ObjectHeader(TypeNo typeNo, ObjectExtent extent)
-	{
-		this.typeNo = typeNo;
-		this.extent = extent;
-	}
+	public Int32 ContentSize => Extent.Size;
 
 	public static ObjectHeader CreateWithSize(TypeNo typeNo, Int32 size, Int32 length = 1)
 	{
@@ -274,8 +259,8 @@ public readonly struct ObjectHeader
 	public override String ToString()
 	{
 		var arrayTag = IsArray ? $"[{ContentLength}]" : null;
- 
-		return $"obj:#{typeNo}{arrayTag}({Size} bytes total)";
+
+		return $"obj:#{TypeNo}{arrayTag}({Size} bytes total)";
 	}
 }
 

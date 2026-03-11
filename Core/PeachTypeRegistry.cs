@@ -1,5 +1,6 @@
 ﻿using Moldinium.Baking;
 using Moldinium.Utilities;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using CanonicalInfo = (AlphaBee.TypeNo typeNo, System.Type implementationType);
@@ -549,7 +550,9 @@ public class PeachTypeRegistry : IPropNoResolver
 	{
 		AssertStage(Stage.Declaring);
 
-		var typeNo = new TypeNo(description.No);
+		var tae = description.Header;
+
+		var typeNo = tae.TypeNo;
 
 		Trace.Assert(description.ClrName is not null);
 
@@ -563,7 +566,7 @@ public class PeachTypeRegistry : IPropNoResolver
 
 				var property = interfaceType.GetNonNullProperty(propertyEntry.ClrName);
 
-				AssignPropNo(property, propertyEntry.PropertyNo);
+				AssignPropNo(property, propertyEntry.PropNo);
 			}
 		}
 
@@ -643,7 +646,7 @@ public class PeachTypeRegistry : IPropNoResolver
 
 			Trace.Assert(target is not null);
 
-			if (target.No != i)
+			if (target.TypeNo.no != i)
 			{
 				didWrite = true;
 
@@ -654,23 +657,21 @@ public class PeachTypeRegistry : IPropNoResolver
 		}
 	}
 
-	public void WriteTypeDescription(BookkeepingTypeFactory factory, ITypeDescription target, Type interfaceType, PeachTypeLayout? layout, Int32 no)
+	public void WriteTypeDescription(BookkeepingTypeFactory factory, ITypeDescription target, Type interfaceType, PeachTypeLayout? layout, TypeNo typeTypeNo)
 	{
 		AssertStage(Stage.Ready);
-
-		target.No = no;
 
 		target.ClrName = clrTypeResolver.GetFqTypeName(interfaceType);
 
 		if (layout is null)
 		{
-			target.Size = 0;
+			target.Header = new(typeTypeNo, default);
 			target.Properties = null;
 
 			return;
 		}
 
-		target.Size = layout.Size;
+		target.Header = new(typeTypeNo, new(layout.Size));
 
 		var kvps = layout.Properties.ToArray();
 
@@ -688,10 +689,9 @@ public class PeachTypeRegistry : IPropNoResolver
 
 			var p = properties[i] = factory.CreatePropertyDecription();
 			p.ClrName = property.GetFqPropertyName();
-			p.PropertyNo = GetPropNo(property).no;
+			p.PropNo = GetPropNo(property).no;
 			p.Offset = entry.Offset;
-			p.Size = entry.Size;
-			p.TypeNo = typeNo;
+			p.Header = new(typeNo, entry.Extent);
 		}
 
 		target.Properties = properties;

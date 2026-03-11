@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using AlphaBee.Layouts;
+using System.Runtime.InteropServices;
 
 namespace AlphaBee;
 
@@ -16,27 +17,29 @@ public struct HiveRoot
 [PeachLayout(typeof(PropertyDescriptionLayout))]
 public interface IPropertyDescription
 {
-	public Int32 PropertyNo { get; set; }
+	ObjectHeader Header { get; set; }
 
-	public TypeNo TypeNo { get; set; }
+	PropNo PropNo { get; set; }
 
-	public Int32 Offset { get; set; }
+	Int32 Offset { get; set; }
 
-	public Int32 Size { get; set; }
+	String? ClrName { get; set; }
 
-	public String? ClrName { get; set; }
+	TypeNo TypeNo => Header.TypeNo;
+
+	ObjectExtent Extent => Header.Extent;
+
+	OffsetExtent OffsetExtent => new(Extent, Offset);
 }
 
 [StructLayout(LayoutKind.Sequential)]
 public struct PropertyDescriptionLayout
 {
-	public Int32 PropertyNo;
+	public ObjectHeader Header;
 
-	public TypeNo TypeNo;
+	public PropNo PropNo;
 
 	public Int32 Offset;
-
-	public Int32 Size;
 
 	public Int64 ClrName;
 }
@@ -44,15 +47,15 @@ public struct PropertyDescriptionLayout
 [PeachLayout(typeof(TypeDescriptionLayout))]
 public interface ITypeDescription
 {
-	Int32 No { get; set; }
-
-	Int32 Size { get; set; }
+	ObjectHeader Header { get; set; }
 
 	String? ClrName { get; set; }
 
 	Object?[]? Properties { get; set; }
 
 	Object? RootInstance { get; set; }
+
+	TypeNo TypeNo => Header.TypeNo;
 }
 
 [StructLayout(LayoutKind.Explicit)]

@@ -10,8 +10,6 @@ public abstract class Layouter
 
 	public record struct PropertyLayout(PropertyInfo Property, OffsetExtent OffsetExtent);
 
-	public record struct OffsetExtent(ObjectExtent Extent, Int32 Offset);
-
 	public TypeLayout GetLayout(Input input)
 	{
 		var layout = FindLayout(input);

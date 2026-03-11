@@ -64,15 +64,15 @@ public class PeachContext : AbstractPeachContext
 
 		var header = storage.GetHeader(address);
 
-		if (header.typeNo.IsFundamental)
+		if (header.TypeNo.IsFundamental)
 		{
-			var handler = FundamentalTypes.GetHandler(header.typeNo.typeByte);
+			var handler = FundamentalTypes.GetHandler(header.TypeNo.typeByte);
 
 			return handler.Get(storage, this, address);
 		}
 		else
 		{
-			var peach = CreatePeach(header.typeNo);
+			var peach = CreatePeach(header.TypeNo);
 
 			peach.Init(this, address);
 
