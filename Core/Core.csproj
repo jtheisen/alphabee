@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Common\Common.csproj" />
+    <ProjectReference Include="..\Moldinium\Moldinium.csproj" />
     <ProjectReference Include="..\Unsafe\Unsafe.csproj" />
   </ItemGroup>
 

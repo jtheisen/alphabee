@@ -14,10 +14,14 @@ public interface IInlArr<T>
 
 }
 
-public interface IStructLayout<ConcreteSampleT>
-	where ConcreteSampleT : IStructMetaLayout
+public interface IStructLayout
 {
-	//static abstract Int32? GetArrayPropertyLength(String propertyName);
+	Int32? GetArrayPropertyLength(String propertyName) => null;
+}
+
+public interface IStructLayout<ConcreteSampleT> : IStructLayout
+	where ConcreteSampleT : IStructLayout
+{
 }
 
 public interface IStructMetaLayout
@@ -25,26 +29,12 @@ public interface IStructMetaLayout
 	Int32? GetArrayPropertyLength(String propertyName);
 }
 
-public struct FooMetaLayout : IStructMetaLayout
-{
-	static Int32? IStructMetaLayout.GetArrayPropertyLength(String propertyName)
-	{
-		switch (propertyName)
-		{
-			case nameof(Foo<DummyInlArr>.Words):
-				return 42;
-			default:
-				return null;
-		}
-	}
-}
-
-public struct Foo<ArrayT> : IStructLayout<Foo<DummyInlArr<Int16>>>, IStructMetaLayout
+public struct Foo<ArrayT> : IStructLayout<Foo<DummyInlArr<Int16>>>
 	where ArrayT : struct, IInlArr<Int16>
 {
 	public ArrayT Words;
 
-	Int32? IStructMetaLayout.GetArrayPropertyLength(String propertyName)
+	Int32? IStructLayout.GetArrayPropertyLength(String propertyName)
 	{
 		switch (propertyName)
 		{

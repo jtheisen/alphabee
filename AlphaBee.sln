@@ -15,8 +15,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests.EntityFramework", "Te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Moldinium", "Moldinium\Moldinium.csproj", "{6BF9C9BA-3470-4224-E897-827D99C487EC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Moldinium", "Core.Moldinium\Core.Moldinium.csproj", "{D6ECCBCD-694C-4BD6-8AAD-C3C43BE079FD}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,10 +45,6 @@ Global
 		{6BF9C9BA-3470-4224-E897-827D99C487EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6BF9C9BA-3470-4224-E897-827D99C487EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6BF9C9BA-3470-4224-E897-827D99C487EC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D6ECCBCD-694C-4BD6-8AAD-C3C43BE079FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D6ECCBCD-694C-4BD6-8AAD-C3C43BE079FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D6ECCBCD-694C-4BD6-8AAD-C3C43BE079FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D6ECCBCD-694C-4BD6-8AAD-C3C43BE079FD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

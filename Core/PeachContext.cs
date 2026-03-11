@@ -66,7 +66,7 @@ public class PeachContext : AbstractPeachContext
 
 		if (header.typeNo.IsFundamental)
 		{
-			var handler = ObjectTypeKinds.GetHandler(header.typeNo.typeByte);
+			var handler = FundamentalTypes.GetHandler(header.typeNo.typeByte);
 
 			return handler.Get(storage, this, address);
 		}
@@ -101,7 +101,7 @@ public class PeachContext : AbstractPeachContext
 			}
 			else
 			{
-				var handler = ObjectTypeKinds.GetHandler(value.GetType());
+				var handler = FundamentalTypes.GetHandler(value.GetType());
 
 				handler.Set(storage, this, value, out var address);
 

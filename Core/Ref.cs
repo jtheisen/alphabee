@@ -1,7 +1,4 @@
-﻿using System.Diagnostics;
-using System.Numerics;
-using System.Runtime.InteropServices;
-using System.Text;
+﻿using System.Text;
 
 namespace AlphaBee;
 

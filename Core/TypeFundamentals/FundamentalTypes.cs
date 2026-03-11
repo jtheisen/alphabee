@@ -2,7 +2,7 @@
 
 public static class FundamentalTypesInstance
 {
-	public static FundamentalTypesStruct ObjectTypeKinds = new FundamentalTypesStruct();
+	public static FundamentalTypesStruct FundamentalTypes = new FundamentalTypesStruct();
 }
 
 public struct FundamentalTypesStruct
