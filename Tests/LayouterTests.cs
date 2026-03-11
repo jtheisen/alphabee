@@ -30,13 +30,13 @@ public class LayouterTests
 
 	[DataTestMethod]
 	[DataRow(typeof(IFoo<Int16, Int32>), 0)]
-	//[DataRow(typeof(IFoo<Int32, Int16>), 0)]
-	//[DataRow(typeof(IFoo<Int32, Byte>), 0)]
-	//[DataRow(typeof(IFoo<Byte, Int32>), 0)]
-	//[DataRow(typeof(IFoo<Int16, Int32>), 8)]
-	//[DataRow(typeof(IFoo<Int32, Int16>), 8)]
-	//[DataRow(typeof(IFoo<Int32, Byte>), 8)]
-	//[DataRow(typeof(IFoo<Byte, Int32>), 8)]
+	[DataRow(typeof(IFoo<Int32, Int16>), 0)]
+	[DataRow(typeof(IFoo<Int32, Byte>), 0)]
+	[DataRow(typeof(IFoo<Byte, Int32>), 0)]
+	[DataRow(typeof(IFoo<Int16, Int32>), 8)]
+	[DataRow(typeof(IFoo<Int32, Int16>), 8)]
+	[DataRow(typeof(IFoo<Int32, Byte>), 8)]
+	[DataRow(typeof(IFoo<Byte, Int32>), 8)]
 	public void TestLayoutValidates(Type type, Int32 offset)
 	{
 		var layouter = new NaiveLayouter();
@@ -45,6 +45,8 @@ public class LayouterTests
 
 		var layout = layouter.GetLayout(new(type, offset, metadata));
 
-		Assert.IsFalse(layout.Entries.Any(e => e.Layout.offset < offset));
+		layouter.Validate(layout);
+
+		Assert.IsFalse(layout.Properties.Any(e => e.OffsetExtent.Offset < offset));
 	}
 }

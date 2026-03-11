@@ -182,6 +182,21 @@ public readonly struct ObjectExtent
 
 	public Int32 Size => UnitSize * length;
 
+	public void Deconstruct(out Int32 length, out Int32 unitSize)
+	{
+		length = this.length;
+		unitSize = this.unitSize;
+	}
+
+	public ObjectExtent(Int32 length, Int32 unitSize)
+	{
+		checked
+		{
+			this.length = (Int16)length;
+			this.unitSize = (Int16)unitSize;
+		}
+	}
+
 	public ObjectExtent(Int16 length, Int16 unitSize)
 	{
 		this.length = length;
@@ -190,11 +205,16 @@ public readonly struct ObjectExtent
 	
 	public static ObjectExtent CreateForStruct<T>(Int32 length = 1) where T : unmanaged
 	{
-		Trace.Assert(length < Int16.MaxValue, "Larger arrays are not yet supported");
-
 		var unitSize = Unsafe.SizeOf<T>();
 
-		return checked(new ObjectExtent((Int16)length, (SByte)unitSize));
+		return new ObjectExtent(length, unitSize);
+	}
+
+	public static ObjectExtent CreateForStruct(Type type, Int32 length = 1)
+	{
+		var unitSize = type.SizeOf();
+
+		return new ObjectExtent(length, unitSize);
 	}
 }
 

@@ -4,23 +4,26 @@ namespace AlphaBee.Layouts;
 
 public abstract class Layouter
 {
-	public record struct LayoutInput(Type InterfaceType, Int32 Offset, ILayouterMetadataProvider MetaDataProvider);
+	public record struct Input(Type InterfaceType, Int32 Offset, ILayouterMetadataProvider MetaDataProvider);
 
-	public record struct Layout(Entry[] Entries, Int32 Size);
+	public record struct TypeLayout(PropertyLayout[] Properties, Int32 Size);
 
-	public record struct Entry(PropertyInfo Property, LayoutEntry Layout);
+	public record struct PropertyLayout(PropertyInfo Property, OffsetExtent OffsetExtent);
 
-	public Layout GetLayout(LayoutInput input)
+	public record struct OffsetExtent(ObjectExtent Extent, Int32 Offset);
+
+	public TypeLayout GetLayout(Input input)
 	{
 		var layout = FindLayout(input);
 
+#if DEBUG
 		Validate(layout);
+#endif
 
 		return layout;
 	}
 
-	[Conditional("DEBUG")]
-	void Validate(Layout layout)
+	public void Validate(TypeLayout layout)
 	{
 		var (entries, totalSize) = layout;
 
@@ -28,9 +31,9 @@ public abstract class Layouter
 
 		foreach (var (_, entry) in entries)
 		{
-			var (offset, size) = entry;
+			var (extent, offset) = entry;
 
-			for (var i = 0; i < size; ++i)
+			for (var i = 0; i < extent.Size; ++i)
 			{
 				Trace.Assert(!bits[offset + i]);
 
@@ -39,9 +42,9 @@ public abstract class Layouter
 		}
 	}
 
-	protected abstract Layout FindLayout(LayoutInput input);
+	protected abstract TypeLayout FindLayout(Input input);
 
-	public static Layout GetDefaultLayout(LayoutInput input)
+	public static TypeLayout GetDefaultLayout(Input input)
 	{
 		return NaiveLayouter.Instance.GetLayout(input);
 	}
@@ -51,7 +54,7 @@ public class NaiveLayouter : Layouter
 {
 	public static readonly NaiveLayouter Instance = new();
 
-	protected override Layout FindLayout(LayoutInput input)
+	protected override TypeLayout FindLayout(Input input)
 	{
 		var (type, p, metadata) = input;
 
@@ -59,17 +62,17 @@ public class NaiveLayouter : Layouter
 
 		var n = properties.Length;
 
-		var entries = new Entry[n];
+		var entries = new PropertyLayout[n];
 
 		for (var i = 0; i < n; i++)
 		{
 			var property = properties[i];
 
-			var size = metadata.GetSize(property);
+			var extent = metadata.GetExtent(property);
 
-			entries[i] = new Entry(property, new LayoutEntry(p, size));
+			entries[i] = new PropertyLayout(property, new OffsetExtent(extent, p));
 
-			p += size;
+			p += extent.Size;
 		}
 
 		return new(entries, p);
@@ -80,7 +83,7 @@ public interface ILayouterMetadataProvider
 {
 	IEnumerable<PropertyInfo> GetProperties(Type interfaceType);
 
-	Int32 GetSize(PropertyInfo property);
+	ObjectExtent GetExtent(PropertyInfo property);
 }
 
 public class LayouterMetdataProvider : ILayouterMetadataProvider
@@ -101,21 +104,21 @@ public class LayouterMetdataProvider : ILayouterMetadataProvider
 		}
 	}
 
-	public Int32 GetSize(PropertyInfo property)
+	public ObjectExtent GetExtent(PropertyInfo property)
 	{
 		var type = property.PropertyType;
 
 		if (!type.IsValueType)
 		{
-			return Unsafe.SizeOf<Ref>();
+			return ObjectExtent.CreateForStruct<Ref>();
 		}
 		else if (Nullable.GetUnderlyingType(type) is not null)
 		{
-			return NullableStruct.MakeNullableType(type).SizeOf();
+			return ObjectExtent.CreateForStruct(NullableStruct.MakeNullableType(type));
 		}
 		else
 		{
-			return type.SizeOf();
+			return ObjectExtent.CreateForStruct(type);
 		}
 	}
 }
