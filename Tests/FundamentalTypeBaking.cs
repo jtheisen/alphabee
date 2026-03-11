@@ -178,8 +178,7 @@ public class FundamentalTypeBaking
 		{
 			return ValueFromType.Get<Object>(typeof(GetTestValueFromType<>), type);
 		}
-
-		if (type == typeof(Byte[]))
+		else if (type == typeof(Byte[]))
 		{
 			return new Byte[] { 1, 2, 3 };
 		}

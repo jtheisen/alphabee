@@ -1,6 +1,4 @@
-﻿using AlphaBee.Utilities;
-using System.Diagnostics;
-using System.Net;
+﻿using AlphaBee.Collections;
 
 namespace AlphaBee;
 
@@ -27,6 +25,15 @@ public abstract class AbstractPeachContext
 
 		return target;
 	}
+
+	//public IArrayPeach<T> NewArray<T>(Int32 length)
+	//{
+	//	var target = (IArrayPeach<T>)NewArray(typeof(T), length);
+
+	//	return target;
+	//}
+
+	//public abstract IArrayPeach<Object> NewArray(Type elementType, Int32 length);
 
 	public abstract Object New(Type interfaceType);
 
@@ -124,6 +131,17 @@ public class PeachContext : AbstractPeachContext
 
 		return peach;
 	}
+
+	//public override IArrayPeach<Object> NewArray(Type elementClrType, Int32 length)
+	//{
+	//	typeRegistry.EnsureCanonicalImplementation(elementClrType, out var typeNo, out _);
+
+	//	var header = ObjectHeader.CreateForRef(typeNo, length);
+
+	//	storage.AllocateArrayObject<Ref>(header, out var address, out _);
+
+
+	//}
 
 	IPeachMixin CreatePeach(TypeNo typeNo)
 	{

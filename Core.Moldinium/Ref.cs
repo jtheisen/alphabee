@@ -239,12 +239,17 @@ public readonly struct ObjectHeader
 		this.extent = extent;
 	}
 
-	public static ObjectHeader CreateWithSize(TypeNo typeNo, Int32 size)
+	public static ObjectHeader CreateWithSize(TypeNo typeNo, Int32 size, Int32 length = 1)
 	{
-		return new ObjectHeader(typeNo, new ObjectExtent(1, checked((Int16)size)));
+		return new ObjectHeader(typeNo, checked(new ObjectExtent((Int16)length, checked((Int16)size))));
 	}
 
-	public static ObjectHeader CreateForStruct<T>(TypeNo typeNo, Int32 length) where T : unmanaged
+	public static ObjectHeader CreateForRef(TypeNo typeNo, Int32 length = 1)
+	{
+		return new ObjectHeader(typeNo, checked(new ObjectExtent((Int16)length, (Int16)Ref.Size)));
+	}
+
+	public static ObjectHeader CreateForStruct<T>(TypeNo typeNo, Int32 length = 1) where T : unmanaged
 	{
 		return new ObjectHeader(typeNo, ObjectExtent.CreateForStruct<T>(length));
 	}
@@ -260,6 +265,8 @@ public readonly struct ObjectHeader
 [StructLayout(LayoutKind.Explicit)]
 public struct Ref
 {
+	public static Int32 Size => Unsafe.SizeOf<Ref>();
+
 	[FieldOffset(0)]
 	Int64 address;
 
