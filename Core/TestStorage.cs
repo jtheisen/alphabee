@@ -11,9 +11,11 @@ public abstract class AbstractTestStorage
 
 	public abstract Int64 Position { get; }
 
-	public abstract T GetValue<T>(Int64 offset) where T : unmanaged;
+	public abstract Span<T> GetSpan<T>(Int64 address, Int32 length) where T : unmanaged;
 
-	public abstract void SetValue<T>(Int64 offset, T value) where T : unmanaged;
+	public abstract T GetValue<T>(Int64 address) where T : unmanaged;
+
+	public abstract void SetValue<T>(Int64 address, T value) where T : unmanaged;
 
 	public ObjectHeader GetHeader(Int64 address) => GetValue<ObjectHeader>(address);
 
@@ -52,6 +54,11 @@ public class TestStorage : AbstractTestStorage
 	public override T GetValue<T>(Int64 offset) => GetSpanCore<T>(offset, 1)[0];
 
 	public override void SetValue<T>(Int64 offset, T value) => GetSpanCore<T>(offset, 1)[0] = value;
+
+	public override Span<T> GetSpan<T>(Int64 address, Int32 length)
+	{
+		return GetSpanCore<T>(address, length);
+	}
 
 	ref T GetCore<T>(Int64 address) where T : unmanaged
 	{

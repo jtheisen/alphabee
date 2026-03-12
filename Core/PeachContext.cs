@@ -8,6 +8,8 @@ public abstract class AbstractPeachContext
 
 	public abstract void SetValue<T>(Int64 address, T value) where T : unmanaged;
 
+	public abstract Span<T> GetSpan<T>(Int64 address, Int32 length) where T : unmanaged;
+
 	public abstract Object? GetObject(Int64 address);
 
 	public abstract Object? GetObjectFromReferenceAddress(Int64 referenceAddress);
@@ -50,6 +52,11 @@ public class PeachContext : AbstractPeachContext
 	{
 		this.storage = storage;
 		this.typeRegistry = typeRegistry;
+	}
+
+	public override Span<T> GetSpan<T>(Int64 address, Int32 length)
+	{
+		return storage.GetSpan<T>(address, length);
 	}
 
 	public override T GetValue<T>(Int64 offset) => storage.GetValue<T>(offset);

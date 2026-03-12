@@ -54,6 +54,13 @@ public struct InternalPeachMixin : IInternalPeachMixin
 
 	Int64 GetFieldAddress(Int32 offset) => address + offset;
 
+	public Span<T> GetSpan<T>(Int32 offset, Int32 length) where T : unmanaged
+	{
+		var fieldAddress = GetFieldAddress(offset);
+
+		return context.GetSpan<T>(fieldAddress, length);
+	}
+
 	public T GetValue<T>(Int32 offset) where T : unmanaged
 	{
 		var fieldAddress = GetFieldAddress(offset);
@@ -140,25 +147,31 @@ public struct PeachyStructPropertyImplementation<
 }
 
 
-//public interface IPeachySpanPropertyImplementation<
-//	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
-//	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
-//> : IPropertyImplementation
-//	where Value : struct, allows ref struct
-//	where Mixin : IPeachMixin
-//{
-//	Value Get(ref Mixin mixin, Int32 offset);
-//}
+public interface IPeachySpanPropertyImplementation<
+	[TypeKind(ImplementationTypeArgumentKind.ValueArg)] ValueArg,
+	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
+	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
+> : IPropertyImplementation
+	where ValueArg : unmanaged
+	where Value : allows ref struct
+	where Mixin : IPeachMixin
+{
+	Value Get(ref Mixin mixin, Int32 offset, Int32 length);
 
-//public struct PeachySpanPropertyImplementation<Value> : IPeachySpanPropertyImplementation<Span<Value>, InternalPeachMixin>
-//	where Value : struct
-//{
-//	public Span<Value> Get(ref InternalPeachMixin mixin, Int32 offset) => mixin.GetSpan<Value>(offset);
-//}
+	Value Set();
+}
+
+public struct PeachySpanPropertyImplementation<ValueArg> : IPeachySpanPropertyImplementation<ValueArg, Span<ValueArg>, InternalPeachMixin>
+	where ValueArg : unmanaged
+{
+	public Span<ValueArg> Get(ref InternalPeachMixin mixin, Int32 offset, Int32 lengthAsArray) => mixin.GetSpan<ValueArg>(offset, lengthAsArray);
+
+	public Span<ValueArg> Set() => throw new NotImplementedException();
+}
 
 
 public interface IPeachyNullableStructPropertyImplementation<
-	[TypeKind(ImplementationTypeArgumentKind.ImplementationValueArgument)] ImplementationArgument,
+	[TypeKind(ImplementationTypeArgumentKind.ValueArg)] ImplementationArgument,
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
 	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
 > : IPropertyImplementation
@@ -169,12 +182,12 @@ public interface IPeachyNullableStructPropertyImplementation<
 	void Set(ref Mixin mixin, Int32 offset, Value value);
 }
 
-public struct PeachyNullableStructPropertyImplementation<Value> : IPeachyNullableStructPropertyImplementation<Value, Value?, InternalPeachMixin>
-	where Value : unmanaged
+public struct PeachyNullableStructPropertyImplementation<ValueArg> : IPeachyNullableStructPropertyImplementation<ValueArg, ValueArg?, InternalPeachMixin>
+	where ValueArg : unmanaged
 {
-	public Value? Get(ref InternalPeachMixin mixin, Int32 offset) => mixin.GetNullableValue<Value>(offset);
+	public ValueArg? Get(ref InternalPeachMixin mixin, Int32 offset) => mixin.GetNullableValue<ValueArg>(offset);
 
-	public void Set(ref InternalPeachMixin mixin, Int32 offset, Value? value) => mixin.SetNullableValue(offset, value);
+	public void Set(ref InternalPeachMixin mixin, Int32 offset, ValueArg? value) => mixin.SetNullableValue(offset, value);
 }
 
 
@@ -195,7 +208,9 @@ public struct PeachyTypeNoPropertyImplementation : IPeachyTypeNoPropertyImplemen
 
 public class PeachPropertyImplementationProvider : PropertyImplementationProvider
 {
-	static PropertyImplementationWithFlags ImplTypeNo => new(typeof(PeachyTypeNoPropertyImplementation), PropertyImplementationFlags.ImplementationExplicit);
+	static readonly PropertyImplementationWithFlags ImplTypeNo = new(typeof(PeachyTypeNoPropertyImplementation), PropertyImplementationFlags.ImplementationExplicit);
+
+	static readonly PropertyImplementationWithFlags ImplSpan = new(typeof(PeachySpanPropertyImplementation<>), PropertyImplementationFlags.None);
 
 	static PropertyImplementationWithFlags Get(Boolean asStruct, Boolean isNullable, Boolean implementExplicity)
 	{
@@ -237,6 +252,12 @@ public class PeachPropertyImplementationProvider : PropertyImplementationProvide
 		{
 			return ImplTypeNo;
 		}
+		else if (Spanlikes.IsSpanlike(propertyType, out var genericTypeDefinition, out var genericArgument))
+		{
+			Trace.Assert(genericTypeDefinition == typeof(Span<>));
+
+			return ImplSpan;
+		}
 		else
 		{
 			return Get(isValueType, isNullable, explicitly);
@@ -251,6 +272,7 @@ public class PeachPropertyImplementationProvider : PropertyImplementationProvide
 		yield return Get(true, false, true);
 		yield return Get(true, true, false);
 		yield return Get(true, true, true);
+		yield return ImplSpan;
 		yield return ImplTypeNo;
 	}
 }

@@ -55,7 +55,7 @@ public interface IInlineSpanPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
 	[TypeKind(ImplementationTypeArgumentKind.Extra)] Spacer
 > : IPropertyImplementation
-	where Value : unmanaged
+	where Value : unmanaged, allows ref struct
 	where Spacer : unmanaged
 {
 	Value Get();
@@ -64,7 +64,7 @@ public interface IInlineSpanPropertyImplementation<
 }
 
 public struct InlineSpanPropertyImplementation<Value, Spacer> : IInlineSpanPropertyImplementation<Value, Spacer>
-	where Value : unmanaged
+	where Value : unmanaged, allows ref struct
 	where Spacer : unmanaged
 {
 	Spacer spacer;
@@ -114,20 +114,18 @@ public class LayoutPropertyImplementationProvider : PropertyImplementationProvid
 		{
 			return Get(typeof(LayoutNullableStructPropertyImplementation<>));
 		}
-		else if (type.GetCustomAttribute<InlineSpanAttribute>() is InlineSpanAttribute inlineSpanAttribute)
+		else if (InlineSpanAttribute.IsInlineSpan(property, out var length))
 		{
-			var valueType = SpanLikes.GetTypeFromSpanlikeOrNull(type);
+			var valueType = Spanlikes.GetTypeFromSpanlikeOrNull(type);
 
 			Trace.Assert(valueType is not null, $"Unsupported span-like property type {type}");
 
-			var spacerType = LayoutSpacerBakery.Intance.EnsureSpacerType(valueType.SizeOf() * inlineSpanAttribute.Length);
+			var spacerType = LayoutSpacerBakery.Intance.EnsureSpacerType(valueType.SizeOf() * length);
 
-			return Get(typeof(InlineSpanPropertyImplementation<,>).MakeGenericType(type, spacerType));
+			return Get(typeof(InlineSpanPropertyImplementation<,>));
 		}
 		else
 		{
-
-
 			return Get(typeof(LayoutStructPropertyImplementation<>));
 		}
 	}
@@ -137,5 +135,6 @@ public class LayoutPropertyImplementationProvider : PropertyImplementationProvid
 		yield return Get(typeof(LayoutClassPropertyImplementation<>));
 		yield return Get(typeof(LayoutStructPropertyImplementation<>));
 		yield return Get(typeof(LayoutNullableStructPropertyImplementation<>));
+		yield return Get(typeof(InlineSpanPropertyImplementation<,>));
 	}
 }

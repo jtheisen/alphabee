@@ -16,7 +16,9 @@ public class CheckedImplementation
 
     Dictionary<Type, ImplementationTypeArgumentKind> typeArgumentsToKindMapping;
 
-    public override string ToString()
+	Type? implementationValueArgument = null;
+
+	public override string ToString()
     {
         return $"CheckedImplementation for {(IsWrapper ? "wrapper" : "direct")} {Type}";
     }
@@ -114,8 +116,6 @@ public class CheckedImplementation
 
         typeArgumentsToKindMapping = new Dictionary<Type, ImplementationTypeArgumentKind>();
 
-        var hadImplementationValueArgument = false;
-
 		typeArgumentsInfos = typeParameters.Select((p, i) =>
         {
 			var a = p.GetCustomAttribute<TypeKindAttribute>();
@@ -131,11 +131,11 @@ public class CheckedImplementation
 
 			switch (a.Kind)
             {
-                case ImplementationTypeArgumentKind.ImplementationValueArgument:
-                    hadImplementationValueArgument = true;
+                case ImplementationTypeArgumentKind.ValueArg:
+					implementationValueArgument = arg;
                     break;
 				case ImplementationTypeArgumentKind.Value:
-                    if (!hadImplementationValueArgument)
+                    if (implementationValueArgument is null)
                     {
                         AssertGenericParameter();
                     }
@@ -183,8 +183,10 @@ public class CheckedImplementation
 
             switch (kind)
             {
-                case ImplementationTypeArgumentKind.ImplementationValueArgument:
-                case ImplementationTypeArgumentKind.Value:
+                case ImplementationTypeArgumentKind.ValueArg:
+                    arguments.Add(implementationValueArgument ?? Throw());
+                    break;
+				case ImplementationTypeArgumentKind.Value:
                 case ImplementationTypeArgumentKind.Handler:
                     arguments.Add(propertyOrHandlerType ?? Throw());
                     break;

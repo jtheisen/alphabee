@@ -4,7 +4,7 @@ namespace Moldinium.Baking;
 
 public enum ImplementationTypeArgumentKind
 {
-    ImplementationValueArgument,
+    ValueArg,
     Value,
     Return,
     Handler,
@@ -212,11 +212,11 @@ public struct MethodImplementationInfo
 
 public interface ITypeConfiguration
 {
-	String? TypeSuffix { get; }
+    String? TypeSuffix => null;
 
 	IEnumerable<Type> GetExtraInterfaces() => Enumerable.Empty<Type>();
 
-	Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName);
+	Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName) => null;
 
-    Type? GetExtraTypeForProperty(PropertyInfo property);
+    Type? GetExtraTypeForProperty(PropertyInfo property) => null;
 }

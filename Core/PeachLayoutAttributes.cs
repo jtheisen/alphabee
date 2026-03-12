@@ -19,6 +19,20 @@ public class InlineSpanAttribute : Attribute
 	public Int32 Length { get; }
 
 	public InlineSpanAttribute(Int32 length) => Length = length;
+
+	public static Boolean IsInlineSpan(PropertyInfo property, out Int32 length)
+	{
+		if (property.GetCustomAttribute<InlineSpanAttribute>() is InlineSpanAttribute inlineSpanAttribute)
+		{
+			length = inlineSpanAttribute.Length;
+			return true;
+		}
+		else
+		{
+			length = 0;
+			return false;
+		}
+	}
 }
 
 [AttributeUsage(AttributeTargets.Field)]

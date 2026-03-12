@@ -12,12 +12,30 @@ public class LayoutSpacerBakery
 
 	readonly Dictionary<Int32, Type> spacers = new();
 
+	public interface ISpacer
+	{
+	}
+
 	public LayoutSpacerBakery()
 	{
 		var name = nameof(LayoutSpacerBakery);
 
 		assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(name), AssemblyBuilderAccess.Run);
 		moduleBuilder = assemblyBuilder.DefineDynamicModule(name);
+	}
+
+	public static Boolean IsSpacer(Type type, out Int32 size)
+	{
+		if (type.IsAssignableTo(typeof(ISpacer)))
+		{
+			size = type.SizeOf();
+			return true;
+		}
+		else
+		{
+			size = 0;
+			return false;
+		}
 	}
 
 	public Type EnsureSpacerType(Int32 size)
@@ -31,13 +49,16 @@ public class LayoutSpacerBakery
 
 	Type DefineSpacer(Int32 size)
 	{
-		var builder = moduleBuilder.DefineType(
+		var typeBuilder = moduleBuilder.DefineType(
 			$"Spacer{size}Bytes",
 			TypeAttributes.Public | TypeAttributes.ExplicitLayout,
 			typeof(ValueType),
+			PackingSize.Size1,
 			size
 		);
 
-		return builder.CreateType();
+		typeBuilder.AddInterfaceImplementation(typeof(ISpacer));
+
+		return typeBuilder.CreateType();
 	}
 }

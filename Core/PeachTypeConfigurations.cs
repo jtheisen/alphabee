@@ -4,6 +4,7 @@ using Moldinium.Baking;
 using System;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using System.Reflection;
 
 using PeachTypeLayoutDict = System.Collections.Generic.IReadOnlyDictionary<
@@ -244,6 +245,34 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 	}
 }
 
+public class LayoutingConfiguration : ITypeConfiguration
+{
+	public static readonly LayoutingConfiguration Instance = new();
+
+	public String? TypeSuffix => null;
+
+	public Type? GetExtraTypeForProperty(PropertyInfo property)
+	{
+		var type = property.PropertyType;
+
+		if (InlineSpanAttribute.IsInlineSpan(property, out var length))
+		{
+			var propertyType = property.PropertyType;
+
+			if (Spanlikes.IsSpanlike(propertyType, out _, out var valueType))
+			{
+				return LayoutSpacerBakery.Intance.EnsureSpacerType(valueType.SizeOf());
+			}
+			else
+			{
+				throw new Exception($"The property type {propertyType} of property {property} is not supported for {nameof(InlineSpanAttribute)}");
+			}
+		}
+
+		return null;
+	}
+}
+
 // Compares only the layout part and tags all the remaining configuration data along
 public class PeachTypeConfiguration : IPeachTypeConfiguration
 {
@@ -296,25 +325,11 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 				return tae.Int64;
 			case "offset":
 				return offset + ObjectHeader.Size;
+			case "lengthAsArray":
+				return extent.Length;
 			default:
 				throw new Exception($"Unknown number argument '{argumentName}'");
 		}
-	}
-
-	public Type? GetExtraTypeForProperty(PropertyInfo property)
-	{
-		var type = property.PropertyType;
-
-		if (SpanLikes.GetTypeFromSpanlikeOrNull(type) is null)
-		{
-			return null;
-		}
-
-		var (tae, _, _) = layout.Properties[property];
-
-		var size = tae.ContentSize;
-
-		return LayoutSpacerBakery.Intance.EnsureSpacerType(size);
 	}
 
 	public override Int32 GetHashCode() => layout.GetHashCode();

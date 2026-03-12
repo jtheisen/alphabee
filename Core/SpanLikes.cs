@@ -1,36 +1,46 @@
-﻿namespace AlphaBee;
+﻿using System.Diagnostics.CodeAnalysis;
 
-public static class SpanLikes
+namespace AlphaBee;
+
+public static class Spanlikes
 {
 	public static Type? GetTypeFromSpanlikeOrNull(Type type)
 	{
+		return IsSpanlike(type, out _, out var genericTypeArgument) ? genericTypeArgument : null;
+	}
+
+	public static Boolean IsSpanlike(Type type, [NotNullWhen(true)] out Type? genericTypeDefinition, [NotNullWhen(true)] out Type? genericArgument)
+	{
+		genericTypeDefinition = null;
+		genericArgument = null;
+
 		if (!type.IsGenericType)
 		{
-			return null;
+			return false;
 		}
 
-		var genericTypeDefinition = type.GetGenericTypeDefinition();
+		genericTypeDefinition = type.GetGenericTypeDefinition();
 
 		var genericArguments = type.GetGenericArguments();
 
 		if (genericArguments.Length != 1)
 		{
-			return null;
+			return false;
 		}
 
-		var genericArgument = genericArguments[0];
+		genericArgument = genericArguments[0];
 
 		if (genericTypeDefinition == typeof(Span<>))
 		{
-			return genericArgument;
+			return true;
 		}
 		else if (genericTypeDefinition == typeof(ReadOnlySpan<>))
 		{
-			return genericArgument;
+			return true;
 		}
 		else
 		{
-			return null;
+			return false;
 		}
 	}
 }

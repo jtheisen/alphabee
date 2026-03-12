@@ -405,7 +405,7 @@ public class PeachTypeRegistry : IPropNumbersResolver
 		}
 		else
 		{
-			return layoutBakery.Resolve(interfaceType);
+			return layoutBakery.Resolve(interfaceType, LayoutingConfiguration.Instance);
 		}
 	}
 
