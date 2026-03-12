@@ -3,7 +3,7 @@ using System.Text;
 
 namespace AlphaBee.Layouts.Structs;
 
-public record struct FieldEntry(FieldInfo FieldInfo, LayoutEntry Layout);
+public record struct FieldEntry(FieldInfo FieldInfo, Int32 Offset, Int32 Size);
 
 public static class LayoutExtensions
 {
@@ -94,7 +94,8 @@ public static class LayoutExtensions
 
 				var i = bytes.IndexOfAnyExcept((Byte)0);
 
-				field.Layout = new LayoutEntry(i, Helper.SizeOf(field.FieldInfo.FieldType));
+				field.Offset = i;
+				field.Size = Helper.SizeOf(field.FieldInfo.FieldType);
 			}
 		}
 	}
@@ -114,7 +115,7 @@ public static class LayoutExtensions
 
 		foreach (var entry in entries)
 		{
-			result.AppendLine($"{entry.Layout.offset,4}: {entry.FieldInfo.Name} ({entry.Layout.size} bytes)");
+			result.AppendLine($"{entry.Offset,4}: {entry.FieldInfo.Name} ({entry.Size} bytes)");
 		}
 
 		return result.ToString();

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 namespace AlphaBee;
 
@@ -52,6 +53,10 @@ public readonly struct TypeNo : IEquatable<TypeNo>
 	public override bool Equals(Object? obj) => obj is TypeNo other ? other.Equals(this) : false;
 	public override int GetHashCode() => no.GetHashCode();
 }
+
+[DebuggerDisplay("{ToString()}")]
+[StructLayout(LayoutKind.Sequential, Size = 8)]
+public readonly record struct PropAndTypeNo(TypeNo DeclaringTypeNo, PropNo PropNo);
 
 [DebuggerDisplay("{ToString()}")]
 [StructLayout(LayoutKind.Explicit, Size = 4)]
@@ -224,9 +229,42 @@ public readonly struct ObjectExtent : IEquatable<ObjectExtent>
 }
 
 [DebuggerDisplay("{ToString()}")]
-[StructLayout(LayoutKind.Sequential, Size = 8)]
-public readonly record struct ObjectHeader(TypeNo TypeNo, ObjectExtent Extent)
+[StructLayout(LayoutKind.Explicit, Size = 8)]
+public readonly struct ObjectHeader : IEquatable<ObjectHeader>
 {
+	[FieldOffset(0)]
+	readonly Int64 value;
+
+	[FieldOffset(0)]
+	readonly ObjectExtent extent;
+
+	[FieldOffset(4)]
+	readonly TypeNo typeNo;
+
+	ObjectHeader(Int64 value)
+	{
+		this.value = value;
+	}
+
+	public ObjectHeader(TypeNo typeNo, ObjectExtent extent)
+	{
+		this.typeNo = typeNo;
+		this.extent = extent;
+	}
+
+	public static explicit operator Int64(ObjectHeader tae) => tae.value;
+	public static explicit operator ObjectHeader(Int64 value) => new ObjectHeader(value);
+
+	public void Deconstruct(out TypeNo typeNo, out ObjectExtent extent)
+	{
+		typeNo = this.typeNo;
+		extent = this.extent;
+	}
+
+	public Int64 Int64 => value;
+	public TypeNo TypeNo => typeNo;
+	public ObjectExtent Extent => extent;
+
 	public static Int32 Size => Unsafe.SizeOf<ObjectHeader>();
 
 	public Boolean IsArray => TypeNo.IsArray;
@@ -255,6 +293,18 @@ public readonly record struct ObjectHeader(TypeNo TypeNo, ObjectExtent Extent)
 	{
 		return new ObjectHeader(typeNo, ObjectExtent.CreateForStruct<T>(length));
 	}
+
+	public Boolean Equals(ObjectHeader other) => value == other.value;
+
+	public override Boolean Equals([NotNullWhen(true)] Object? obj)
+	{
+		return obj is ObjectHeader other ? Equals(other) : false;
+	}
+
+	public static Boolean operator ==(ObjectHeader lhs, ObjectHeader rhs) => lhs.Equals(rhs);
+	public static Boolean operator !=(ObjectHeader lhs, ObjectHeader rhs) => !lhs.Equals(rhs);
+
+	public override int GetHashCode() => value.GetHashCode();
 
 	public override String ToString()
 	{

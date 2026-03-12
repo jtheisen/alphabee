@@ -30,6 +30,15 @@ public interface IPropertyDescription
 	ObjectExtent Extent => Header.Extent;
 
 	OffsetExtent OffsetExtent => new(Extent, Offset);
+
+	public PropertyEntry PropertyEntry => new(Header, PropNo, Offset);
+
+	public void Deconstruct(out ObjectHeader tae, out PropNo propNo, out Int32 offset)
+	{
+		tae = Header;
+		propNo = PropNo;
+		offset = Offset;
+	}
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -54,25 +63,16 @@ public interface ITypeDescription
 	Object?[]? Properties { get; set; }
 
 	Object? RootInstance { get; set; }
-
-	TypeNo TypeNo => Header.TypeNo;
 }
 
-[StructLayout(LayoutKind.Explicit)]
+[StructLayout(LayoutKind.Sequential)]
 public struct TypeDescriptionLayout
 {
-	[FieldOffset(0)]
-	public Int32 No;
+	public ObjectHeader Header;
 
-	[FieldOffset(4)]
-	public Int32 Size;
-
-	[FieldOffset(8)]
 	public Int64 ClrName;
 
-	[FieldOffset(16)]
 	public Int64 Properties;
 
-	[FieldOffset(24)]
 	public Int64 RootInstance;
 }

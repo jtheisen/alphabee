@@ -42,9 +42,9 @@ public class LayoutSpacerTests
 
 		var fieldEntries = fooType.GetLayoutFields().ToArray();
 
-		var offset1 = fieldEntries[1].Layout.offset;
+		var offset = fieldEntries[1].Offset;
 
-		Assert.AreEqual(size, offset1);
+		Assert.AreEqual(size, offset);
 	}
 
 	[TestMethod]

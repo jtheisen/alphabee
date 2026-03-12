@@ -1,9 +1,8 @@
 ﻿using AlphaBee.Layouts;
 using AlphaBee.Layouts.Structs;
 using Moldinium.Baking;
-using Moldinium.Tracking;
+using System;
 using System.Collections;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
@@ -14,54 +13,29 @@ using PeachTypeLayoutDict = System.Collections.Generic.IReadOnlyDictionary<
 
 namespace AlphaBee;
 
-public interface IPropNoResolver
+public interface IPropNumbersResolver
 {
-	PropNo GetPropNo(PropertyInfo propertyInfo);
+	PropAndTypeNo Resolve(PropertyInfo propertyInfo);
 }
 
-public class TrivialPropNoResolver : IPropNoResolver
+public class TrivialPropNumbersResolver : IPropNumbersResolver
 {
-	public static readonly TrivialPropNoResolver Instance = new();
+	public static readonly TrivialPropNumbersResolver Instance = new();
 
-	PropNo IPropNoResolver.GetPropNo(PropertyInfo propertyInfo) => default;
+	PropAndTypeNo IPropNumbersResolver.Resolve(PropertyInfo propertyInfo) => default;
 }
 
+[StructLayout(LayoutKind.Sequential, Size = 16)]
 [DebuggerDisplay("{ToString()}")]
-public readonly struct PropertyEntry : IEquatable<PropertyEntry>
+public readonly record struct PropertyEntry(ObjectHeader TypeAndExtent, PropNo PropNo, Int32 Offset)
 {
-	readonly PropNo propNo;
-	readonly OffsetExtent offsetExtent;
-
-	public PropNo PropNo => propNo;
-	public OffsetExtent OffsetExtent => offsetExtent;
-	public ObjectExtent Extent => offsetExtent.Extent;
-	public Int32 Offset => OffsetExtent.Offset;
+	public OffsetExtent OffsetExtent => new(TypeAndExtent.Extent, Offset);
+	public ObjectExtent Extent => TypeAndExtent.Extent;
 	public Int32 Size => Extent.Size;
-
-	public PropertyEntry(PropNo propNo, OffsetExtent offsetExtent)
-	{
-		this.propNo = propNo;
-		this.offsetExtent = offsetExtent;
-	}
-
-	public Boolean Equals(PropertyEntry other)
-	{
-		return propNo.Equals(other.propNo) && offsetExtent.Equals(other.offsetExtent);
-	}
-
-	public override Int32 GetHashCode()
-	{
-		return propNo.GetHashCode() ^ offsetExtent.GetHashCode();
-	}
-
-	public override Boolean Equals([NotNullWhen(true)] Object? obj)
-	{
-		return obj is PropertyEntry other ? Equals(other) : false;
-	}
 
 	public override String ToString()
 	{
-		return $"{propNo}:{offsetExtent}";
+		return $"{PropNo}:{OffsetExtent}";
 	}
 }
 
@@ -99,11 +73,6 @@ public struct PropertyBakingInfosDictionary : IEquatable<PropertyBakingInfosDict
 	public PropertyEntry? GetPropertyEntryOrNull(PropertyInfo property)
 	{
 		return TryGetValue(property, out var entry) ? entry : null;
-	}
-
-	public LayoutEntry? GetLayoutEntryOrNull(PropertyInfo property)
-	{
-		return GetPropertyEntryOrNull(property)?.Layout;
 	}
 
 	public Boolean Equals(PropertyBakingInfosDictionary other)
@@ -173,7 +142,7 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 		return CreateWithoutPropNos(typeof(PeachT), typeof(LayoutT));
 	}
 
-	public static PeachTypeLayout Create<PeachT, LayoutT>(IPropNoResolver resolver)
+	public static PeachTypeLayout Create<PeachT, LayoutT>(IPropNumbersResolver resolver)
 		where PeachT : class
 		where LayoutT : struct
 	{
@@ -182,7 +151,7 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 
 	public static PeachTypeLayout CreateWithoutPropNos(Type peachType, Type layoutType)
 	{
-		return Create(peachType, layoutType, TrivialPropNoResolver.Instance);
+		return Create(peachType, layoutType, TrivialPropNumbersResolver.Instance);
 	}
 
 	static PropertyInfo? GetPropertyForField(FieldInfo fieldInfo)
@@ -190,25 +159,25 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 		return fieldInfo.GetCustomAttribute<ForPropertyAttribute>()?.Property;
 	}
 
-	public static PeachTypeLayout Create(Type interfaceType, Layouter.TypeLayout typeLayout, IPropNoResolver resolver)
+	public static PeachTypeLayout Create(Type interfaceType, Layouter.TypeLayout typeLayout, IPropNumbersResolver resolver)
 	{
 		var (properties, size) = typeLayout;
 
 		var dict = PropertyBakingInfosDictionary.CreateEmptyArgumentDict();
 
-		foreach (var (property, extent) in properties)
+		foreach (var (property, (extent, offset)) in properties)
 		{
-			var propNo = resolver.GetPropNo(property);
+			var (typeNo, propNo) = resolver.Resolve(property);
 
 			Trace.Assert(property is not null, $"Could not get the number for the property {property.Name} in layout");
 
-			dict[property] = new PropertyEntry(propNo, extent);
+			dict[property] = new PropertyEntry(new(typeNo, extent), propNo, offset);
 		}
 
 		return new(dict, size, interfaceType);
 	}
 
-	public static PeachTypeLayout Create(Type interfaceType, Type layoutType, IPropNoResolver resolver)
+	public static PeachTypeLayout Create(Type interfaceType, Type layoutType, IPropNumbersResolver propResolver)
 	{
 		var layoutFields = layoutType.GetLayoutFields();
 
@@ -222,9 +191,9 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 
 			Trace.Assert(property is not null, $"Could not get the property for the field {fieldInfo.Name} in layout struct");
 
-			var propNo = resolver.GetPropNo(property);
+			var (typeNo, propNo) = propResolver.Resolve(property);
 
-			dict[property] = new PropertyEntry(propNo, field.Layout);
+			dict[property] = new PropertyEntry(new(typeNo, new(field.Size)), propNo, field.Offset);
 		}
 
 		return new PeachTypeLayout(dict, layoutType.SizeOf(), interfaceType);
@@ -238,7 +207,7 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 
 		var n = properties.Length;
 
-		var size = description.Size;
+		var size = description.Header.ContentSize;
 
 		Trace.Assert(size > 0);
 
@@ -261,9 +230,7 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 
 			var property = typeResolver.GetClrProperty(propertyDescription.ClrName);
 
-			var propNo = propertyDescription.PropNo;
-
-			dict.Add(property, new(propNo, propertyDescription.OffsetExtent));
+			dict.Add(property, propertyDescription.PropertyEntry);
 		}
 
 		return new PeachTypeLayout(dict, size, clrType);
@@ -281,21 +248,21 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 	static readonly PropertyInfo TypeNoProperty = typeof(IPeach).GetProperty(nameof(IPeach.ImplementationTypeNo))!;
 
 	private readonly PeachTypeLayout layout;
-	private readonly TypeNo typeNo;
+	private readonly TypeNo typeTypeNo;
 	private readonly Boolean useSuffix;
 
 	public PeachTypeLayout Layout => layout;
 
-	public String? TypeSuffix => useSuffix ? $"#{typeNo.no}" : null;
+	public String? TypeSuffix => useSuffix ? $"#{typeTypeNo.no}" : null;
 
 	public Int32 Size => layout.Size;
 
 	public Type InterfaceType => layout.InterfaceType;
 
-	public PeachTypeConfiguration(PeachTypeLayout layout, TypeNo typeNo, Boolean useSuffix)
+	public PeachTypeConfiguration(PeachTypeLayout layout, TypeNo typeTypeNo, Boolean useSuffix)
 	{
 		this.layout = layout;
-		this.typeNo = typeNo;
+		this.typeTypeNo = typeTypeNo;
 		this.useSuffix = useSuffix;
 	}
 
@@ -308,15 +275,25 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 	{
 		if (property == TypeNoProperty)
 		{
-			return typeNo.no;
+			return typeTypeNo.no;
 		}
 
-		var entry = layout.Properties[property];
+		var (tae, propNo, offset) = layout.Properties[property];
+
+		var (typeNo, extent) = tae;
 
 		switch (argumentName)
 		{
+			case "typeNo":
+				return typeNo.no;
+			case "propNo":
+				return propNo.no;
+			case "size":
+				return extent.Size;
+			case "typeAndExtent":
+				return tae.Int64;
 			case "offset":
-				return entry.Offset + ObjectHeader.Size;
+				return offset + ObjectHeader.Size;
 			default:
 				throw new Exception($"Unknown number argument '{argumentName}'");
 		}

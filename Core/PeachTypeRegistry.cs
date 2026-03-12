@@ -8,7 +8,7 @@ using PeachTypeInfo = (System.Type implementationType, AlphaBee.PeachTypeConfigu
 
 namespace AlphaBee;
 
-public class PeachTypeRegistry : IPropNoResolver
+public class PeachTypeRegistry : IPropNumbersResolver
 {
 	Int32 nextTypeNo = 1, nextPropNo = 1, firstNewTypeNo = 0;
 
@@ -123,7 +123,7 @@ public class PeachTypeRegistry : IPropNoResolver
 
 	private readonly List<Entry?> typesTypesByNo = new();
 
-	private readonly Dictionary<PropertyInfo, PropNo> propNosByPropertyInfo = new();
+	private readonly Dictionary<PropertyInfo, PropAndTypeNo> propNosByPropertyInfo = new();
 
 	private readonly Dictionary<Type, TypeNo> typeNosByInterfaceType = new();
 
@@ -345,7 +345,7 @@ public class PeachTypeRegistry : IPropNoResolver
 		}
 	}
 
-	public PropNo GetPropNo(PropertyInfo propertyInfo)
+	public PropAndTypeNo Resolve(PropertyInfo propertyInfo)
 	{
 		return propNosByPropertyInfo[propertyInfo];
 	}
@@ -524,22 +524,26 @@ public class PeachTypeRegistry : IPropNoResolver
 
 	Entry AssignNos(Type interfaceType)
 	{
+		var entry = AssignTypeNo(interfaceType);
+
 		foreach (var property in interfaceType.GetProperties())
 		{
-			AssignPropNo(property);
+			AssignPropNo(property, entry.TypeNo);
 		}
 
-		return AssignTypeNo(interfaceType);
+		return entry;
 	}
 
-	PropNo AssignPropNo(PropertyInfo property, PropNo? desiredPropNo = null)
+	PropAndTypeNo AssignPropNo(PropertyInfo property, TypeNo typeNo, PropNo? desiredPropNo = null)
 	{
-		if (propNosByPropertyInfo.TryGetValue(property, out var propNo))
+		if (propNosByPropertyInfo.TryGetValue(property, out var nos))
 		{
 			throw new Exception($"PropNo for property {property} was already assigned");
 		}
 
-		return propNosByPropertyInfo[property] = desiredPropNo ?? new PropNo(nextPropNo++);
+		nos = new PropAndTypeNo(typeNo, desiredPropNo is PropNo propNo ? propNo : new PropNo(nextPropNo++));
+
+		return propNosByPropertyInfo[property] = nos;
 	}
 
 	#endregion
@@ -566,7 +570,7 @@ public class PeachTypeRegistry : IPropNoResolver
 
 				var property = interfaceType.GetNonNullProperty(propertyEntry.ClrName);
 
-				AssignPropNo(property, propertyEntry.PropNo);
+				AssignPropNo(property, propertyEntry.TypeNo, propertyEntry.PropNo);
 			}
 		}
 
@@ -646,7 +650,7 @@ public class PeachTypeRegistry : IPropNoResolver
 
 			Trace.Assert(target is not null);
 
-			if (target.TypeNo.no != i)
+			if (target.Header.TypeNo.no != i)
 			{
 				didWrite = true;
 
@@ -685,13 +689,15 @@ public class PeachTypeRegistry : IPropNoResolver
 
 			var propertyType = property.PropertyType;
 
-			LookupClrType(propertyType, out var typeNo, out var clrType, implementIfMissing: true);
+			LookupClrType(propertyType, out var propTypeNo, out var clrType, implementIfMissing: true);
+
+			var nos = Resolve(property);
 
 			var p = properties[i] = factory.CreatePropertyDecription();
 			p.ClrName = property.GetFqPropertyName();
-			p.PropNo = GetPropNo(property).no;
+			p.PropNo = nos.PropNo;
 			p.Offset = entry.Offset;
-			p.Header = new(typeNo, entry.Extent);
+			p.Header = new(propTypeNo, entry.Extent);
 		}
 
 		target.Properties = properties;
