@@ -5,6 +5,8 @@ namespace AlphaBee;
 
 public class LayoutSpacerBakery
 {
+	public readonly static LayoutSpacerBakery Intance = new LayoutSpacerBakery();
+
 	readonly AssemblyBuilder assemblyBuilder;
 	readonly ModuleBuilder moduleBuilder;
 
@@ -18,7 +20,7 @@ public class LayoutSpacerBakery
 		moduleBuilder = assemblyBuilder.DefineDynamicModule(name);
 	}
 
-	public Type EnsureSpacer(Int32 size)
+	public Type EnsureSpacerType(Int32 size)
 	{
 		Trace.Assert(size > 0, "Layout spacers must have a positive size");
 

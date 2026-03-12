@@ -159,7 +159,7 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 		return fieldInfo.GetCustomAttribute<ForPropertyAttribute>()?.Property;
 	}
 
-	public static PeachTypeLayout Create(Type interfaceType, Layouter.TypeLayout typeLayout, IPropNumbersResolver resolver)
+	public static PeachTypeLayout Create2(Type interfaceType, Layouter2.TypeLayout typeLayout, IPropNumbersResolver resolver)
 	{
 		var (properties, size) = typeLayout;
 
@@ -230,7 +230,9 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 
 			var property = typeResolver.GetClrProperty(propertyDescription.ClrName);
 
-			dict.Add(property, propertyDescription.PropertyEntry);
+			var pd = propertyDescription;
+
+			dict.Add(property, new(pd.Header, pd.PropNo, pd.Offset));
 		}
 
 		return new PeachTypeLayout(dict, size, clrType);
@@ -297,6 +299,22 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 			default:
 				throw new Exception($"Unknown number argument '{argumentName}'");
 		}
+	}
+
+	public Type? GetExtraTypeForProperty(PropertyInfo property)
+	{
+		var type = property.PropertyType;
+
+		if (SpanLikes.GetTypeFromSpanlikeOrNull(type) is null)
+		{
+			return null;
+		}
+
+		var (tae, _, _) = layout.Properties[property];
+
+		var size = tae.ContentSize;
+
+		return LayoutSpacerBakery.Intance.EnsureSpacerType(size);
 	}
 
 	public override Int32 GetHashCode() => layout.GetHashCode();

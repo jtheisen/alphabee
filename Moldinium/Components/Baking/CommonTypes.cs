@@ -10,7 +10,8 @@ public enum ImplementationTypeArgumentKind
     Handler,
     Exception,
     Container,
-    Mixin
+    Mixin,
+    Extra
 }
 
 [AttributeUsage(AttributeTargets.GenericParameter)]
@@ -216,4 +217,6 @@ public interface ITypeConfiguration
 	IEnumerable<Type> GetExtraInterfaces() => Enumerable.Empty<Type>();
 
 	Int64? GetPropertyIntegerForArgumentName(PropertyInfo property, String argumentName);
+
+    Type? GetExtraTypeForProperty(PropertyInfo property);
 }

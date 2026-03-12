@@ -13,6 +13,14 @@ public class PeachLayoutAttribute : Attribute
 	public PeachLayoutAttribute(Type layoutType) => LayoutType = layoutType;
 }
 
+[AttributeUsage(AttributeTargets.Property)]
+public class InlineSpanAttribute : Attribute
+{
+	public Int32 Length { get; }
+
+	public InlineSpanAttribute(Int32 length) => Length = length;
+}
+
 [AttributeUsage(AttributeTargets.Field)]
 public class ForPropertyAttribute : Attribute
 {

@@ -25,13 +25,13 @@ public interface IPropertyDescription
 
 	String? ClrName { get; set; }
 
-	TypeNo TypeNo => Header.TypeNo;
+	//TypeNo TypeNo => Header.TypeNo;
 
-	ObjectExtent Extent => Header.Extent;
+	//ObjectExtent Extent => Header.Extent;
 
-	OffsetExtent OffsetExtent => new(Extent, Offset);
+	//OffsetExtent OffsetExtent => new(Extent, Offset);
 
-	public PropertyEntry PropertyEntry => new(Header, PropNo, Offset);
+	public PropertyEntry GetPropertyEntry() => new(Header, PropNo, Offset);
 
 	public void Deconstruct(out ObjectHeader tae, out PropNo propNo, out Int32 offset)
 	{

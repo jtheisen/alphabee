@@ -219,7 +219,8 @@ public class GenericPropertyGenerator : AbstractPropertyGenerator
 
         var propertyImplementationType = implementation.MakeImplementationType(
             propertyOrHandlerType: property.PropertyType,
-            makeGenericWithBaseType: Flags.HasFlag(PropertyImplementationFlags.MakeGenericWithBaseType)
+            makeGenericWithBaseType: Flags.HasFlag(PropertyImplementationFlags.MakeGenericWithBaseType),
+            extraType: state.GetExtraTypeForProperty(property)
 		);
 
         var backingFieldsUnprefixedAndPublic = Flags.HasFlag(PropertyImplementationFlags.BackingFieldPublicAndUnprefixed);

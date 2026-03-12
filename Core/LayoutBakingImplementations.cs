@@ -51,6 +51,30 @@ public struct LayoutNullableStructPropertyImplementation<
 }
 
 
+public interface IInlineSpanPropertyImplementation<
+	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
+	[TypeKind(ImplementationTypeArgumentKind.Extra)] Spacer
+> : IPropertyImplementation
+	where Value : unmanaged
+	where Spacer : unmanaged
+{
+	Value Get();
+
+	void Set(Value value);
+}
+
+public struct InlineSpanPropertyImplementation<Value, Spacer> : IInlineSpanPropertyImplementation<Value, Spacer>
+	where Value : unmanaged
+	where Spacer : unmanaged
+{
+	Spacer spacer;
+
+	public Value Get() => throw new NotImplementedException();
+
+	public void Set(Value value) => throw new NotImplementedException();
+}
+
+
 public interface ILayoutClassPropertyImplementation<
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value
 > : IPropertyImplementation
@@ -90,8 +114,20 @@ public class LayoutPropertyImplementationProvider : PropertyImplementationProvid
 		{
 			return Get(typeof(LayoutNullableStructPropertyImplementation<>));
 		}
+		else if (type.GetCustomAttribute<InlineSpanAttribute>() is InlineSpanAttribute inlineSpanAttribute)
+		{
+			var valueType = SpanLikes.GetTypeFromSpanlikeOrNull(type);
+
+			Trace.Assert(valueType is not null, $"Unsupported span-like property type {type}");
+
+			var spacerType = LayoutSpacerBakery.Intance.EnsureSpacerType(valueType.SizeOf() * inlineSpanAttribute.Length);
+
+			return Get(typeof(InlineSpanPropertyImplementation<,>).MakeGenericType(type, spacerType));
+		}
 		else
 		{
+
+
 			return Get(typeof(LayoutStructPropertyImplementation<>));
 		}
 	}

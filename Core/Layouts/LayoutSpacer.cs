@@ -51,7 +51,6 @@ public interface IFoo
 	IInlArr<Int16> Words { get; }
 }
 
-
 public class LayoutSpacerBakery
 {
 	readonly AssemblyBuilder assemblyBuilder;

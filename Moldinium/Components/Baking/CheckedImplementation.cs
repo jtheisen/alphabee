@@ -171,7 +171,7 @@ public class CheckedImplementation
         }
     }
 
-    Type[] GetTypeArguments(Type implementationType, Type? proeprtyOrHandlerType, Type? returnType)
+    Type[] GetTypeArguments(Type implementationType, Type? propertyOrHandlerType, Type? returnType, Type? extraType)
     {
         var arguments = new List<Type>();
 
@@ -186,7 +186,7 @@ public class CheckedImplementation
                 case ImplementationTypeArgumentKind.ImplementationValueArgument:
                 case ImplementationTypeArgumentKind.Value:
                 case ImplementationTypeArgumentKind.Handler:
-                    arguments.Add(proeprtyOrHandlerType ?? Throw());
+                    arguments.Add(propertyOrHandlerType ?? Throw());
                     break;
                 case ImplementationTypeArgumentKind.Return:
                     var usedReturnType = returnType;
@@ -202,6 +202,9 @@ public class CheckedImplementation
                 case ImplementationTypeArgumentKind.Container:
                     arguments.Add(typeof(Object));
                     break;
+                case ImplementationTypeArgumentKind.Extra:
+                    arguments.Add(extraType ?? throw new Exception("No extra type is present"));
+                    break;
                 default:
                     throw new Exception($"Dont know how to handle type parameter {type} of implementation type {implementationType}");
             }
@@ -210,7 +213,7 @@ public class CheckedImplementation
         return arguments.ToArray();
     }
 
-    public Type MakeImplementationType(Type? propertyOrHandlerType = null, Type? returnType = null, Boolean makeGenericWithBaseType = false)
+    public Type MakeImplementationType(Type? propertyOrHandlerType = null, Type? returnType = null, Type? extraType = null, Boolean makeGenericWithBaseType = false)
     {
         if (makeGenericWithBaseType)
         {
@@ -221,7 +224,7 @@ public class CheckedImplementation
 			Trace.Assert(propertyOrHandlerType is not null, "Expected to have a nullable type to use with implementation as per flag");
 		}
 
-		var typeArguments = GetTypeArguments(Type, propertyOrHandlerType, returnType);
+		var typeArguments = GetTypeArguments(Type, propertyOrHandlerType, returnType, extraType);
 
         var implementationType = Type.IsGenericTypeDefinition ? Type.MakeGenericType(typeArguments) : Type;
 

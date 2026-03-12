@@ -21,6 +21,8 @@ public interface IBuildingContext
 
     IntegerOrNullRetrieverForArgumentName? GetIntegerOrNullRetrieverForArgumentName(PropertyInfo property);
 
+    Type? GetExtraTypeForProperty(PropertyInfo property);
+
 	NullableFlag GetNullableFlagForInterface(Type interfaceType);
 
     MethodImplementationInfo GetOuterImplementationInfo(MethodInfo? method);
@@ -124,6 +126,12 @@ public class BuildingBakingProcessor : BakingProcessorWithComponentGenerators, I
     {
         return name => typeConfiguration?.GetPropertyIntegerForArgumentName(property, name);
 	}
+
+	public Type? GetExtraTypeForProperty(PropertyInfo property)
+    {
+        return typeConfiguration?.GetExtraTypeForProperty(property);
+    }
+
 
 	public Type Create(Type[] interfaces, Type[] publicMixins)
     {

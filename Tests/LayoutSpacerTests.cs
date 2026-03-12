@@ -32,7 +32,7 @@ public class LayoutSpacerTests
 	[DataRow(4096)]
 	public void TestSpacers(Int32 size)
 	{
-		var type = bakery.EnsureSpacer(size);
+		var type = bakery.EnsureSpacerType(size);
 
 		var actualSize = type.SizeOf();
 
@@ -52,7 +52,7 @@ public class LayoutSpacerTests
 	{
 		var size = Int32.MaxValue;
 
-		var type = bakery.EnsureSpacer(size);
+		var type = bakery.EnsureSpacerType(size);
 
 		var actualSize = type.SizeOf();
 

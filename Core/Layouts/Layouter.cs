@@ -2,7 +2,7 @@
 
 namespace AlphaBee.Layouts;
 
-public abstract class Layouter
+public abstract class Layouter2
 {
 	public record struct Input(Type InterfaceType, Int32 Offset, ILayouterMetadataProvider MetaDataProvider);
 
@@ -48,7 +48,7 @@ public abstract class Layouter
 	}
 }
 
-public class NaiveLayouter : Layouter
+public class NaiveLayouter : Layouter2
 {
 	public static readonly NaiveLayouter Instance = new();
 

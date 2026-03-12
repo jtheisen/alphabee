@@ -570,7 +570,7 @@ public class PeachTypeRegistry : IPropNumbersResolver
 
 				var property = interfaceType.GetNonNullProperty(propertyEntry.ClrName);
 
-				AssignPropNo(property, propertyEntry.TypeNo, propertyEntry.PropNo);
+				AssignPropNo(property, propertyEntry.Header.TypeNo, propertyEntry.PropNo);
 			}
 		}
 
