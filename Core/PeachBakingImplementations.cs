@@ -148,7 +148,7 @@ public struct PeachyStructPropertyImplementation<
 
 
 public interface IPeachySpanPropertyImplementation<
-	[TypeKind(ImplementationTypeArgumentKind.ValueArg)] ValueArg,
+	[TypeKind(ImplementationTypeArgumentKind.Arg)] ValueArg,
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
 	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
 > : IPropertyImplementation
@@ -171,7 +171,7 @@ public struct PeachySpanPropertyImplementation<ValueArg> : IPeachySpanPropertyIm
 
 
 public interface IPeachyNullableStructPropertyImplementation<
-	[TypeKind(ImplementationTypeArgumentKind.ValueArg)] ImplementationArgument,
+	[TypeKind(ImplementationTypeArgumentKind.Arg)] ImplementationArgument,
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
 	[TypeKind(ImplementationTypeArgumentKind.Mixin)] Mixin
 > : IPropertyImplementation

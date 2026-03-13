@@ -116,6 +116,8 @@ public class CheckedImplementation
 
         typeArgumentsToKindMapping = new Dictionary<Type, ImplementationTypeArgumentKind>();
 
+        var haveArg = false;
+
 		typeArgumentsInfos = typeParameters.Select((p, i) =>
         {
 			var a = p.GetCustomAttribute<TypeKindAttribute>();
@@ -131,11 +133,15 @@ public class CheckedImplementation
 
 			switch (a.Kind)
             {
-                case ImplementationTypeArgumentKind.ValueArg:
-					implementationValueArgument = arg;
+                case ImplementationTypeArgumentKind.Arg:
+                    haveArg = true;
                     break;
 				case ImplementationTypeArgumentKind.Value:
-                    if (implementationValueArgument is null)
+                    if (haveArg)
+                    {
+						implementationValueArgument = arg;
+					}
+                    else
                     {
                         AssertGenericParameter();
                     }
@@ -183,7 +189,7 @@ public class CheckedImplementation
 
             switch (kind)
             {
-                case ImplementationTypeArgumentKind.ValueArg:
+                case ImplementationTypeArgumentKind.Arg:
                     arguments.Add(implementationValueArgument ?? Throw());
                     break;
 				case ImplementationTypeArgumentKind.Value:

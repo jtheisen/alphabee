@@ -52,10 +52,11 @@ public struct LayoutNullableStructPropertyImplementation<
 
 
 public interface IInlineSpanPropertyImplementation<
+	[TypeKind(ImplementationTypeArgumentKind.Arg)] Arg,
 	[TypeKind(ImplementationTypeArgumentKind.Value)] Value,
 	[TypeKind(ImplementationTypeArgumentKind.Extra)] Spacer
 > : IPropertyImplementation
-	where Value : unmanaged, allows ref struct
+	where Value : allows ref struct
 	where Spacer : unmanaged
 {
 	Value Get();
@@ -63,15 +64,15 @@ public interface IInlineSpanPropertyImplementation<
 	void Set(Value value);
 }
 
-public struct InlineSpanPropertyImplementation<Value, Spacer> : IInlineSpanPropertyImplementation<Value, Spacer>
-	where Value : unmanaged, allows ref struct
+public struct InlineSpanPropertyImplementation<Arg, Spacer> : IInlineSpanPropertyImplementation<Arg, Span<Arg>, Spacer>
+	where Arg : unmanaged
 	where Spacer : unmanaged
 {
 	Spacer spacer;
 
-	public Value Get() => throw new NotImplementedException();
+	public Span<Arg> Get() => throw new NotImplementedException();
 
-	public void Set(Value value) => throw new NotImplementedException();
+	public void Set(Span<Arg> value) => throw new NotImplementedException();
 }
 
 

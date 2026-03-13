@@ -125,6 +125,18 @@ public abstract class AbstractPropertyGenerator : AbstractGenerator
 
         if (getMethod is not null)
         {
+            if (getImplementation is DirectMethodImplementation directImpl && directImpl.Method is MethodInfo directImplMethod)
+            {
+                // We should assert such cases more generally, as we're getting InvalidProgramExceptions if we mess up.
+
+                var typeType = directImplMethod.ReturnType.GetType();
+
+				if (directImplMethod.ReturnType != getMethod.ReturnType)
+                {
+                    //throw new InvalidOperationException($"Method {directImplMethod} has return type {directImplMethod.ReturnType.FullName} and can't implement {getMethod} with return type {getMethod.ReturnType}");
+                }
+			}
+
             var getMethodBuilder = codeCreator.CreateMethod(
                 getMethod,
                 getImplementation,
