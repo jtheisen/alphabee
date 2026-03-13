@@ -181,7 +181,7 @@ public class CheckedImplementation
     {
         var arguments = new List<Type>();
 
-        foreach (var type in Type.GetGenericArguments())
+        foreach (var type in Type.GetGenericArguments()) // actually the parameters
         {
             var kind = typeArgumentsToKindMapping[type];
 
