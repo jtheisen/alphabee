@@ -1,10 +1,8 @@
 ﻿using AlphaBee.Layouts;
 using AlphaBee.Layouts.Structs;
 using Moldinium.Baking;
-using System;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
 using System.Reflection;
 
 using PeachTypeLayoutDict = System.Collections.Generic.IReadOnlyDictionary<
@@ -160,24 +158,6 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 		return fieldInfo.GetCustomAttribute<ForPropertyAttribute>()?.Property;
 	}
 
-	public static PeachTypeLayout Create2(Type interfaceType, Layouter2.TypeLayout typeLayout, IPropNumbersResolver resolver)
-	{
-		var (properties, size) = typeLayout;
-
-		var dict = PropertyBakingInfosDictionary.CreateEmptyArgumentDict();
-
-		foreach (var (property, (extent, offset)) in properties)
-		{
-			var (typeNo, propNo) = resolver.Resolve(property);
-
-			Trace.Assert(property is not null, $"Could not get the number for the property {property.Name} in layout");
-
-			dict[property] = new PropertyEntry(new(typeNo, extent), propNo, offset);
-		}
-
-		return new(dict, size, interfaceType);
-	}
-
 	public static PeachTypeLayout Create(Type interfaceType, Type layoutType, IPropNumbersResolver propResolver)
 	{
 		var layoutFields = layoutType.GetLayoutFields();
@@ -194,7 +174,16 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 
 			var (typeNo, propNo) = propResolver.Resolve(property);
 
-			dict[property] = new PropertyEntry(new(typeNo, new(field.Size)), propNo, field.Offset);
+			if (Spanlikes.IsInlineSpanlike(property, out var extent))
+			{
+				Trace.Assert(extent.Size <= field.Size);
+			}
+			else
+			{
+				extent = new(field.Size);
+			}
+
+			dict[property] = new PropertyEntry(new(typeNo, extent), propNo, field.Offset);
 		}
 
 		return new PeachTypeLayout(dict, layoutType.SizeOf(), interfaceType);
@@ -242,34 +231,6 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 	public PeachTypeConfiguration ToConfiguration(TypeNo typeNo)
 	{
 		return new PeachTypeConfiguration(this, typeNo, true);
-	}
-}
-
-public class LayoutingConfiguration : ITypeConfiguration
-{
-	public static readonly LayoutingConfiguration Instance = new();
-
-	public String? TypeSuffix => null;
-
-	public Type? GetExtraTypeForProperty(PropertyInfo property)
-	{
-		var type = property.PropertyType;
-
-		if (InlineSpanAttribute.IsInlineSpan(property, out var length))
-		{
-			var propertyType = property.PropertyType;
-
-			if (Spanlikes.IsSpanlike(propertyType, out _, out var valueType))
-			{
-				return LayoutSpacerBakery.Intance.EnsureSpacerType(valueType.SizeOf());
-			}
-			else
-			{
-				throw new Exception($"The property type {propertyType} of property {property} is not supported for {nameof(InlineSpanAttribute)}");
-			}
-		}
-
-		return null;
 	}
 }
 

@@ -38,6 +38,13 @@ public class LayoutSpacerTests
 
 		Assert.AreEqual(size, actualSize);
 
+		Activator.CreateInstance(type);
+
+		Assert.IsTrue(LayoutSpacerBakery.IsSpacer(type, out var size2, out var subSize2));
+
+		Assert.AreEqual(size, size2);
+		Assert.AreEqual(1, subSize2);
+
 		var fooType = typeof(Foo<>).MakeGenericType(type);
 
 		var fieldEntries = fooType.GetLayoutFields().ToArray();
@@ -45,6 +52,23 @@ public class LayoutSpacerTests
 		var offset = fieldEntries[1].Offset;
 
 		Assert.AreEqual(size, offset);
+	}
+
+	[DataTestMethod]
+	[DataRow(8, 1)]
+	[DataRow(8, 2)]
+	[DataRow(8, 3)]
+	[DataRow(8, 4)]
+	public void TestSpacerTypes(Int32 size, Int32 subSize)
+	{
+		var type = bakery.EnsureSpacerType(size, subSize);
+
+		Activator.CreateInstance(type);
+
+		Assert.IsTrue(LayoutSpacerBakery.IsSpacer(type, out var size2, out var subSize2));
+
+		Assert.AreEqual(size, size2);
+		Assert.AreEqual(subSize, subSize2);
 	}
 
 	[TestMethod]

@@ -1,11 +1,17 @@
 ﻿using System.Reflection;
 using Moldinium.Common.Misc;
+using Moldinium.Tracking;
 
 namespace Moldinium.Baking;
 
 public class CheckedImplementation
 {
-    readonly TypeArgumentInfo[] typeArgumentsInfos;
+    static ImplementationTypeArgumentKind[] ValueAndHandlerKinds = new[]
+    {
+        ImplementationTypeArgumentKind.Value, ImplementationTypeArgumentKind.Handler
+    };
+
+	readonly TypeArgumentInfo[] typeArgumentsInfos;
 
     struct TypeArgumentInfo
     {
@@ -14,9 +20,24 @@ public class CheckedImplementation
         public ImplementationTypeArgumentKind parameterKind;
     }
 
-    Dictionary<Type, ImplementationTypeArgumentKind> typeArgumentsToKindMapping;
+    Dictionary<Type, ImplementationTypeArgumentKind> kindsByTypeArguments = new();
+    Dictionary<ImplementationTypeArgumentKind, Int32> argumentTypeIndexByKinds = new();
 
-	Type? implementationValueArgument = null;
+	Boolean TryGetTypeArgumentInfo(ImplementationTypeArgumentKind kind, out TypeArgumentInfo info)
+    {
+        if (argumentTypeIndexByKinds.TryGetValue(kind, out var i))
+        {
+            info = typeArgumentsInfos[i];
+
+            return true;
+        }
+        else
+        {
+            info = default;
+
+			return false;
+        }
+	}
 
 	public override string ToString()
     {
@@ -31,7 +52,7 @@ public class CheckedImplementation
     public Boolean IsWrapper { get; }
 
     public IReadOnlyDictionary<Type, ImplementationTypeArgumentKind> TypeArgumentsToKindMapping
-        => typeArgumentsToKindMapping;
+        => kindsByTypeArguments;
 
     public void AddArgumentKinds(Dictionary<Type, ImplementationTypeArgumentKind> d)
     {
@@ -114,9 +135,10 @@ public class CheckedImplementation
 
         if (typeArguments.Length != typeParameters.Length) throw new Exception("Unexpected have different numbers of type parameters");
 
-        typeArgumentsToKindMapping = new Dictionary<Type, ImplementationTypeArgumentKind>();
-
-        var haveArg = false;
+		void AssertGenericParameter(Type p, Type arg)
+		{
+			if (!arg.IsGenericParameter) throw new Exception($"Implementation type {implementationType} must be itself be generic in type parameter {p} of interface {implementationInterfaceTypeDefinition}");
+		}
 
 		typeArgumentsInfos = typeParameters.Select((p, i) =>
         {
@@ -126,36 +148,10 @@ public class CheckedImplementation
 
             var arg = typeArguments[i];
 
-			void AssertGenericParameter()
-			{
-				if (!arg.IsGenericParameter) throw new Exception($"Implementation type {implementationType} must be itself be generic in type parameter {p} of interface {implementationInterfaceTypeDefinition}");
-			}
+            kindsByTypeArguments[arg] = a.Kind;
+			argumentTypeIndexByKinds[a.Kind] = i;
 
-			switch (a.Kind)
-            {
-                case ImplementationTypeArgumentKind.Arg:
-                    haveArg = true;
-                    break;
-				case ImplementationTypeArgumentKind.Value:
-                    if (haveArg)
-                    {
-						implementationValueArgument = arg;
-					}
-                    else
-                    {
-                        AssertGenericParameter();
-                    }
-                    break;
-				case ImplementationTypeArgumentKind.Handler:
-                    AssertGenericParameter();
-					break;
-                default:
-                    break;
-            }
-
-            typeArgumentsToKindMapping[arg] = a.Kind;
-
-            return new TypeArgumentInfo
+			return new TypeArgumentInfo
             {
                 parameterType = p,
                 argumentType = arg,
@@ -163,7 +159,22 @@ public class CheckedImplementation
             };
         }).ToArray();
 
-        var mixinArgumentInfo = typeArgumentsInfos
+        foreach (var kind in ValueAndHandlerKinds)
+        {
+            if (!argumentTypeIndexByKinds.ContainsKey(ImplementationTypeArgumentKind.Arg) &&
+				argumentTypeIndexByKinds.TryGetValue(kind, out var i))
+            {
+                var info = typeArgumentsInfos[i];
+
+				// Implementations must either
+				// - have a type parameter with kind Value that is the value itself, or
+				// - have a type parameter with kind Arg that is used in defining the value type.
+
+				AssertGenericParameter(info.parameterType, info.argumentType);
+            }
+        }
+
+		var mixinArgumentInfo = typeArgumentsInfos
             .Where(i => i.parameterKind == ImplementationTypeArgumentKind.Mixin)
             .ToArray();
 
@@ -183,16 +194,23 @@ public class CheckedImplementation
 
         foreach (var type in Type.GetGenericArguments()) // actually the parameters
         {
-            var kind = typeArgumentsToKindMapping[type];
+            var kind = kindsByTypeArguments[type];
 
             Type Throw() => throw new Exception($"{implementationType} can't have a {kind} type in this context");
 
             switch (kind)
             {
                 case ImplementationTypeArgumentKind.Arg:
-                    var arg = Unification.UnifyForSpecificArgument(implementationValueArgument ?? Throw(), propertyOrHandlerType ?? Throw(), type);
+                    if (TryGetTypeArgumentInfo(ImplementationTypeArgumentKind.Value, out var info))
+                    {
+						var arg = Unification.UnifyForSpecificArgument(info.argumentType, propertyOrHandlerType ?? Throw(), type);
 
-                    arguments.Add(arg);
+						arguments.Add(arg);
+					}
+                    else
+                    {
+                        Throw();
+                    }
                     break;
 				case ImplementationTypeArgumentKind.Value:
                 case ImplementationTypeArgumentKind.Handler:

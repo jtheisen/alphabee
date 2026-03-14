@@ -17,9 +17,6 @@ public class UnificationTests
 	public class TestSimple<T>
 		: ITest<T, String, String>;
 
-	//public class TestArray<T>
-	//	: ITest<T[], Int32[], Int32>;
-
 	public class TestNullable<T> : ITest<T?, Int32?, Int32>
 		where T : struct
 		;
@@ -35,6 +32,10 @@ public class UnificationTests
 
 	public class TestSpan<T>
 		: ITest<Span<T>, Span<Int32>, Int32>;
+
+	// Not yet supported or needed
+	//public class TestArray<T>
+	//	: ITest<T[], Int32[], Int32>;
 
 	public record class Testcase(String Name, Type Test)
 	{

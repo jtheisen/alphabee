@@ -1,6 +1,4 @@
-﻿using static Moldinium.Baking.Unification;
-
-namespace Moldinium.Baking;
+﻿namespace Moldinium.Baking;
 
 public struct Unification
 {
@@ -60,23 +58,6 @@ public struct Unification
 			return true;
 		}
 
-		var sat = new SourceAndTarget<Type>(source, target);
-
-		var isArray = sat.Map(t => t.IsArray);
-
-		var elementTypes = sat.Map(t => t.GetElementType());
-
-		if (source.IsArray)
-		{
-			if (target.IsArray)
-			{
-
-
-				var sourceElementType = source.GetElementType();
-				var targetElementType = target.GetElementType();
-			}
-		}
-
 		if (!source.IsGenericType || !target.IsGenericType)
 		{
 			return false;
@@ -111,10 +92,22 @@ public struct Unification
 		return true;
 	}
 
-	public record struct SourceAndTarget<T>(T Source, T Target)
+	// Unused, an idea for when we need to unify the other specific variants that types can have
+	public record struct TypeShape(
+		Type? GenericTypeDefinition,
+		Boolean IsValueType,
+		Boolean IsArray,
+		Boolean IsPointer,
+		Boolean IsRef)
 	{
-		public SourceAndTarget<T2> Map<T2>(Func<T, T2> map) => new(map(Source), map(Target));
+		static Type? GetGenericTypeDefinitionOrNull(Type type)
+		{
+			return type.IsGenericType ? type.GetGenericTypeDefinition() : null;
+		}
 
-		//public Boolean TryMap<T2>(Func<T, T2> map) => new(map(Source), map(Target));
+		public TypeShape(Type type)
+			: this(GetGenericTypeDefinitionOrNull(type), type.IsValueType, type.IsArray, type.IsPointer, type.IsByRef)
+		{
+		}		
 	}
 }

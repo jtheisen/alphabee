@@ -115,14 +115,8 @@ public class LayoutPropertyImplementationProvider : PropertyImplementationProvid
 		{
 			return Get(typeof(LayoutNullableStructPropertyImplementation<>));
 		}
-		else if (InlineSpanAttribute.IsInlineSpan(property, out var length))
+		else if (Spanlikes.IsInlineSpanlike(property, out _))
 		{
-			var valueType = Spanlikes.GetTypeFromSpanlikeOrNull(type);
-
-			Trace.Assert(valueType is not null, $"Unsupported span-like property type {type}");
-
-			var spacerType = LayoutSpacerBakery.Intance.EnsureSpacerType(valueType.SizeOf() * length);
-
 			return Get(typeof(InlineSpanPropertyImplementation<,>));
 		}
 		else
