@@ -190,7 +190,9 @@ public class CheckedImplementation
             switch (kind)
             {
                 case ImplementationTypeArgumentKind.Arg:
-                    arguments.Add(implementationValueArgument ?? Throw());
+                    var arg = Unification.UnifyForSpecificArgument(implementationValueArgument ?? Throw(), propertyOrHandlerType ?? Throw(), type);
+
+                    arguments.Add(arg);
                     break;
 				case ImplementationTypeArgumentKind.Value:
                 case ImplementationTypeArgumentKind.Handler:

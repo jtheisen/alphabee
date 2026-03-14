@@ -1,4 +1,6 @@
-﻿namespace Moldinium.Baking;
+﻿using static Moldinium.Baking.Unification;
+
+namespace Moldinium.Baking;
 
 public struct Unification
 {
@@ -58,6 +60,12 @@ public struct Unification
 			return true;
 		}
 
+		var sat = new SourceAndTarget<Type>(source, target);
+
+		var isArray = sat.Map(t => t.IsArray);
+
+		var elementTypes = sat.Map(t => t.GetElementType());
+
 		if (source.IsArray)
 		{
 			if (target.IsArray)
@@ -103,8 +111,10 @@ public struct Unification
 		return true;
 	}
 
-	public record struct SourceAndTarget<T>(T source, T target)
+	public record struct SourceAndTarget<T>(T Source, T Target)
 	{
+		public SourceAndTarget<T2> Map<T2>(Func<T, T2> map) => new(map(Source), map(Target));
 
+		//public Boolean TryMap<T2>(Func<T, T2> map) => new(map(Source), map(Target));
 	}
 }
