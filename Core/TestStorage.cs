@@ -21,7 +21,7 @@ public abstract class AbstractTestStorage
 
 	public abstract ref T GetObject<T>(Int64 address) where T : unmanaged;
 
-	public abstract Span<T> GetArrayObject<T>(Int64 address) where T : unmanaged;
+	public abstract Span<T> GetValueArrayObject<T>(Int64 address, out ObjectHeader header) where T : unmanaged;
 
 	public abstract void AllocateObject(ObjectHeader header, out Int64 address);
 
@@ -122,9 +122,9 @@ public class TestStorage : AbstractTestStorage
 		return ref content[0];
 	}
 
-	public override Span<T> GetArrayObject<T>(Int64 address)
+	public override Span<T> GetValueArrayObject<T>(Int64 address, out ObjectHeader header)
 	{
-		ref var header = ref GetCore<ObjectHeader>(address);
+		header = GetCore<ObjectHeader>(address);
 
 		Trace.Assert(header.IsArray);
 

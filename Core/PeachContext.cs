@@ -16,6 +16,8 @@ public abstract class AbstractPeachContext
 
 	public abstract void SetObjectToReferenceAddress(Int64 referenceAddress, Object? value);
 
+	public abstract Span<T> GetValueArrayObject<T>(Int64 address, out ObjectHeader header) where T : unmanaged;
+
 	public T New<T>() where T : class => New<T>(null);
 
 	public T New<T>(Action<T>? init)
@@ -35,12 +37,11 @@ public abstract class AbstractPeachContext
 	//	return target;
 	//}
 
-	//public abstract IArrayPeach<Object> NewArray(Type elementType, Int32 length);
-
 	public abstract Object New(Type interfaceType);
 
 	public abstract Object New(TypeNo typeNo);
 
+	public abstract IValueBeeArray<T> NewValueArray<T>(Int32 length) where T : unmanaged;
 }
 
 public class PeachContext : AbstractPeachContext
@@ -117,6 +118,11 @@ public class PeachContext : AbstractPeachContext
 		}
 	}
 
+	public override Span<T> GetValueArrayObject<T>(Int64 address, out ObjectHeader header)
+	{
+		return storage.GetValueArrayObject<T>(address, out header);
+	}
+
 	public override Object New(Type interfaceType)
 	{
 		typeRegistry.EnsureCanonicalImplementation(interfaceType, out var typeNo, out _);
@@ -139,21 +145,27 @@ public class PeachContext : AbstractPeachContext
 		return peach;
 	}
 
-	//public override IArrayPeach<Object> NewArray(Type elementClrType, Int32 length)
-	//{
-	//	typeRegistry.EnsureCanonicalImplementation(elementClrType, out var typeNo, out _);
-
-	//	var header = ObjectHeader.CreateForRef(typeNo, length);
-
-	//	storage.AllocateArrayObject<Ref>(header, out var address, out _);
-
-
-	//}
-
 	IPeachMixin CreatePeach(TypeNo typeNo)
 	{
 		typeRegistry.GetImplementation(typeNo, out var implementationType, out _);
 
 		return implementationType.CreateInstance<IPeachMixin>();
+	}
+
+	public override IValueBeeArray<T> NewValueArray<T>(Int32 length)
+	{
+		typeRegistry.EnsureCanonicalImplementation(typeof(T), out var typeNo, out _);
+
+		storage.AllocateArrayObject<T>(new(typeNo, new(length, Unsafe.SizeOf<T>())), out var address, out _);
+
+		var array = new ValueBeeArrayImplementation<T>();
+
+		array.Length = length;
+
+		var boxed = array as IValueBeeArray<T>;
+
+		boxed.Init(this, address);
+
+		return boxed;
 	}
 }

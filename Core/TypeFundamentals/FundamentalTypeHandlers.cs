@@ -122,7 +122,7 @@ public struct Ucs2StringTypeHandler : ISingletonObjectTypeHandler<Ucs2StringType
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{
-		var chars = storage.GetArrayObject<Char>(address);
+		var chars = storage.GetValueArrayObject<Char>(address);
 
 		return new String(chars);
 	}
@@ -148,7 +148,7 @@ public struct StructArrayTypeHandler<T> : ISingletonObjectTypeHandler<StructArra
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{
-		var items = storage.GetArrayObject<T>(address);
+		var items = storage.GetValueArrayObject<T>(address);
 
 		return items.ToArray();
 	}
@@ -174,7 +174,7 @@ public struct NullableStructArrayTypeHandler<T> : ISingletonObjectTypeHandler<Nu
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{
-		var items = storage.GetArrayObject<NullableStruct<T>>(address);
+		var items = storage.GetValueArrayObject<NullableStruct<T>>(address);
 
 		var result = new T?[items.Length];
 
@@ -203,7 +203,7 @@ public struct ObjectArrayTypeHandler : ISingletonObjectTypeHandler<ObjectArrayTy
 
 	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
 	{
-		var addresses = storage.GetArrayObject<Int64>(address);
+		var addresses = storage.GetValueArrayObject<Int64>(address);
 
 		var n = addresses.Length;
 

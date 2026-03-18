@@ -15,11 +15,12 @@ public interface IPeach : IPeachMixin
 [ImplementExplicitly]
 public interface IPeachMixin
 {
-	AbstractPeachContext Context { get; }
+	PeachConnection Connection { get; set; }
 
-	Int64 Address { get; }
+	Int64 Address => Connection.Address;
+	AbstractPeachContext Context => Connection.Context;
 
-	void Init(AbstractPeachContext context, Int64 address);
+	void Init(AbstractPeachContext context, Int64 address) => Connection = new(context, address);
 }
 
 [IgnoreForBaking]
@@ -38,65 +39,60 @@ public interface IInternalPeachMixin : IPeachMixin
 	void SetObject<T>(Int32 offset, T? value) where T : class;
 }
 
+public readonly record struct PeachConnection(AbstractPeachContext Context, Int64 Address);
+
 public struct InternalPeachMixin : IInternalPeachMixin
 {
-	Int64 address;
-	AbstractPeachContext context;
+	public PeachConnection Connection { get; set; }
 
-	public Int64 Address => address;
-	public AbstractPeachContext Context => context;
+	public Int64 Address => Connection.Address;
+	public AbstractPeachContext Context => Connection.Context;
 
-	public void Init(AbstractPeachContext context, Int64 address)
-	{
-		this.context = context;
-		this.address = address;
-	}
-
-	Int64 GetFieldAddress(Int32 offset) => address + offset;
+	Int64 GetFieldAddress(Int32 offset) => Address + offset;
 
 	public Span<T> GetSpan<T>(Int32 offset, Int32 length) where T : unmanaged
 	{
 		var fieldAddress = GetFieldAddress(offset);
 
-		return context.GetSpan<T>(fieldAddress, length);
+		return Context.GetSpan<T>(fieldAddress, length);
 	}
 
 	public T GetValue<T>(Int32 offset) where T : unmanaged
 	{
 		var fieldAddress = GetFieldAddress(offset);
 
-		return context.GetValue<T>(fieldAddress);
+		return Context.GetValue<T>(fieldAddress);
 	}
 
 	public void SetValue<T>(Int32 offset, T value) where T : unmanaged
 	{
-		context.SetValue(GetFieldAddress(offset), value);
+		Context.SetValue(GetFieldAddress(offset), value);
 	}
 
 	public T? GetNullableValue<T>(Int32 offset) where T : unmanaged
 	{
 		var fieldAddress = GetFieldAddress(offset);
 
-		return context.GetValue<NullableStruct<T>>(fieldAddress);
+		return Context.GetValue<NullableStruct<T>>(fieldAddress);
 	}
 
 	public void SetNullableValue<T>(Int32 offset, T? value) where T : unmanaged
 	{
 		var fieldAddress = GetFieldAddress(offset);
 
-		context.SetValue<NullableStruct<T>>(fieldAddress, value);
+		Context.SetValue<NullableStruct<T>>(fieldAddress, value);
 	}
 
 	public T? GetObject<T>(Int32 offset) where T : class
 	{
 		var address = GetFieldAddress(offset);
 
-		return (T?)context.GetObjectFromReferenceAddress(address);
+		return (T?)Context.GetObjectFromReferenceAddress(address);
 	}
 
 	public void SetObject<T>(Int32 offset, T? value) where T : class
 	{
-		context.SetObjectToReferenceAddress(GetFieldAddress(offset), value);
+		Context.SetObjectToReferenceAddress(GetFieldAddress(offset), value);
 	}
 }
 
