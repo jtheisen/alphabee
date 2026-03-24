@@ -27,7 +27,7 @@ public struct FundamentalTypesStruct
 
 			if (handler is not null)
 			{
-				var reportedTypeByte = handler.TypeNo.typeByte;
+				var reportedTypeByte = handler.TypeNo.TypeByte;
 
 				Trace.Assert(reportedTypeByte == typeByte,
 					$"Type handler '{handler}' reports TypeByte '{reportedTypeByte}', but '{typeByte}' was expected");

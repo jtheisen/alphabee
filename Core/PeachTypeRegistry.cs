@@ -106,7 +106,7 @@ public class PeachTypeRegistry : IPropNumbersResolver
 		{
 			if (self.firstNewTypeNo == 0 && !isBootstrappedType)
 			{
-				self.firstNewTypeNo = TypeNo.no;
+				self.firstNewTypeNo = TypeNo.No;
 			}
 
 			if (!GetImplementation(out var configuration, out var implementationType))
@@ -194,7 +194,7 @@ public class PeachTypeRegistry : IPropNumbersResolver
 			var typeNo = entry.TypeNo;
 			var interfaceType = entry.InterfaceType;
 
-			Trace.Assert(typeNo.no == i);
+			Trace.Assert(typeNo.No == i);
 
 			if (!entry.GetImplementation(out var configuration, out var implementationType))
 			{
@@ -399,7 +399,7 @@ public class PeachTypeRegistry : IPropNumbersResolver
 
 		implementationType = peachBakery.Resolve(interfaceType, configuration);
 
-		Debug.Assert(implementationType.Name.EndsWith(typeNo.no.ToString()), $"Created type {implementationType}'s name doesn't say it's number for TypeNo {typeNo}");
+		Debug.Assert(implementationType.Name.EndsWith(typeNo.No.ToString()), $"Created type {implementationType}'s name doesn't say it's number for TypeNo {typeNo}");
 
 		entry.SetImplementation(this, configuration, implementationType);
 	}
@@ -439,11 +439,11 @@ public class PeachTypeRegistry : IPropNumbersResolver
 
 		Trace.Assert(!typeNo.IsFundamental);
 
-		Trace.Assert(typeNo.no > 0);
+		Trace.Assert(typeNo.No > 0);
 
 		try
 		{
-			return typesTypesByNo[typeNo.no] ?? Throw(typeNo);
+			return typesTypesByNo[typeNo.No] ?? Throw(typeNo);
 		}
 		catch (ArgumentOutOfRangeException)
 		{
@@ -495,7 +495,7 @@ public class PeachTypeRegistry : IPropNumbersResolver
 
 		var typeNo = desiredTypeNo ?? new TypeNo(nextTypeNo++);
 
-		var no = typeNo.no;
+		var no = typeNo.No;
 
 		while (typesTypesByNo.Count <= no)
 		{
@@ -659,7 +659,7 @@ public class PeachTypeRegistry : IPropNumbersResolver
 
 			Trace.Assert(target is not null);
 
-			if (target.Header.TypeNo.no != i)
+			if (target.Header.TypeNo.No != i)
 			{
 				didWrite = true;
 

@@ -5,13 +5,16 @@ namespace AlphaBee;
 
 [DebuggerDisplay("{ToString()}")]
 [StructLayout(LayoutKind.Explicit, Size = 4)]
-public readonly struct TypeNo : IEquatable<TypeNo>
+public readonly record struct TypeNo
 {
 	[FieldOffset(0)]
-	public readonly Int32 no;
+	readonly Int32 no;
 
 	[FieldOffset(3)]
-	public readonly TypeByte typeByte;
+	readonly TypeByte typeByte;
+
+	public Int32 No => no;
+	public TypeByte TypeByte => typeByte;
 
 	public Boolean IsArray => typeByte.IsSpan;
 
@@ -37,21 +40,13 @@ public readonly struct TypeNo : IEquatable<TypeNo>
 	{
 		if (typeByte.IsZero)
 		{
-			return $"#{no}";
+			return $"#{No}";
 		}
 		else
 		{
 			return $"{typeByte}";
 		}
 	}
-
-	public Boolean Equals(TypeNo other) => no == other.no;
-
-	public static Boolean operator ==(TypeNo lhs, TypeNo rhs) => lhs.Equals(rhs);
-	public static Boolean operator !=(TypeNo lhs, TypeNo rhs) => !lhs.Equals(rhs);
-
-	public override bool Equals(Object? obj) => obj is TypeNo other ? other.Equals(this) : false;
-	public override int GetHashCode() => no.GetHashCode();
 }
 
 [DebuggerDisplay("{ToString()}")]
@@ -59,34 +54,33 @@ public readonly struct TypeNo : IEquatable<TypeNo>
 public readonly record struct PropAndTypeNo(TypeNo DeclaringTypeNo, PropNo PropNo);
 
 [DebuggerDisplay("{ToString()}")]
-[StructLayout(LayoutKind.Explicit, Size = 4)]
-public readonly struct PropNo : IEquatable<PropNo>
+[StructLayout(LayoutKind.Sequential, Size = 4)]
+public readonly record struct PropNo(Int32 No)
 {
-	[FieldOffset(0)]
-	public readonly Int32 no;
+	public static implicit operator PropNo(Int32 no) => new PropNo(no);
 
-	public PropNo(Int32 no)
+	public override String ToString() => $"#{No}";
+}
+
+[DebuggerDisplay("{ToString()}")]
+[StructLayout(LayoutKind.Sequential, Size = 8)]
+public readonly record struct ArrayHeader(Int32 Length, Int32 ArrayLevel)
+{
+	static String GetBrackets(Int32 level)
 	{
-		this.no = no;
+		if (level == 0) return "";
+
+		var n = level * 2;
+		var chars = new Char[level * 2];
+		for (var i = 0; i < n; i += 2)
+		{
+			chars[i] = '[';
+			chars[i + 1] = ']';
+		}
+		return new String(chars);
 	}
 
-	public static implicit operator PropNo(Int32 no)
-	{
-		return new PropNo(no);
-	}
-
-	public override String ToString()
-	{
-		return $"#{no}";
-	}
-
-	public Boolean Equals(PropNo other) => no == other.no;
-
-	public static Boolean operator ==(PropNo lhs, PropNo rhs) => lhs.Equals(rhs);
-	public static Boolean operator !=(PropNo lhs, PropNo rhs) => !lhs.Equals(rhs);
-
-	public override bool Equals(Object? obj) => obj is PropNo other ? other.Equals(this) : false;
-	public override int GetHashCode() => no.GetHashCode();
+	public override String ToString() => $"{GetBrackets(ArrayLevel)}[{Length}]";
 }
 
 [DebuggerDisplay("{ToString()}")]

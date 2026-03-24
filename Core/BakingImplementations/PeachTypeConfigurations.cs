@@ -243,7 +243,7 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 
 	public PeachTypeLayout Layout => layout;
 
-	public String? TypeSuffix => useSuffix ? $"#{typeTypeNo.no}" : null;
+	public String? TypeSuffix => useSuffix ? $"#{typeTypeNo.No}" : null;
 
 	public Int32 Size => layout.Size;
 
@@ -265,7 +265,7 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 	{
 		if (property == TypeNoProperty)
 		{
-			return typeTypeNo.no;
+			return typeTypeNo.No;
 		}
 
 		var (typeNo, propNo, (offset, extent)) = layout.Properties[property];
@@ -273,9 +273,9 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 		switch (argumentName)
 		{
 			case "typeNo":
-				return typeNo.no;
+				return typeNo.No;
 			case "propNo":
-				return propNo.no;
+				return propNo.No;
 			case "size":
 				return extent.Size;
 			case "offset":

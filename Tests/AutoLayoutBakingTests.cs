@@ -41,6 +41,6 @@ public class AutoLayoutBakingTests
 
 		typeRegistry.EnsureCanonicalImplementation(typeof(IDerived), out _, out var implementationType);
 
-		Assert.IsTrue(typeRegistry.Resolve(typeof(IBase).GetProperty(nameof(IBase.Foo))!).PropNo.no > 0);
+		Assert.IsTrue(typeRegistry.Resolve(typeof(IBase).GetProperty(nameof(IBase.Foo))!).PropNo.No > 0);
 	}
 }

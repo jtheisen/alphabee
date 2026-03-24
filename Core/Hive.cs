@@ -88,7 +88,7 @@ public class Hive
 
 	ITypeDescription GetDescription(TypeNo typeNo)
 	{
-		var description = root.TypeDescriptions?[typeNo.no] as ITypeDescription;
+		var description = root.TypeDescriptions?[typeNo.No] as ITypeDescription;
 
 		Trace.Assert(description is not null);
 

@@ -55,7 +55,7 @@ public class PeachContext
 
 		if (header.TypeNo.IsFundamental)
 		{
-			var handler = FundamentalTypes.GetHandler(header.TypeNo.typeByte);
+			var handler = FundamentalTypes.GetHandler(header.TypeNo.TypeByte);
 
 			return handler.Get(storage, this, address);
 		}

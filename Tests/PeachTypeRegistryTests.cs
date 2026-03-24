@@ -60,7 +60,7 @@ public class PeachTypeRegistryTests
 
 		registry.LookupClrType(typeof(Byte[]), out var byteArrayRef, out var byteArrayType);
 
-		Assert.AreEqual(TypeCode.Byte, byteArrayRef.typeByte.Code);
+		Assert.AreEqual(TypeCode.Byte, byteArrayRef.TypeByte.Code);
 		Assert.AreEqual(typeof(Byte[]), byteArrayType);
 	}
 
@@ -85,10 +85,10 @@ public class PeachTypeRegistryTests
 
 		Assert.AreEqual(foo1Type, fooType);
 
-		Assert.AreEqual(1, foo1Type.CreateInstance<IPeach>()?.ImplementationTypeNo.no);
+		Assert.AreEqual(1, foo1Type.CreateInstance<IPeach>()?.ImplementationTypeNo.No);
 
-		Assert.AreEqual(1, fooRef.no);
-		Assert.AreEqual(2, barRef.no);
+		Assert.AreEqual(1, fooRef.No);
+		Assert.AreEqual(2, barRef.No);
 
 		registry.Validate();
 	}
