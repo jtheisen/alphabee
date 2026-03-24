@@ -26,11 +26,9 @@ public class TrivialPropNumbersResolver : IPropNumbersResolver
 
 [StructLayout(LayoutKind.Sequential, Size = 16)]
 [DebuggerDisplay("{ToString()}")]
-public readonly record struct PropertyEntry(ObjectHeader TypeAndExtent, PropNo PropNo, Int32 Offset)
+public readonly record struct PropertyEntry(TypeNo PropertyTypeNo, PropNo PropNo, OffsetExtent OffsetExtent)
 {
-	public OffsetExtent OffsetExtent => new(TypeAndExtent.Extent, Offset);
-	public ObjectExtent Extent => TypeAndExtent.Extent;
-	public Int32 Size => Extent.Size;
+	public Int32 Size => OffsetExtent.Size;
 
 	public override String ToString()
 	{
@@ -183,7 +181,7 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 				extent = new(field.Size);
 			}
 
-			dict[property] = new PropertyEntry(new(typeNo, extent), propNo, field.Offset);
+			dict[property] = new PropertyEntry(typeNo, propNo, new(field.Offset, extent));
 		}
 
 		return new PeachTypeLayout(dict, layoutType.SizeOf(), interfaceType);
@@ -222,7 +220,7 @@ public record PeachTypeLayout(PropertyBakingInfosDictionary Properties, Int32 Si
 
 			var pd = propertyDescription;
 
-			dict.Add(property, new(pd.Header, pd.PropNo, pd.Offset));
+			dict.Add(property, new(pd.PropTypeNo, pd.PropNo, pd.OffsetExtent));
 		}
 
 		return new PeachTypeLayout(dict, size, clrType);
@@ -270,9 +268,7 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 			return typeTypeNo.no;
 		}
 
-		var (tae, propNo, offset) = layout.Properties[property];
-
-		var (typeNo, extent) = tae;
+		var (typeNo, propNo, (offset, extent)) = layout.Properties[property];
 
 		switch (argumentName)
 		{
@@ -282,8 +278,6 @@ public class PeachTypeConfiguration : IPeachTypeConfiguration
 				return propNo.no;
 			case "size":
 				return extent.Size;
-			case "typeAndExtent":
-				return tae.Int64;
 			case "offset":
 				return offset + ObjectHeader.Size;
 			case "lengthAsArray":

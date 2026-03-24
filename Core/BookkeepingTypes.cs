@@ -17,40 +17,39 @@ public struct HiveRoot
 [PeachLayout(typeof(PropertyDescriptionLayout))]
 public interface IPropertyDescription
 {
-	ObjectHeader Header { get; set; }
+	TypeNo PropTypeNo { get; set; }
 
 	PropNo PropNo { get; set; }
 
-	Int32 Offset { get; set; }
+	OffsetExtent OffsetExtent { get; set; }
 
 	String? ClrName { get; set; }
 
-	//TypeNo TypeNo => Header.TypeNo;
+	Int32 ArrayLevel { get; set; }
 
-	//ObjectExtent Extent => Header.Extent;
+	public PropertyEntry GetPropertyEntry() => new(PropTypeNo, PropNo, OffsetExtent);
 
-	//OffsetExtent OffsetExtent => new(Extent, Offset);
-
-	public PropertyEntry GetPropertyEntry() => new(Header, PropNo, Offset);
-
-	public void Deconstruct(out ObjectHeader tae, out PropNo propNo, out Int32 offset)
+	public void Deconstruct(out TypeNo propertyTypeNo, out PropNo propNo, out Int32 offset, out ObjectExtent extent)
 	{
-		tae = Header;
+		propertyTypeNo = PropTypeNo;
 		propNo = PropNo;
-		offset = Offset;
+		offset = OffsetExtent.Offset;
+		extent = OffsetExtent.Extent;
 	}
 }
 
 [StructLayout(LayoutKind.Sequential)]
 public struct PropertyDescriptionLayout
 {
-	public ObjectHeader Header;
+	public TypeNo PropTypeNo;	
 
 	public PropNo PropNo;
 
-	public Int32 Offset;
+	public OffsetExtent OffsetExtent;
 
 	public Int64 ClrName;
+
+	public Int32 ArrayLevel;
 }
 
 [PeachLayout(typeof(TypeDescriptionLayout))]

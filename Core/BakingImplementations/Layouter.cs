@@ -29,7 +29,7 @@ public abstract class Layouter2
 
 		foreach (var (_, entry) in entries)
 		{
-			var (extent, offset) = entry;
+			var (offset, extent) = entry;
 
 			for (var i = 0; i < extent.Size; ++i)
 			{
@@ -68,7 +68,7 @@ public class NaiveLayouter : Layouter2
 
 			var extent = metadata.GetExtent(property);
 
-			entries[i] = new PropertyLayout(property, new OffsetExtent(extent, p));
+			entries[i] = new PropertyLayout(property, new OffsetExtent(p, extent));
 
 			p += extent.Size;
 		}

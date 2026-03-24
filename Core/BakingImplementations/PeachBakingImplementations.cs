@@ -17,10 +17,10 @@ public interface IPeachMixin
 {
 	PeachConnection Connection { get; set; }
 
-	Int64 Address => Connection.Address;
-	AbstractPeachContext Context => Connection.Context;
+	Int64 Address { get; }
+	PeachContext Context { get; }
 
-	void Init(AbstractPeachContext context, Int64 address) => Connection = new(context, address);
+	void Init(PeachContext context, Int64 address);
 }
 
 [IgnoreForBaking]
@@ -39,14 +39,16 @@ public interface IInternalPeachMixin : IPeachMixin
 	void SetObject<T>(Int32 offset, T? value) where T : class;
 }
 
-public readonly record struct PeachConnection(AbstractPeachContext Context, Int64 Address);
+public readonly record struct PeachConnection(PeachContext Context, Int64 Address);
 
 public struct InternalPeachMixin : IInternalPeachMixin
 {
 	public PeachConnection Connection { get; set; }
 
 	public Int64 Address => Connection.Address;
-	public AbstractPeachContext Context => Connection.Context;
+	public PeachContext Context => Connection.Context;
+
+	public void Init(PeachContext context, Int64 address) => Connection = new(context, address);
 
 	Int64 GetFieldAddress(Int32 offset) => Address + offset;
 

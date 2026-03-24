@@ -246,10 +246,6 @@ public class CheckedImplementation
         if (makeGenericWithBaseType)
         {
 			Trace.Assert(propertyOrHandlerType is not null, "Expected to have a type to use with implementation as per flag");
-			
-            propertyOrHandlerType = Nullable.GetUnderlyingType(propertyOrHandlerType!);
-
-			Trace.Assert(propertyOrHandlerType is not null, "Expected to have a nullable type to use with implementation as per flag");
 		}
 
 		var typeArguments = GetTypeArguments(Type, propertyOrHandlerType, returnType, extraType);

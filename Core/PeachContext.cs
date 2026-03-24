@@ -2,21 +2,16 @@
 
 namespace AlphaBee;
 
-public abstract class AbstractPeachContext
+public class PeachContext
 {
-	public abstract T GetValue<T>(Int64 address) where T : unmanaged;
+	private readonly AbstractTestStorage storage;
+	private readonly PeachTypeRegistry typeRegistry;
 
-	public abstract void SetValue<T>(Int64 address, T value) where T : unmanaged;
-
-	public abstract Span<T> GetSpan<T>(Int64 address, Int32 length) where T : unmanaged;
-
-	public abstract Object? GetObject(Int64 address);
-
-	public abstract Object? GetObjectFromReferenceAddress(Int64 referenceAddress);
-
-	public abstract void SetObjectToReferenceAddress(Int64 referenceAddress, Object? value);
-
-	public abstract Span<T> GetValueArrayObject<T>(Int64 address, out ObjectHeader header) where T : unmanaged;
+	public PeachContext(AbstractTestStorage storage, PeachTypeRegistry typeRegistry)
+	{
+		this.storage = storage;
+		this.typeRegistry = typeRegistry;
+	}
 
 	public T New<T>() where T : class => New<T>(null);
 
@@ -30,41 +25,27 @@ public abstract class AbstractPeachContext
 		return target;
 	}
 
-	//public IArrayPeach<T> NewArray<T>(Int32 length)
-	//{
-	//	var target = (IArrayPeach<T>)NewArray(typeof(T), length);
-
-	//	return target;
-	//}
-
-	public abstract Object New(Type interfaceType);
-
-	public abstract Object New(TypeNo typeNo);
-
-	public abstract IValueBeeArray<T> NewValueArray<T>(Int32 length) where T : unmanaged;
-}
-
-public class PeachContext : AbstractPeachContext
-{
-	private readonly AbstractTestStorage storage;
-	private readonly PeachTypeRegistry typeRegistry;
-
-	public PeachContext(AbstractTestStorage storage, PeachTypeRegistry typeRegistry)
-	{
-		this.storage = storage;
-		this.typeRegistry = typeRegistry;
-	}
-
-	public override Span<T> GetSpan<T>(Int64 address, Int32 length)
+	public Span<T> GetSpan<T>(Int64 address, Int32 length) where T : unmanaged
 	{
 		return storage.GetSpan<T>(address, length);
 	}
 
-	public override T GetValue<T>(Int64 offset) => storage.GetValue<T>(offset);
+	public T GetValue<T>(Int64 offset) where T : unmanaged => storage.GetValue<T>(offset);
 
-	public override void SetValue<T>(Int64 address, T value) => storage.SetValue(address, value);
+	public void SetValue<T>(Int64 address, T value) where T : unmanaged => storage.SetValue(address, value);
 
-	public override Object? GetObject(Int64 address)
+	public TPeach? GetPeach<TPeach>(Int64 address) where TPeach : class, IPeach, IPeachMixin, new()
+	{
+		if (address == 0) return null;
+
+		var peach = new TPeach();
+
+		peach.Init(this, address);
+
+		return peach;
+	}
+
+	public Object? GetObject(Int64 address)
 	{
 		if (address == 0) return null;
 
@@ -88,14 +69,14 @@ public class PeachContext : AbstractPeachContext
 		}
 	}
 
-	public override Object? GetObjectFromReferenceAddress(Int64 referenceAddress)
+	public Object? GetObjectFromReferenceAddress(Int64 referenceAddress)
 	{
 		var address = storage.GetValue<Int64>(referenceAddress);
 
 		return GetObject(address);
 	}
 
-	public override void SetObjectToReferenceAddress(Int64 referenceAddress, Object? value)
+	public void SetObjectToReferenceAddress(Int64 referenceAddress, Object? value)
 	{
 		if (value is null)
 		{
@@ -118,19 +99,19 @@ public class PeachContext : AbstractPeachContext
 		}
 	}
 
-	public override Span<T> GetValueArrayObject<T>(Int64 address, out ObjectHeader header)
+	public Span<T> GetValueArrayObject<T>(Int64 address, out ObjectHeader header) where T : unmanaged
 	{
 		return storage.GetValueArrayObject<T>(address, out header);
 	}
 
-	public override Object New(Type interfaceType)
+	public Object New(Type interfaceType)
 	{
 		typeRegistry.EnsureCanonicalImplementation(interfaceType, out var typeNo, out _);
 
 		return New(typeNo);
 	}
 
-	public override Object New(TypeNo typeNo)
+	public Object New(TypeNo typeNo)
 	{
 		typeRegistry.GetImplementation(typeNo, out var implementationType, out var size);
 
@@ -145,6 +126,9 @@ public class PeachContext : AbstractPeachContext
 		return peach;
 	}
 
+
+
+
 	IPeachMixin CreatePeach(TypeNo typeNo)
 	{
 		typeRegistry.GetImplementation(typeNo, out var implementationType, out _);
@@ -152,20 +136,20 @@ public class PeachContext : AbstractPeachContext
 		return implementationType.CreateInstance<IPeachMixin>();
 	}
 
-	public override IValueBeeArray<T> NewValueArray<T>(Int32 length)
-	{
-		typeRegistry.EnsureCanonicalImplementation(typeof(T), out var typeNo, out _);
+	//public IValueBeeArray<T> NewValueArray<T>(Int32 length)
+	//{
+	//	typeRegistry.EnsureCanonicalImplementation(typeof(T), out var typeNo, out _);
 
-		storage.AllocateArrayObject<T>(new(typeNo, new(length, Unsafe.SizeOf<T>())), out var address, out _);
+	//	storage.AllocateArrayObject<T>(new(typeNo, new(length, Unsafe.SizeOf<T>())), out var address, out _);
 
-		var array = new ValueBeeArrayImplementation<T>();
+	//	var array = new ValueBeeArrayImplementation<T>();
 
-		array.Length = length;
+	//	array.Length = length;
 
-		var boxed = array as IValueBeeArray<T>;
+	//	var boxed = array as IValueBeeArray<T>;
 
-		boxed.Init(this, address);
+	//	boxed.Init(this, address);
 
-		return boxed;
-	}
+	//	return boxed;
+	//}
 }

@@ -37,6 +37,11 @@ public struct ValueBeeArrayImplementation<T> : IValueBeeArrayImplementation<T>
 {
 	public PeachConnection Connection { get; set; }
 
+	public Int64 Address => Connection.Address;
+	public PeachContext Context => Connection.Context;
+
+	public void Init(PeachContext context, Int64 address) => Connection = new(context, address);
+
 	public Int32 Length { get; set; }
 }
 

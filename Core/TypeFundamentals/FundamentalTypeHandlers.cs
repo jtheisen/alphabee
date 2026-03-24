@@ -6,9 +6,9 @@ public interface ITypeHandler
 
 	TypeNo TypeNo { get; }
 
-	Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address);
+	Object Get(AbstractTestStorage storage, PeachContext context, Int64 address);
 
-	void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address);
+	void Set(AbstractTestStorage storage, PeachContext context, Object untyped, out Int64 address);
 
 	static virtual ITypeHandler GetHandler(TypeByte typeByte) => throw new NotImplementedException();
 
@@ -66,12 +66,12 @@ public struct UnimplementedMiscTypeHandler : ITypeHandler
 		this.message = message;
 	}
 
-	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
+	public Object Get(AbstractTestStorage storage, PeachContext context, Int64 address)
 	{
 		throw new NotImplementedException();
 	}
 
-	public void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address)
+	public void Set(AbstractTestStorage storage, PeachContext context, Object untyped, out Int64 address)
 	{
 		throw new NotImplementedException();
 	}
@@ -103,12 +103,12 @@ public struct UnimplementedSupportedStructTypeHandler : ITypeHandler
 		Type = type;
 	}
 
-	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 offset)
+	public Object Get(AbstractTestStorage storage, PeachContext context, Int64 offset)
 	{
 		throw new NotImplementedException();
 	}
 
-	public void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address)
+	public void Set(AbstractTestStorage storage, PeachContext context, Object untyped, out Int64 address)
 	{
 		throw new NotImplementedException();
 	}
@@ -120,14 +120,14 @@ public struct Ucs2StringTypeHandler : ISingletonObjectTypeHandler<Ucs2StringType
 
 	public TypeNo TypeNo => new TypeNo(new TypeByte(TypeCode.String, isSpan: true, isNullable: true));
 
-	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
+	public Object Get(AbstractTestStorage storage, PeachContext context, Int64 address)
 	{
-		var chars = storage.GetValueArrayObject<Char>(address);
+		var chars = storage.GetValueArrayObject<Char>(address, out _);
 
 		return new String(chars);
 	}
 
-	public void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address)
+	public void Set(AbstractTestStorage storage, PeachContext context, Object untyped, out Int64 address)
 	{
 		var value = (String)untyped;
 
@@ -146,14 +146,14 @@ public struct StructArrayTypeHandler<T> : ISingletonObjectTypeHandler<StructArra
 
 	public TypeNo TypeNo => new TypeNo(new TypeByte(typeof(T).GetTypeCode(), isSpan: true));
 
-	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
+	public Object Get(AbstractTestStorage storage, PeachContext context, Int64 address)
 	{
-		var items = storage.GetValueArrayObject<T>(address);
+		var items = storage.GetValueArrayObject<T>(address, out _);
 
 		return items.ToArray();
 	}
 
-	public void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address)
+	public void Set(AbstractTestStorage storage, PeachContext context, Object untyped, out Int64 address)
 	{
 		var value = (T[])untyped;
 
@@ -172,9 +172,9 @@ public struct NullableStructArrayTypeHandler<T> : ISingletonObjectTypeHandler<Nu
 
 	public TypeNo TypeNo => new TypeNo(new TypeByte(typeof(T).GetTypeCode(), isSpan: true, isNullable: true));
 
-	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
+	public Object Get(AbstractTestStorage storage, PeachContext context, Int64 address)
 	{
-		var items = storage.GetValueArrayObject<NullableStruct<T>>(address);
+		var items = storage.GetValueArrayObject<NullableStruct<T>>(address, out _);
 
 		var result = new T?[items.Length];
 
@@ -183,7 +183,7 @@ public struct NullableStructArrayTypeHandler<T> : ISingletonObjectTypeHandler<Nu
 		return result;
 	}
 
-	public void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address)
+	public void Set(AbstractTestStorage storage, PeachContext context, Object untyped, out Int64 address)
 	{
 		var value = (T?[])untyped;
 
@@ -201,9 +201,9 @@ public struct ObjectArrayTypeHandler : ISingletonObjectTypeHandler<ObjectArrayTy
 
 	public TypeNo TypeNo => new TypeNo(new TypeByte(TypeCode.Object, isSpan: true, isNullable: true));
 
-	public Object Get(AbstractTestStorage storage, AbstractPeachContext context, Int64 address)
+	public Object Get(AbstractTestStorage storage, PeachContext context, Int64 address)
 	{
-		var addresses = storage.GetValueArrayObject<Int64>(address);
+		var addresses = storage.GetValueArrayObject<Int64>(address, out _);
 
 		var n = addresses.Length;
 
@@ -219,7 +219,7 @@ public struct ObjectArrayTypeHandler : ISingletonObjectTypeHandler<ObjectArrayTy
 		return array;
 	}
 
-	public void Set(AbstractTestStorage storage, AbstractPeachContext context, Object untyped, out Int64 address)
+	public void Set(AbstractTestStorage storage, PeachContext context, Object untyped, out Int64 address)
 	{
 		var items = (Object[])untyped;
 

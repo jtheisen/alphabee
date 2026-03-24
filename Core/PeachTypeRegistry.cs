@@ -8,6 +8,15 @@ using PeachTypeInfo = (System.Type implementationType, AlphaBee.PeachTypeConfigu
 
 namespace AlphaBee;
 
+public interface ITypeRegistry
+{
+
+
+	ObjectHeader GetTaeForNewObject(TypeNo typeNo);
+
+	ObjectHeader GetTaeForNewArray(TypeNo typeNo);
+}
+
 public class PeachTypeRegistry : IPropNumbersResolver
 {
 	Int32 nextTypeNo = 1, nextPropNo = 1, firstNewTypeNo = 0;
@@ -570,7 +579,7 @@ public class PeachTypeRegistry : IPropNumbersResolver
 
 				var property = interfaceType.GetNonNullProperty(propertyEntry.ClrName);
 
-				AssignPropNo(property, propertyEntry.Header.TypeNo, propertyEntry.PropNo);
+				AssignPropNo(property, propertyEntry.PropTypeNo, propertyEntry.PropNo);
 			}
 		}
 
@@ -695,9 +704,10 @@ public class PeachTypeRegistry : IPropNumbersResolver
 
 			var p = properties[i] = factory.CreatePropertyDecription();
 			p.ClrName = property.GetFqPropertyName();
+			p.PropTypeNo = propTypeNo;
 			p.PropNo = nos.PropNo;
-			p.Offset = entry.Offset;
-			p.Header = new(propTypeNo, entry.Extent);
+			p.OffsetExtent = entry.OffsetExtent;
+			p.ArrayLevel = 0;
 		}
 
 		target.Properties = properties;
