@@ -63,9 +63,13 @@ public readonly record struct PropNo(Int32 No)
 }
 
 [DebuggerDisplay("{ToString()}")]
-[StructLayout(LayoutKind.Sequential, Size = 8)]
+[StructLayout(LayoutKind.Sequential, Size = Size)]
 public readonly record struct ArrayHeader(Int32 Length, Int32 ArrayLevel)
 {
+	public const Int32 Size = 8;
+
+	public Boolean IsEmpty => this == default;
+
 	static String GetBrackets(Int32 level)
 	{
 		if (level == 0) return "";

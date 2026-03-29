@@ -11,6 +11,8 @@ public abstract class AbstractTestStorage
 
 	public abstract Int64 Position { get; }
 
+	public ref T At<T>(Int64 address) where T : unmanaged => ref GetSpan<T>(address, 1)[0];
+
 	public abstract Span<T> GetSpan<T>(Int64 address, Int32 length) where T : unmanaged;
 
 	public abstract T GetValue<T>(Int64 address) where T : unmanaged;
@@ -19,15 +21,21 @@ public abstract class AbstractTestStorage
 
 	public ObjectHeader GetHeader(Int64 address) => GetValue<ObjectHeader>(address);
 
-	public abstract ref T GetObject<T>(Int64 address) where T : unmanaged;
+	public ArrayHeader GetArrayHeader(Int64 address) => GetValue<ArrayHeader>(address + ObjectHeader.Size);
 
-	public abstract Span<T> GetValueArrayObject<T>(Int64 address, out ObjectHeader header) where T : unmanaged;
+	public abstract ref T GetObject<T>(Int64 address) where T : unmanaged;
 
 	public abstract void AllocateObject(ObjectHeader header, out Int64 address);
 
 	public abstract ref T AllocateObject<T>(ObjectHeader header, out Int64 address) where T : unmanaged;
 
-	public abstract void AllocateArrayObject<T>(ObjectHeader header, out Int64 address, out Span<T> content) where T : unmanaged;
+	public abstract void AllocateArray(ObjectHeader header, ArrayHeader arrayHeader, out Int64 address);
+
+	public abstract Span<T> GetArraySpan<T>(Int64 address) where T : unmanaged;
+
+	// deprecated, used in the fundamental type handlers
+	public abstract Span<T> GetValueArrayObjectOld<T>(Int64 address, out ObjectHeader header) where T : unmanaged;
+	public abstract void AllocateArrayObjectOld<T>(ObjectHeader header, out Int64 address, out Span<T> content) where T : unmanaged;
 }
 
 public class TestStorage : AbstractTestStorage
@@ -65,11 +73,18 @@ public class TestStorage : AbstractTestStorage
 		return ref GetSpanCore<T>(address, 1)[0];
 	}
 
-	Span<T> GetContentSpan<T>(Int64 address, ObjectHeader header) where T : unmanaged
+	Span<T> GetContentSpanOld<T>(Int64 address, ObjectHeader header) where T : unmanaged
 	{
 		Trace.Assert(header.UnitSize == Unsafe.SizeOf<T>());
 
 		return GetSpanCore<T>(address + ObjectHeader.Size, header.ContentLength);
+	}
+
+	public override Span<T> GetArraySpan<T>(Int64 address)
+	{
+		var arrayHeader = GetArrayHeader(address);
+
+		return GetSpanCore<T>(address + ObjectHeader.Size + ArrayHeader.Size, arrayHeader.Length);
 	}
 
 	Span<T> GetSpanCore<T>(Int64 address, Int32 length) where T : unmanaged
@@ -115,22 +130,11 @@ public class TestStorage : AbstractTestStorage
 
 		Trace.Assert(!header.IsArray);
 
-		var content = GetContentSpan<T>(address, header);
+		var content = GetContentSpanOld<T>(address, header);
 
 		Trace.Assert(content.Length == 1);
 
 		return ref content[0];
-	}
-
-	public override Span<T> GetValueArrayObject<T>(Int64 address, out ObjectHeader header)
-	{
-		header = GetCore<ObjectHeader>(address);
-
-		Trace.Assert(header.IsArray);
-
-		var content = GetContentSpan<T>(address, header);
-
-		return content;
 	}
 
 	public override void AllocateObject(ObjectHeader header, out Int64 address)
@@ -151,7 +155,28 @@ public class TestStorage : AbstractTestStorage
 		return ref span[0];
 	}
 
-	public override void AllocateArrayObject<T>(ObjectHeader header, out Int64 address, out Span<T> content)
+	public override void AllocateArray(ObjectHeader header, ArrayHeader arrayHeader, out Int64 address)
+	{
+		var size = header.EntireSize;
+
+		address = EnsureSpace(size);
+
+		SetValue(address, header);
+		SetValue(address + ObjectHeader.Size, arrayHeader);
+	}
+
+	public override Span<T> GetValueArrayObjectOld<T>(Int64 address, out ObjectHeader header)
+	{
+		header = GetCore<ObjectHeader>(address);
+
+		Trace.Assert(header.IsArray);
+
+		var content = GetContentSpanOld<T>(address, header);
+
+		return content;
+	}
+
+	public override void AllocateArrayObjectOld<T>(ObjectHeader header, out Int64 address, out Span<T> content)
 	{
 		Trace.Assert(header.IsArray);
 
@@ -162,6 +187,6 @@ public class TestStorage : AbstractTestStorage
 	{
 		AllocateObject(header, out address);
 
-		content = GetContentSpan<T>(address, header);
+		content = GetContentSpanOld<T>(address, header);
 	}
 }

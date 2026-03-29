@@ -20,7 +20,7 @@ public class StorageTests
 
 		var header = ObjectHeader.CreateForStruct<Int16>(typeByte, 4);
 
-		storage.AllocateArrayObject<Int16>(header, out var address, out var content);
+		storage.AllocateArrayObjectOld<Int16>(header, out var address, out var content);
 
 		Assert.AreEqual(reserved, address);
 

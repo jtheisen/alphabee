@@ -122,7 +122,7 @@ public struct Ucs2StringTypeHandler : ISingletonObjectTypeHandler<Ucs2StringType
 
 	public Object Get(AbstractTestStorage storage, PeachContext context, Int64 address)
 	{
-		var chars = storage.GetValueArrayObject<Char>(address, out _);
+		var chars = storage.GetValueArrayObjectOld<Char>(address, out _);
 
 		return new String(chars);
 	}
@@ -133,7 +133,7 @@ public struct Ucs2StringTypeHandler : ISingletonObjectTypeHandler<Ucs2StringType
 
 		var header = ObjectHeader.CreateForStruct<Char>(TypeNo, value.Length);
 
-		storage.AllocateArrayObject<Char>(header, out address, out var chars);
+		storage.AllocateArrayObjectOld<Char>(header, out address, out var chars);
 
 		value.CopyTo(chars);
 	}
@@ -148,7 +148,7 @@ public struct StructArrayTypeHandler<T> : ISingletonObjectTypeHandler<StructArra
 
 	public Object Get(AbstractTestStorage storage, PeachContext context, Int64 address)
 	{
-		var items = storage.GetValueArrayObject<T>(address, out _);
+		var items = storage.GetValueArrayObjectOld<T>(address, out _);
 
 		return items.ToArray();
 	}
@@ -159,7 +159,7 @@ public struct StructArrayTypeHandler<T> : ISingletonObjectTypeHandler<StructArra
 
 		var header = ObjectHeader.CreateForStruct<T>(TypeNo, value.Length);
 
-		storage.AllocateArrayObject<T>(header, out address, out var items);
+		storage.AllocateArrayObjectOld<T>(header, out address, out var items);
 
 		value.CopyTo(items);
 	}
@@ -174,7 +174,7 @@ public struct NullableStructArrayTypeHandler<T> : ISingletonObjectTypeHandler<Nu
 
 	public Object Get(AbstractTestStorage storage, PeachContext context, Int64 address)
 	{
-		var items = storage.GetValueArrayObject<NullableStruct<T>>(address, out _);
+		var items = storage.GetValueArrayObjectOld<NullableStruct<T>>(address, out _);
 
 		var result = new T?[items.Length];
 
@@ -189,7 +189,7 @@ public struct NullableStructArrayTypeHandler<T> : ISingletonObjectTypeHandler<Nu
 
 		var header = ObjectHeader.CreateForStruct<NullableStruct<T>>(TypeNo, value.Length);
 
-		storage.AllocateArrayObject<NullableStruct<T>>(header, out address, out var items);
+		storage.AllocateArrayObjectOld<NullableStruct<T>>(header, out address, out var items);
 
 		items.CopyFrom(value.AsSpan());
 	}
@@ -203,7 +203,7 @@ public struct ObjectArrayTypeHandler : ISingletonObjectTypeHandler<ObjectArrayTy
 
 	public Object Get(AbstractTestStorage storage, PeachContext context, Int64 address)
 	{
-		var addresses = storage.GetValueArrayObject<Int64>(address, out _);
+		var addresses = storage.GetValueArrayObjectOld<Int64>(address, out _);
 
 		var n = addresses.Length;
 
@@ -227,7 +227,7 @@ public struct ObjectArrayTypeHandler : ISingletonObjectTypeHandler<ObjectArrayTy
 
 		var header = ObjectHeader.CreateForStruct<Int64>(TypeNo, n);
 
-		storage.AllocateArrayObject<Int64>(header, out address, out var addresses);
+		storage.AllocateArrayObjectOld<Int64>(header, out address, out var addresses);
 
 		for (var i = 0; i < n; ++i)
 		{

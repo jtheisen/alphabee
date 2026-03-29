@@ -1,6 +1,4 @@
-﻿using AlphaBee.Collections;
-
-namespace AlphaBee;
+﻿namespace AlphaBee;
 
 public class PeachContext
 {
@@ -13,18 +11,6 @@ public class PeachContext
 		this.typeRegistry = typeRegistry;
 	}
 
-	public T New<T>() where T : class => New<T>(null);
-
-	public T New<T>(Action<T>? init)
-		where T : class
-	{
-		var target = (T)New(typeof(T));
-
-		init?.Invoke(target);
-
-		return target;
-	}
-
 	public Span<T> GetSpan<T>(Int64 address, Int32 length) where T : unmanaged
 	{
 		return storage.GetSpan<T>(address, length);
@@ -33,6 +19,10 @@ public class PeachContext
 	public T GetValue<T>(Int64 offset) where T : unmanaged => storage.GetValue<T>(offset);
 
 	public void SetValue<T>(Int64 address, T value) where T : unmanaged => storage.SetValue(address, value);
+
+	public ArrayHeader GetArrayHeader(Int64 address) => storage.GetArrayHeader(address);
+
+	public Span<T> GetArraySpan<T>(Int64 address) where T : unmanaged => storage.GetArraySpan<T>(address);
 
 	public TPeach? GetPeach<TPeach>(Int64 address) where TPeach : class, IPeach, IPeachMixin, new()
 	{
@@ -78,40 +68,83 @@ public class PeachContext
 
 	public void SetObjectToReferenceAddress(Int64 referenceAddress, Object? value)
 	{
+		ref var address = ref storage.At<Int64>(referenceAddress);
+
+		SetObjectToAddress(ref address, value);
+	}
+
+	public void SetObjectToAddress(ref Int64 address, Object? value)
+	{
 		if (value is null)
 		{
-			storage.SetValue<Int64>(referenceAddress, 0);
+			address = 0;
 		}
 		else
 		{
 			if (value is IPeachMixin peach)
 			{
-				storage.SetValue(referenceAddress, peach.Address);
+				address = peach.Address;
 			}
 			else
 			{
 				var handler = FundamentalTypes.GetHandler(value.GetType());
 
-				handler.Set(storage, this, value, out var address);
-
-				storage.SetValue(referenceAddress, address);
+				handler.Set(storage, this, value, out address);
 			}
 		}
 	}
 
-	public Span<T> GetValueArrayObject<T>(Int64 address, out ObjectHeader header) where T : unmanaged
+	public Span<T> GetValueArrayObjectOld<T>(Int64 address, out ObjectHeader header) where T : unmanaged
 	{
-		return storage.GetValueArrayObject<T>(address, out header);
+		return storage.GetValueArrayObjectOld<T>(address, out header);
 	}
 
-	public Object New(Type interfaceType)
+	public T New<T>() where T : class => New<T>(null);
+
+	public T New<T>(Action<T>? init)
+		where T : class
+	{
+		var target = (T)NewObject(typeof(T));
+
+		init?.Invoke(target);
+
+		return target;
+	}
+
+	public IBeeArray<T> NewArray<T>(Int32 length)
+	{
+		Trace.Assert(IBeeArray<T>.ArrayLevel == 1, "Array levels above 1 are not yet supported");
+
+		var baseType = IBeeArray<T>.BaseType;
+
+		typeRegistry.EnsureCanonicalImplementation(baseType, out var typeNo, out _);
+
+		var peach = IBeeArray<T>.ImplementationType.CreateInstance<IBeeArrayInternal<T>>();
+
+		var (header, arrayHeader) = peach.GetHeaders(typeNo, length);
+
+		storage.AllocateArray(header, arrayHeader, out var address);
+
+		peach.Init(this, address);
+
+		return peach;
+	}
+
+	Object NewObject(Type interfaceType)
 	{
 		typeRegistry.EnsureCanonicalImplementation(interfaceType, out var typeNo, out _);
 
-		return New(typeNo);
+		return NewObject(typeNo);
 	}
 
-	public Object New(TypeNo typeNo)
+	//Object NewArray(Type interfaceType, ArrayHeader arrayHeader)
+	//{
+	//	typeRegistry.EnsureCanonicalImplementation(interfaceType, out var typeNo, out _);
+
+	//	return NewArray(typeNo, arrayHeader);
+	//}
+
+	Object NewObject(TypeNo typeNo)
 	{
 		typeRegistry.GetImplementation(typeNo, out var implementationType, out var size);
 
@@ -126,7 +159,22 @@ public class PeachContext
 		return peach;
 	}
 
+	//Object NewArray(TypeNo typeNo, ArrayHeader arrayHeader)
+	//{
+	//	Debug.Assert(!arrayHeader.IsEmpty);
 
+	//	typeRegistry.GetArrayImplementation(typeNo, arrayHeader, out var implementationType, out var size);
+
+	//	var header = ObjectHeader.CreateWithSize(typeNo, size);
+
+	//	storage.AllocateArray(header, arrayHeader, out var address);
+
+	//	var peach = implementationType.CreateInstance<IPeachMixin>();
+
+	//	peach.Init(this, address);
+
+	//	return peach;
+	//}
 
 
 	IPeachMixin CreatePeach(TypeNo typeNo)
