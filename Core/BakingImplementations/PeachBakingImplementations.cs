@@ -239,6 +239,8 @@ public class PeachPropertyImplementationProvider : PropertyImplementationProvide
 
 	public override PropertyImplementationWithFlags Get(PropertyInfo property)
 	{
+		if (property.DeclaringType?.Name.StartsWith("BeeList") ?? false) System.Diagnostics.Debugger.Break();
+
 		var propertyType = property.PropertyType;
 
 		var explicitly = ShouldImplementExplicitly(property);

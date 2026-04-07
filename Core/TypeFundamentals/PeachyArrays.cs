@@ -5,11 +5,11 @@ namespace AlphaBee;
 
 public interface IBeeArray<T> : IPeach
 {
-	static readonly Int32 ArrayLevel;
+	internal static readonly Int32 ArrayLevel;
 
-	static readonly Type ImplementationType;
+	internal static readonly Type ImplementationType;
 
-	static readonly Type BaseType;
+	internal static readonly Type BaseType;
 
 	static IBeeArray()
 	{
@@ -53,11 +53,15 @@ public interface IBeeArray<T> : IPeach
 	T this[Int32 i] { get; set; }
 
 	Int32 Length { get; }
+
+	void CopyTo(Int32 sourceIndex, IBeeArray<T> target, Int32 targetIndex, Int32 length);
+
+	void CopyTo(IBeeArray<T> target) => CopyTo(0, target, 0, Length);
 }
 
 public interface IBeeArrayInternal<T> : IBeeArray<T>, IPeachMixin
 {
-	public (ObjectHeader, ArrayHeader) GetHeaders(TypeNo typeNo, Int32 length)
+	(ObjectHeader, ArrayHeader) GetHeaders(TypeNo typeNo, Int32 length)
 	{
 		return new(new(typeNo, new(length * Unsafe.SizeOf<T>())), new(length, ArrayLevel));
 	}
@@ -77,17 +81,28 @@ public interface ValueBeeArray<T> : IValueBeeArray<T>
 	Span<T> IValueBeeArray<T>.AsSpan() => Context.GetValueArrayObjectOld<T>(Address, out _);
 }
 
-public interface IValueBeeArrayImplementation<T> : IValueBeeArray<T>, IPeachMixin
-	where T : unmanaged
+public interface IValueBeeArrayImplementation<TValue> : IValueBeeArray<TValue>, IPeachMixin
+	where TValue : unmanaged
 {
-	T IBeeArray<T>.this[Int32 i] { get => AsSpan()[i]; set => AsSpan()[i] = value; }
+	TValue IBeeArray<TValue>.this[Int32 i] { get => AsSpan()[i]; set => AsSpan()[i] = value; }
 
 	TypeNo IPeach.ImplementationTypeNo => throw new NotImplementedException();
 
-	Span<T> IValueBeeArray<T>.AsSpan() => Context.GetValueArrayObjectOld<T>(Address, out _);
+	Span<TValue> IValueBeeArray<TValue>.AsSpan() => Context.GetValueArrayObjectOld<TValue>(Address, out _);
+
+	void IBeeArray<TValue>.CopyTo(Int32 sourceIndex, IBeeArray<TValue> target, Int32 targetIndex, Int32 length)
+	{
+		if (target is not IValueBeeArrayImplementation<TValue> typedTarget)
+		{
+			throw new Exception($"Expected target to have the same implementation, but got {target.GetType()}");
+		}
+
+		var sourceSpan = AsSpan();
+		var targetSpan = typedTarget.AsSpan();
+
+		sourceSpan[sourceIndex..][..length].CopyTo(targetSpan[..targetIndex]);
+	}
 }
-
-
 
 public struct ReferenceBeeArrayImplementation<TValue> : IBeeArray<TValue?>, IBeeArrayInternal<TValue?>
 	where TValue : class
@@ -103,6 +118,19 @@ public struct ReferenceBeeArrayImplementation<TValue> : IBeeArray<TValue?>, IBee
 
 	ref Int64 At(Int32 i) => ref AsSpan()[i];
 
+	public void CopyTo(Int32 sourceIndex, IBeeArray<TValue?> target, Int32 targetIndex, Int32 length)
+	{
+		if (target is not ReferenceBeeArrayImplementation<TValue> typedTarget)
+		{
+			throw new Exception($"Expected target to have the same implementation, but got {target.GetType()}");
+		}
+
+		var sourceSpan = AsSpan();
+		var targetSpan = typedTarget.AsSpan();
+
+		sourceSpan[sourceIndex..][..length].CopyTo(targetSpan[..targetIndex]);
+	}
+
 	public TValue? this[Int32 i] { get => (TValue?)Context.GetObject(At(i)); set => Context.SetObjectToAddress(ref At(i), value); }
 
 	public Int32 Length => Context.GetArrayHeader(Address).Length;
@@ -110,8 +138,8 @@ public struct ReferenceBeeArrayImplementation<TValue> : IBeeArray<TValue?>, IBee
 	public TypeNo ImplementationTypeNo => throw new NotImplementedException();
 }
 
-public struct ValueBeeArrayImplementation<T> : IValueBeeArrayImplementation<T>, IBeeArrayInternal<T>
-	where T : unmanaged
+public struct ValueBeeArrayImplementation<TValue> : IValueBeeArrayImplementation<TValue>, IBeeArrayInternal<TValue>
+	where TValue : unmanaged
 {
 	public PeachConnection Connection { get; set; }
 
@@ -122,23 +150,3 @@ public struct ValueBeeArrayImplementation<T> : IValueBeeArrayImplementation<T>, 
 
 	public Int32 Length { get; set; }
 }
-
-//public struct BeeArray<T>
-//{
-//	private readonly IBeeArray<T> implementation;
-//	private readonly Int32 start;
-//	private readonly Int32 length;
-
-//	public BeeArray(IBeeArray<T> implementation, Int32 start, Int32 length)
-//	{
-//		this.implementation = implementation;
-//		this.start = start;
-//		this.length = length;
-//	}
-
-//	public Int32 Length => length;
-
-//	void CopyTo(IBeeArray<T> target);
-
-//}
-

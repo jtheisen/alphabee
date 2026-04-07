@@ -3,6 +3,8 @@ using System.Reflection.Emit;
 
 namespace AlphaBee.Information;
 
+#pragma warning disable CS0169
+
 [TestClass]
 public class InlineArrays
 {
